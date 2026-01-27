@@ -38,6 +38,20 @@ dist/
 *.pth
 *.h5
 *.ckpt
+# Resultados de treino e artefatos
+monai_wieghts/
+results/
+runs/
+# Arquivos de histórico e métricas
+*.csv
+*.json
+# Arquivos temporários
+*.pt
+*.tmp
+*.bak
+# Imagens do dataset
+*.jpg
+*.jpeg
 
 # Large CSV or result exports
 *.csv
