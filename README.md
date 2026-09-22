@@ -142,13 +142,84 @@ project/
 - All outputs are saved under `results/{run_id}_{epochs}/`
 - Use `tensorboard --logdir runs` to visualize training logs
 
-### MONAI MedNIST quickstart (new)
+### MedNIST quickstart
 
 ```bash
-cd "/home/users/u7594034/Área de trabalho/Masters" && ./myenv/bin/python -m src.main_train --epochs 50 --run_id run_mednist_50 --results_dir monai_wieghts
+./myenv/bin/python -m src.main_train --epochs 40 --run_id meu_run --model_name resnet18 --image_size 64
 ```
 
-Outputs (log, weights, history, param_types) are saved under `monai_wieghts/run_mednist_50/` by default.
+> ⚠️ Use `./myenv/bin/python -m pip`, **nunca** `./myenv/bin/pip`: os scripts wrapper de
+> `myenv/bin/` (pip, pytest, torchrun…) têm gravado o caminho de outro diretório do projeto
+> e executam no ambiente errado. O mesmo vale para `pytest` — use `python -m pytest`.
+
+## 🔧 Stack: PyTorch puro (sem MONAI)
+
+Desde 2026-09-21 (fase F3b) o projeto **não usa mais MONAI**. Tudo é PyTorch/torchvision:
+
+| antes | agora |
+|---|---|
+| `monai.apps.MedNISTDataset` | `src/data/mednist.py` + partição congelada |
+| `monai.networks.nets` | `torchvision.models` |
+| `monai.transforms` | `torchvision.transforms` |
+| `monai.data.DataLoader` | `torch.utils.data.DataLoader` |
+
+A **partição está congelada** em `data/mednist_split.json` — a lista exata de arquivos de
+cada conjunto, gerada uma única vez a partir do MONAI antes da remoção
+(`scripts/congelar_particao.py`). Ela deixou de depender da implementação interna de uma
+biblioteca e virou um dado versionado: qualquer pessoa reproduz a mesma divisão.
+
+As imagens em escala de cinza são replicadas para 3 canais, porque as redes do torchvision
+esperam RGB. A camada densa analisada continua sendo `fc` com forma **[6, 512] = 3.072 pesos**,
+idêntica à de antes.
+
+> Checkpoints anteriores a F3b foram treinados com a ResNet-18 do MONAI, que **não** é
+> numericamente idêntica à do torchvision. Runs novos formam uma nova linha de base.
+
+---
+
+## 🔬 Particionamento dos dados (treino / validação / teste)
+
+O projeto usa as **três seções oficiais do MedNIST**, sem recortes manuais:
+
+| Conjunto | n | Para que serve | Regra |
+|----------|---|----------------|-------|
+| treino | 47.164 (80 %) | ajustar os pesos | único que entra no `backward()` |
+| validação | 5.895 (10 %) | escolher a época e detectar overfitting | **nunca** entra no gradiente |
+| teste | 5.895 (10 %) | medir o desempenho final | **olhado uma única vez**, no fim |
+
+O teste é avaliado por `Trainer.evaluate_test()`, depois que o treino termina, recarregando os
+pesos da época de menor `val_loss` — nunca os da última época. O resultado vai para
+`test_metrics.json`, com a época avaliada registrada.
+
+### Duas sementes diferentes, de propósito
+
+| Flag | O que controla | Varia entre runs? |
+|------|----------------|-------------------|
+| `--data_seed` (default 0) | **quem** cai em treino/validação/teste | **Não** — fixa, senão os runs não são comparáveis e uma amostra trocaria de conjunto entre runs |
+| `--seed` (default 42) | inicialização dos pesos e ordem dos lotes | **Sim** — é o ponto de repetir o experimento |
+
+### Flags úteis
+
+```bash
+--data_seed 0          # semente da partição (mantenha fixa)
+--val_frac 0.1 --test_frac 0.1
+--train_fraction 1.0   # fração do treino usada; <1.0 subamostra de forma estratificada
+```
+
+> ⚠️ **Cuidado com `--train_fraction` pequeno.** Com poucos passos de treino, as estatísticas
+> móveis do BatchNorm não convergem e o modelo desaba em `eval()` — inclusive sobre o próprio
+> conjunto de treino. Isso **imita overfitting de forma convincente** sem ser overfitting. O
+> código emite `WARNING` abaixo de 200 passos. Para induzir overfitting de verdade, prefira
+> **ruído de rótulo**, que mantém o dataset inteiro.
+
+## 🧮 Complexidade: uma única implementação
+
+Todas as medidas (LMC, SampEn 1D/2D, MSE) vivem em **`src/complexity.py`**. Nenhum outro
+arquivo deve redefini-las. Pacote autocontido para compartilhar:
+`deliverables/complexity_reference/` (gerado por `python deliverables/build_deliverable.py`).
+
+Convenções fixadas: `n_bins=100`, `m=2`, `r=0.20·σ`, ordem de achatamento `n_major`
+(`n1x1, n1x2, …`). Ver `plan.md` §2 para a justificativa.
 
 ---
 

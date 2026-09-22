@@ -2,6 +2,7 @@ import os
 import tempfile
 
 import numpy as np
+import torch
 from PIL import Image
 
 from src.data.transforms import build_transforms
@@ -31,8 +32,14 @@ def test_dataset_loading_shape():
 
         transforms = build_transforms()
         train_ds, _ = create_datasets(train_samples, [], transforms, cache_rate=0.0)
-        train_loader, _ = create_loaders(train_ds, None, batch_size=2, num_workers=0)
+        train_loader, _, _ = create_loaders(train_ds, None, batch_size=2, num_workers=0)
 
         batch = next(iter(train_loader))
         images = batch["image"]
-        assert images.shape == (2, 1, 224, 224)
+        # 3 canais, nao 1: desde a F3b o pipeline replica o canal cinza para 3, porque
+        # as redes do torchvision esperam RGB (ver src/data/transforms.py).
+        assert images.shape == (2, 3, 224, 224)
+        # os tres canais tem de ser copias identicas do mesmo cinza
+        assert torch.equal(images[:, 0], images[:, 1])
+        assert torch.equal(images[:, 0], images[:, 2])
+        assert batch["label"].dtype == torch.long

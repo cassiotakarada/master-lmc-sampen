@@ -1,10 +1,24 @@
-torch
-torchvision
-numpy
-pandas
-matplotlib
-seaborn
-scipy
-scikit-learn
-medmnist
-tensorboard
+# --- PyTorch com CUDA ---
+# ATENCAO: sem o sufixo +cu124 o pip instala a build CPU-only e a GPU fica ociosa.
+# Foi exatamente o que aconteceu neste projeto ate 2026-09-21.
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.4.1+cu124
+torchvision==0.19.1+cu124
+
+# --- stack cientifica ---
+numpy==1.26.4
+pandas==2.1.4
+scipy==1.11.4
+scikit-learn==1.4.1
+matplotlib==3.6.3
+seaborn>=0.13.0
+Pillow==12.1.0
+tensorboard>=2.16.0
+
+# --- testes ---
+pytest>=8.0
+
+# MONAI foi REMOVIDO na F3b (2026-09-21): o projeto usa PyTorch/torchvision direto.
+# A particao do MedNIST, antes definida pelo MedNISTDataset do MONAI, esta congelada
+# em data/mednist_split.json -- ver scripts/congelar_particao.py.
+# medmnist so e necessario para os scripts legados em results/ (era do pipeline antigo).

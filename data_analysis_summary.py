@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
-from scipy.spatial.distance import cdist
 
 results_root = "results"
 graph_output_root = os.path.join(results_root, "LMC and SamEn Graphs")
@@ -22,43 +21,29 @@ palette = {
     "Other": "#7f7f7f"
 }
 
-def compute_normalized_histogram(data, bins=100):
-    hist, _ = np.histogram(data, bins=bins, density=True)
-    return hist / np.sum(hist)
+# --- Complexidade: fonte unica de verdade em src/complexity.py (nao redefinir aqui) ---
+from src.complexity import (
+    find_dense_layers,
+    compute_normalized_histogram,
+    shannon_entropy_from_hist,
+    disequilibrium_from_hist,
+    sample_entropy_1d,
+    lmc_complexity as _lmc_full,
+)
 
-def shannon_entropy_from_hist(hist):
-    hist = hist[hist > 0]
-    return -np.sum(hist * np.log2(hist))
-
-def disequilibrium_from_hist(hist):
-    uniform = np.ones_like(hist) / len(hist)
-    return np.sum((hist - uniform) ** 2)
 
 def lmc_complexity(data, bins=100):
-    hist = compute_normalized_histogram(data, bins)
-    ent = shannon_entropy_from_hist(hist)
-    dis = disequilibrium_from_hist(hist)
-    return ent * dis
+    """Valor escalar da LMC. Wrapper fino sobre src.complexity.lmc_complexity.
 
-def sample_entropy(U, m=2, r=None):
-    U = np.asarray(U)
-    N = len(U)
-    if r is None:
-        r = 0.2 * np.std(U)
-    if N <= m + 1:
-        return np.nan
-    try:
-        xmi = np.array([U[i:i + m] for i in range(N - m)])
-        xmj = np.array([U[i:i + m + 1] for i in range(N - m - 1)])
-        dist_m = cdist(xmi, xmi, metric='chebyshev')
-        dist_m1 = cdist(xmj, xmj, metric='chebyshev')
-        count_m = np.sum(dist_m <= r) - len(xmi)
-        count_m1 = np.sum(dist_m1 <= r) - len(xmj)
-        if count_m == 0 or count_m1 == 0:
-            return np.nan
-        return -np.log(count_m1 / count_m)
-    except:
-        return np.nan
+    bins=100 e mantido EXPLICITO de proposito: o default adaptativo do modulo
+    (min(100, max(10, n//5))) divergiria muito em camadas pequenas -- p.ex. um
+    BatchNorm de 64 pesos daria 12 bins e uma LMC ~40% diferente.
+    """
+    return _lmc_full(data, n_bins=bins)["complexity"]
+
+
+# Nome historico usado por estes scripts; a implementacao canonica e sample_entropy_1d.
+sample_entropy = sample_entropy_1d
 
 for folder in os.listdir(results_root):
     folder_path = os.path.join(results_root, folder)
@@ -100,14 +85,23 @@ for folder in os.listdir(results_root):
         with open(param_type_path, "r") as f:
             param_types = json.load(f)
 
-        records = []
-        for name, weight in model_weights.items():
-            if not isinstance(weight, torch.Tensor) or any(x in name for x in ["bias", "running_var", "running_mean"]):
-                continue
+            records = []
+        # --- SOMENTE A CAMADA DENSA (decisao D1 do plan.md) ---
+        # Antes, este script percorria TODAS as camadas e subamostrava 10.000 pesos das
+        # grandes. A subamostragem foi removida (nenhum peso e descartado), mas a SampEn
+        # exata e O(n^2): uma conv de 2,36 M pesos exigiria uma matriz de distancias de
+        # 22 TB. Restringir a densa resolve as duas coisas de uma vez -- e e o foco do
+        # projeto. Para voltar a analisar conv, seria preciso reintroduzir amostragem,
+        # o que invalidaria a SampEn (ela depende da ordem).
+        for name in find_dense_layers(model_weights, param_types):
+            weight = model_weights[name]
             flat = weight.detach().cpu().numpy().flatten()
             if flat.size == 0:
                 continue
-            sample = flat[:10000] if len(flat) > 10000 else flat
+            # Sem subamostragem: TODOS os pesos do tensor entram no calculo.
+            # (A linha antiga sorteava 10.000 pesos, o que embaralhava a ordem e a SampEn
+            #  depende da ordem. Removida na F3/F4 -- ver plan.md, problema P4.)
+            sample = flat
             lmc = lmc_complexity(sample)
             sampen = sample_entropy(sample)
             layer_type = param_types.get(name, "Other")

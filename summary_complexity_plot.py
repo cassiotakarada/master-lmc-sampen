@@ -1,51 +1,41 @@
+import argparse
 import os
 import json
 import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import cdist
 
-results_root = "results"
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--results", type=str, default="results", help="Root directory containing run folders")
+_args = _parser.parse_args()
+
+results_root = _args.results
 global_output_root = os.path.join(results_root, "global_lmc_sampen")
 
-def compute_normalized_histogram(data, bins=100):
-    hist, _ = np.histogram(data, bins=bins, density=True)
-    return hist / np.sum(hist)
+# --- Complexidade: fonte unica de verdade em src/complexity.py (nao redefinir aqui) ---
+from src.complexity import (
+    find_dense_layers,
+    compute_normalized_histogram,
+    shannon_entropy_from_hist,
+    disequilibrium_from_hist,
+    sample_entropy_1d,
+    lmc_complexity as _lmc_full,
+)
 
-def shannon_entropy_from_hist(hist):
-    hist = hist[hist > 0]
-    return -np.sum(hist * np.log2(hist))
-
-def disequilibrium_from_hist(hist):
-    uniform = np.ones_like(hist) / len(hist)
-    return np.sum((hist - uniform) ** 2)
 
 def lmc_complexity(data, bins=100):
-    hist = compute_normalized_histogram(data, bins)
-    ent = shannon_entropy_from_hist(hist)
-    dis = disequilibrium_from_hist(hist)
-    return ent * dis
+    """Valor escalar da LMC. Wrapper fino sobre src.complexity.lmc_complexity.
 
-def sample_entropy(U, m=2, r=None):
-    U = np.asarray(U)
-    N = len(U)
-    if r is None:
-        r = 0.2 * np.std(U)
-    if N <= m + 1:
-        return np.nan
-    try:
-        xmi = np.array([U[i:i + m] for i in range(N - m)])
-        xmj = np.array([U[i:i + m + 1] for i in range(N - m - 1)])
-        dist_m = cdist(xmi, xmi, metric='chebyshev')
-        dist_m1 = cdist(xmj, xmj, metric='chebyshev')
-        count_m = np.sum(dist_m <= r) - len(xmi)
-        count_m1 = np.sum(dist_m1 <= r) - len(xmj)
-        if count_m == 0 or count_m1 == 0:
-            return np.nan
-        return -np.log(count_m1 / count_m)
-    except:
-        return np.nan
+    bins=100 e mantido EXPLICITO de proposito: o default adaptativo do modulo
+    (min(100, max(10, n//5))) divergiria muito em camadas pequenas -- p.ex. um
+    BatchNorm de 64 pesos daria 12 bins e uma LMC ~40% diferente.
+    """
+    return _lmc_full(data, n_bins=bins)["complexity"]
+
+
+# Nome historico usado por estes scripts; a implementacao canonica e sample_entropy_1d.
+sample_entropy = sample_entropy_1d
 
 # Organize by dataset
 datasets = {}
@@ -100,11 +90,20 @@ for dataset, entries in datasets.items():
 
         lmc_vals, sampen_vals, entropy_vals, diseq_vals = [], [], [], []
 
-        for name, tensor in weights.items():
-            if not isinstance(tensor, torch.Tensor): continue
-            if any(skip in name for skip in ["bias", "running_var", "running_mean"]): continue
+            # --- SOMENTE A CAMADA DENSA (decisao D1 do plan.md) ---
+        # Antes, este script percorria TODAS as camadas e subamostrava 10.000 pesos das
+        # grandes. A subamostragem foi removida (nenhum peso e descartado), mas a SampEn
+        # exata e O(n^2): uma conv de 2,36 M pesos exigiria uma matriz de distancias de
+        # 22 TB. Restringir a densa resolve as duas coisas de uma vez -- e e o foco do
+        # projeto. Para voltar a analisar conv, seria preciso reintroduzir amostragem,
+        # o que invalidaria a SampEn (ela depende da ordem).
+        for name in find_dense_layers(weights, param_types):
+            tensor = weights[name]
             flat = tensor.detach().cpu().numpy().flatten()
-            sample = flat[:10000] if len(flat) > 10000 else flat
+            # Sem subamostragem: TODOS os pesos do tensor entram no calculo.
+            # (A linha antiga sorteava 10.000 pesos, o que embaralhava a ordem e a SampEn
+            #  depende da ordem. Removida na F3/F4 -- ver plan.md, problema P4.)
+            sample = flat
             hist = compute_normalized_histogram(sample)
             ent = shannon_entropy_from_hist(hist)
             dis = disequilibrium_from_hist(hist)
@@ -132,12 +131,16 @@ for dataset, entries in datasets.items():
     df = pd.DataFrame(summary)
     df.to_csv(os.path.join(output_folder, "summary.csv"), index=False)
 
-    # Plot per dataset
+    stage_order = ["initial", "bef", "aft"]
+    df["status"] = pd.Categorical(df["status"], categories=stage_order, ordered=True)
+    df = df.sort_values("status")
+
+    # --- plot 1: LMC, Entropy, Disequilibrium (original) ---
     plt.figure(figsize=(8, 6))
     plt.plot(df["status"], df["LMC_mean"], label="Complexidade (LMC)", marker="o", color="cyan")
     plt.plot(df["status"], df["Entropy_mean"], label="Entropia", marker="o", color="red")
     plt.plot(df["status"], df["Desequilibrium_mean"], label="Desequilíbrio", marker="o", color="gold")
-    plt.title(f"📈 Complexidade por Estágio - {dataset}")
+    plt.title(f"Complexidade por Estágio - {dataset}")
     plt.xlabel("Estágio do Treinamento")
     plt.ylabel("Valor Médio")
     plt.grid(True)
@@ -146,3 +149,30 @@ for dataset, entries in datasets.items():
     plt.savefig(os.path.join(output_folder, f"{dataset}_complexity_plot.png"))
     plt.close()
     print(f"✅ Saved: {dataset}_complexity_plot.png")
+
+    # --- plot 2: LMC + SampEn on dual y-axes ---
+    fig, ax1 = plt.subplots(figsize=(8, 5))
+
+    color_lmc = "#1f77b4"
+    color_se = "#d62728"
+
+    ax1.plot(df["status"], df["LMC_mean"], marker="o", color=color_lmc, linewidth=2, label="LMC complexity")
+    ax1.set_xlabel("Training stage")
+    ax1.set_ylabel("LMC complexity (mean across layers)", color=color_lmc)
+    ax1.tick_params(axis="y", labelcolor=color_lmc)
+    ax1.grid(True, alpha=0.3)
+
+    ax2 = ax1.twinx()
+    ax2.plot(df["status"], df["SampEn_mean"], marker="s", color=color_se, linewidth=2, linestyle="--", label="Sample Entropy")
+    ax2.set_ylabel("Sample Entropy (mean across layers)", color=color_se)
+    ax2.tick_params(axis="y", labelcolor=color_se)
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc="best")
+
+    plt.title(f"LMC Complexity vs Sample Entropy — {dataset}")
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_folder, f"{dataset}_lmc_sampen_plot.png"))
+    plt.close()
+    print(f"✅ Saved: {dataset}_lmc_sampen_plot.png")

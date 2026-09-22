@@ -66,3 +66,4 @@ __results__/
 *.tmp
 *.bak
 *.swp
+__pycache__/
