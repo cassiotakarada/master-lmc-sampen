@@ -67,3 +67,14 @@ __results__/
 *.bak
 *.swp
 __pycache__/
+
+# Auxiliares do LaTeX (o main.pdf e versionado de proposito)
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.out
+*.synctex.gz

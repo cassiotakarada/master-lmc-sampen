@@ -1,0 +1,180 @@
+\chapter{Proposta}
+\label{cap:proposta}
+
+\section{Contextualização e Motivação}
+\label{sec:P-contexto}
+
+O aprendizado profundo consolidou-se como abordagem dominante em tarefas de
+classificação e segmentação de imagens médicas. Esse sucesso, contudo, apoia-se
+em uma premissa que a prática clínica raramente satisfaz: a disponibilidade de
+grandes conjuntos de dados anotados. Em imagens médicas, a anotação exige um
+especialista, é onerosa e lenta, e frequentemente esbarra em restrições éticas
+e de privacidade que limitam o compartilhamento entre instituições.
+
+Essa escassez tem uma consequência metodológica pouco discutida. O procedimento
+padrão para decidir quando interromper o treinamento --- o \emph{early
+stopping} --- monitora o erro em um conjunto de validação separado e interrompe
+o ajuste quando esse erro deixa de diminuir \cite{prechelt1998}. O
+procedimento é sólido, mas transfere para o conjunto de validação toda a
+responsabilidade pelo diagnóstico: se ele é pequeno, desbalanceado ou pouco
+representativo, a estimativa do momento de parada torna-se ruidosa, e o
+desenvolvedor não dispõe de nenhum sinal alternativo para confrontá-la. Em
+outras palavras, justamente no regime de poucos dados --- aquele em que o
+\emph{overfitting} é mais provável --- o instrumento de medida é o menos
+confiável.
+
+Há, entretanto, uma fonte de informação sobre o estado do treinamento que
+permanece pouco explorada e que não depende de rótulo algum: os próprios pesos
+da rede. A memorização de exemplos deixa marcas na distribuição de valores dos
+parâmetros, e trabalhos consolidados mostram que redes profundas são capazes de
+ajustar rótulos completamente aleatórios \cite{zhang2017}, memorizando-os por um
+regime de aprendizado distinto daquele em que extraem padrões
+generalizáveis \cite{arpit2017}. Se esses dois regimes deixam assinaturas
+distinguíveis na estrutura dos pesos, então medidas de complexidade estatística
+aplicadas a esses pesos podem, em princípio, sinalizar a transição entre eles
+sem consultar nenhum dado rotulado.
+
+\section{Problema de Pesquisa}
+\label{sec:P-problema}
+
+É possível detectar o início do \emph{overfitting} de uma rede neural profunda
+a partir exclusivamente da complexidade estatística de seus pesos, sem recorrer
+a um conjunto de validação rotulado?
+
+\section{Hipótese}
+\label{sec:P-hipotese}
+
+A hipótese central deste trabalho é a de que a transição do regime de
+aprendizado generalizante para o regime de memorização produz uma mudança
+mensurável na irregularidade estrutural dos pesos da camada densa, e que essa
+mudança \emph{antecede} a degradação observável no conjunto de validação.
+
+Operacionalmente, espera-se que, em execuções nas quais o \emph{overfitting} é
+induzido de forma controlada, ao menos um dos indicadores considerados apresente
+inflexão em uma época anterior àquela em que a acurácia de validação começa a
+cair de modo sustentado, e que essa inflexão não ocorra --- ou ocorra de forma
+substancialmente atenuada --- em execuções de controle sem indução. A hipótese
+é falsificável: caso a inflexão ocorra simultaneamente ou posteriormente à
+degradação da validação, ou caso ocorra com a mesma intensidade nas execuções
+de controle, o indicador não tem valor como aviso antecipado e isso deve ser
+reportado como tal.
+
+\section{Objetivos}
+\label{sec:P-objetivos}
+
+\subsection{Objetivo Geral}
+
+Avaliar a complexidade estatística dos pesos de redes neurais profundas como
+indicador de \emph{overfitting} independente do conjunto de validação,
+entregando ao desenvolvedor um instrumento de diagnóstico acoplável ao laço de
+treinamento.
+
+\subsection{Objetivos Específicos}
+
+\begin{enumerate}
+    \item Implementar, em um módulo único e validado numericamente, a
+          complexidade LMC, a entropia amostral unidimensional (SampEn) e a
+          entropia amostral bidimensional (SampEn2D), estabelecendo-o como
+          fonte única de cálculo para todo o trabalho.
+    \item Formalizar a leitura dos pesos da camada densa como objeto de
+          medida, fixando a ordem de achatamento da matriz de pesos e
+          justificando-a experimentalmente.
+    \item Definir operacionalmente o início do \emph{overfitting} e construir
+          um protocolo de indução controlada por corrupção de rótulos, com
+          execuções de controle pareadas.
+    \item Implementar um monitor que calcule os indicadores a cada época
+          durante o treinamento e emita um estado do aprendizado em tempo real.
+    \item Quantificar a antecedência de cada indicador em relação à degradação
+          da validação, com múltiplas sementes e teste de significância.
+    \item Caracterizar os limites do indicador quanto ao nível de corrupção e
+          quanto à arquitetura da rede, reportando explicitamente os regimes em
+          que ele falha.
+\end{enumerate}
+
+\section{Justificativa: o ponto de vista do desenvolvedor}
+\label{sec:P-justificativa}
+
+A justificativa deste trabalho é deliberadamente formulada do ponto de vista de
+quem treina a rede, e não apenas do ponto de vista teórico.
+
+\subsection{A dependência atual dos dados rotulados}
+
+Para saber se uma rede aprendeu ou apenas memorizou, o desenvolvedor depende
+hoje inteiramente dos dados. É preciso construir conjuntos de treino, validação
+e teste que sejam bem particionados, corretamente rotulados e representativos da
+população de interesse. Cada um desses requisitos custa tempo e dinheiro, e em
+imagens médicas frequentemente esbarra na indisponibilidade de especialistas
+para anotação. O diagnóstico do treinamento é, portanto, uma função do orçamento
+de anotação --- não uma propriedade que se possa ler diretamente do modelo.
+
+\subsection{O que muda com um indicador calculado sobre os pesos}
+
+Os indicadores investigados neste trabalho são calculados exclusivamente a
+partir dos pesos da rede. Não consomem imagem, não consomem rótulo e não
+dependem de nenhuma partição. Se forem capazes de sinalizar a transição para o
+regime de memorização, o desenvolvedor passa a dispor de uma segunda leitura do
+treinamento, obtida por um caminho independente daquele do conjunto de
+validação. As duas leituras podem então ser confrontadas: quando concordam, a
+decisão de parada ganha confiança; quando discordam, há indício de que a
+validação não é representativa.
+
+\subsection{Casos de uso concretos}
+
+\begin{enumerate}
+    \item \textbf{Decidir quando parar.} Um aviso emitido antes da degradação
+          observável na validação amplia a janela de decisão do desenvolvedor,
+          em vez de constatar a perda depois de consumada.
+    \item \textbf{Economizar computação.} Detectar que a rede deixou de
+          aprender evita épocas de treinamento que não trarão ganho, com
+          impacto direto em custo de GPU.
+    \item \textbf{Comparar arquiteturas sem ampliar a anotação.} Como a medida
+          não consome dados rotulados, a comparação entre arquiteturas
+          candidatas não exige a ampliação do conjunto de validação.
+    \item \textbf{Diagnosticar com validação pequena.} Em cenários nos quais o
+          conjunto de validação é pequeno demais para ser confiável, um
+          indicador independente oferece evidência adicional --- exatamente o
+          cenário típico em imagens médicas.
+\end{enumerate}
+
+\subsection{Entrega prática}
+
+A contribuição não se esgota na constatação empírica. Entrega-se um monitor
+implementado em PyTorch, acoplável ao laço de treinamento de terceiros, que
+calcula os indicadores a cada época e devolve um estado do aprendizado. O custo
+computacional é baixo, pois a medida incide apenas sobre a camada densa.
+
+\section{Visão Geral da Metodologia}
+\label{sec:P-metodologia}
+
+O trabalho experimental organiza-se em torno da comparação pareada entre
+execuções com e sem \emph{overfitting} induzido. A indução é feita por corrupção
+controlada de uma fração dos rótulos do conjunto de treino, procedimento que
+força a rede a memorizar exemplos inconsistentes \cite{zhang2017}. Cada execução
+com corrupção possui uma execução de controle correspondente, idêntica em
+arquitetura, partição e semente de inicialização, diferindo apenas pela
+presença da corrupção --- de modo que a semente que governa o ruído é separada
+daquela que governa a partição e a inicialização.
+
+Durante o treinamento, um monitor calcula a cada época a LMC, a SampEn e a
+SampEn2D sobre os pesos da camada densa. Ao final, compara-se a época em que
+cada indicador inflete com a época em que a acurácia de validação passa a cair
+de forma sustentada, definida como âncora. A diferença entre as duas é a
+antecedência, positiva quando o indicador avisa antes. A significância é
+avaliada por teste não paramétrico entre os grupos com e sem corrupção,
+escolhido pelo tamanho reduzido das amostras.
+
+O detalhamento reprodutível --- repositório de imagens, arquiteturas,
+hiperparâmetros, partição congelada e critério de inflexão --- constitui o
+capítulo de metodologia do documento final.
+
+\section{Contribuição Esperada}
+\label{sec:P-contribuicao}
+
+Espera-se contribuir em três frentes. Do ponto de vista científico, caracterizar
+empiricamente se e quando medidas de complexidade estatística sobre pesos
+antecipam o \emph{overfitting}, incluindo a delimitação honesta dos regimes em
+que não o fazem. Do ponto de vista metodológico, formalizar a leitura dos pesos
+de uma camada densa como objeto de medida de complexidade, questão até aqui
+tratada de modo implícito na literatura. Do ponto de vista prático, disponibilizar
+um monitor documentado e testado, utilizável por terceiros independentemente
+deste trabalho.

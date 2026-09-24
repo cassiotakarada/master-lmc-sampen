@@ -1,0 +1,95 @@
+%% main.tex — Projeto de Pesquisa
+%% FFCLRP-USP — Programa de Pós-Graduação em Computação Aplicada
+%% Autor: Cássio Silva Takarada
+%% Orientador: Prof. Dr. Luiz Otávio Murta Junior
+%%
+%% Estrutura em três pilares (Proposta, Conteúdo Teórico, Estado da Arte),
+%% conforme a fase F7 do plano de trabalho.
+
+\documentclass[
+  12pt,
+  openright,
+  oneside,
+  a4paper,
+  english,
+  brazil,
+]{abntex2}
+
+%% ─── Pacotes ────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{indentfirst}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage[alf,abnt-emphasize=bf]{abntex2cite}
+
+\sisetup{output-decimal-marker={,}, group-separator={.}, group-digits=integer}
+
+%% ─── Metadados ──────────────────────────────────────────────────────────────
+\titulo{Complexidade estatística dos pesos como indicador de overfitting
+independente do conjunto de validação}
+\autor{Cássio Silva Takarada}
+\local{Ribeirão Preto}
+\data{2026}
+\orientador{Prof. Dr. Luiz Otávio Murta Junior}
+\instituicao{Universidade de São Paulo \\
+Faculdade de Filosofia, Ciências e Letras de Ribeirão Preto \\
+Departamento de Computação e Matemática}
+\tipotrabalho{Projeto de Pesquisa}
+
+\preambulo{Projeto de pesquisa apresentado ao Programa de Pós-Graduação em
+Computação Aplicada da Faculdade de Filosofia, Ciências e Letras de Ribeirão
+Preto da Universidade de São Paulo.}
+
+\hyphenation{over-fitting under-fitting gro-kking}
+
+\begin{document}
+
+\selectlanguage{brazil}
+\frenchspacing
+
+\imprimircapa
+\imprimirfolhaderosto
+
+\begin{resumo}
+O diagnóstico de \emph{overfitting} em redes neurais profundas depende hoje,
+integralmente, de um conjunto de validação rotulado, representativo e
+suficientemente grande --- condição frequentemente inviável em imagens médicas,
+onde a anotação é cara e exige especialista. Este projeto investiga se medidas
+de complexidade estatística calculadas \emph{exclusivamente sobre os pesos} da
+camada densa de uma rede, sem acesso a rótulo algum, fornecem ao desenvolvedor
+uma leitura do estado do treinamento independente da validação. São
+consideradas a complexidade LMC, a entropia amostral unidimensional (SampEn) e
+a entropia amostral bidimensional (SampEn2D), acompanhadas ao longo das épocas
+de treino. Resultados preliminares com a rede ResNet-18 sobre o repositório
+MedNIST, em oito pares de execuções com e sem corrupção controlada de rótulos,
+indicam que a SampEn2D da camada densa inflete, em média,
+\num{7,5} $\pm$ \num{0,9} épocas antes da degradação da acurácia de validação,
+com razão de amplitude de \num{5,7} vezes entre execuções com e sem
+memorização ($p = \num{0,00016}$), enquanto a complexidade LMC não discrimina
+as duas condições ($p = \num{0,33}$). Pretende-se consolidar esses achados,
+caracterizar os limites de generalização entre arquiteturas e entregar um
+monitor acoplável a qualquer laço de treinamento em PyTorch.
+\textbf{Palavras-chave}: complexidade estatística; entropia amostral;
+\emph{overfitting}; aprendizado profundo; imagens médicas.
+\end{resumo}
+
+\tableofcontents
+
+\textual
+\include{textuais/01-proposta}
+\include{textuais/02-teorico}
+\include{textuais/03-estado-arte}
+\include{textuais/04-resultados-preliminares}
+
+\postextual
+\bibliography{referencias}
+
+\end{document}

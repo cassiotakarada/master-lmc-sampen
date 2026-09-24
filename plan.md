@@ -1004,7 +1004,7 @@ seleciona o critério. Resolve o item deixado em aberto na F5.
 
 ---
 
-### 🔴 F7 — Texto do projeto: os 3 pilares com foco no desenvolvedor (D3)
+### 🟠 F7 — Texto do projeto: os 3 pilares com foco no desenvolvedor (D3) — **TEXTO ESCRITO em 2026-09-24, aguardando revisão do autor/orientador**
 **Fazer:** escrever/atualizar o documento do projeto com três seções:
 
 1. **Conteúdo teórico**
@@ -1023,6 +1023,43 @@ seleciona o critério. Resolve o item deixado em aberto na F5.
    - Métricas de generalização a partir dos pesos: Bartlett et al. 2017 (normas/margens espectrais), Dziugaite & Roy 2017 (PAC-Bayes), Jiang et al. 2020 (*Fantastic Generalization Measures*), Martin & Mahoney 2021 (heavy-tailed self-regularization / WeightWatcher).
    - **O nicho deste trabalho:** leitura *informação-teórica da distribuição de valores* dos pesos (não da estrutura espectral) e **foco temporal** — a trajetória ao longo do treino, não um estado único.
    - Grokking e a literatura de early stopping.
+
+**Entregue em 2026-09-24 — `projeto/` (abnTeX2, compila com zero erros, 23 págs):**
+
+| Arquivo | Pilar / conteúdo |
+|---------|------------------|
+| `projeto/main.tex` | preâmbulo abntex2, metadados, resumo |
+| `projeto/textuais/01-proposta.tex` | **Pilar 1** — problema, hipótese, objetivos e a **justificativa voltada ao desenvolvedor (D3)** com os 4 casos de uso |
+| `projeto/textuais/02-teorico.tex` | **Pilar 2** — LMC, SampEn, SampEn2D, MSE; camada densa; formalização do caminho e da ordem do flatten (§2); definição operacional de overfitting |
+| `projeto/textuais/03-estado-arte.tex` | **Pilar 3** — memorização, métricas sobre pesos, complexidade em redes, critérios de parada + tabela comparativa com a lacuna |
+| `projeto/textuais/04-resultados-preliminares.tex` | números da F6 **recalculados**, limitações e o limite da DenseNet |
+| `projeto/referencias.bib` | 26 herdadas da tese + 4 novas verificadas no Scite |
+
+**Números recalculados nesta fase** (não copiados de mensagem de commit). Rodado
+`scripts/analise_f6.py` sobre 8 runs de ruído 30% + 8 controles → `monai_weights/f6_analise_n8/`:
+
+| Indicador | Antecedência (n=8) | Razão ruído/controle | p (Mann-Whitney) |
+|-----------|--------------------|----------------------|------------------|
+| SampEn2D  | **7,50 ± 0,93** (IC95% 6,73–8,27) | **5,71x** | 0,00016 |
+| SampEn 1D | 3,62 ± 1,06 | 3,64x | 0,00016 |
+| LMC       | 3,00 ± 1,85 | 1,06x | **0,33 — não discrimina** |
+
+- Separação temporal da SampEn2D sem sobreposição: ruído nas épocas 7–9; controles 13–31 (2 dos 8 nunca inflectem).
+- Níveis de ruído: a época do **alerta** é invariante (ANOVA F=1,00; p=0,42); quem se move é a **âncora** (F=30,2; p=0,0007).
+
+**⚠️ Limite identificado — DenseNet-121** (`monai_weights/f6_analise_dn121/`, 3+3 runs):
+a antecedência é preservada e até maior (17–21 épocas), mas a **razão de amplitude cai de
+5,71x para 2,8x**, e SampEn 1D (1,3x) e LMC (1,2x) deixam de discriminar. Isso é
+distinto do detector de status (máquina de estados), que acertou 3/3 na DenseNet — são
+dois critérios diferentes sobre o mesmo experimento. Está reportado como limite na §4.5
+do projeto, não como sucesso. **Com 3 runs por grupo não há poder estatístico**; ampliar
+as sementes de DenseNet é o próximo passo experimental natural.
+
+**Referências novas (verificadas via Scite, com contagem de citantes):** `zhang2017`
+(rethinking generalization, 3.151), `arpit2017` (memorização, 332), `power2022`
+(grokking, 227), `prechelt1998` (early stopping, 1.022).
+
+**Falta para fechar a F7:** revisão do autor e do orientador.
 
 **Critério de aceite:** texto revisado, cada afirmação de estado da arte com referência verificada (usar o Scite para não inventar citação).
 
@@ -1139,7 +1176,7 @@ F1 (módulo único)  ──►  F2 (validação)  ──►  F3 (split)  ──�
                                                   F5 (corte overfit)  ──►  F6 (experimentos)
                                                                                 │
                                                                                 ▼
-                                                                          F7 (texto)
+                                                                          F7 (texto) ✅ escrito
 ```
 
 F1 → F2 → F3 → F4 → F5 são **código**, cada uma testável isoladamente.

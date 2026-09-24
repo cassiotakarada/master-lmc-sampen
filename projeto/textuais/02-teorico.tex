@@ -1,0 +1,210 @@
+\chapter{Conteúdo Teórico}
+\label{cap:teorico}
+
+Este capítulo reúne os conceitos necessários para acompanhar as escolhas
+metodológicas e a leitura dos resultados. A Seção~\ref{sec:T-complexidade}
+apresenta a noção de complexidade estatística e a formulação LMC. A
+Seção~\ref{sec:T-sampen} define a entropia amostral e sua extensão
+bidimensional. A Seção~\ref{sec:T-camada} justifica a escolha da camada densa
+como objeto de medida e formaliza a leitura de seus pesos como sequência. A
+Seção~\ref{sec:T-overfitting} fixa a definição operacional de
+\emph{overfitting} adotada.
+
+\section{Complexidade Estatística}
+\label{sec:T-complexidade}
+
+\subsection{Entropia de Shannon e a insuficiência da desordem}
+
+Dada uma variável discreta com distribuição de probabilidade
+$P = \{p_1, \dots, p_N\}$, a entropia de Shannon \cite{shannon1948} é
+
+\begin{equation}
+    H(P) = -\sum_{i=1}^{N} p_i \ln p_i .
+    \label{eq:shannon}
+\end{equation}
+
+A entropia mede desordem: é nula quando toda a probabilidade concentra-se em um
+único estado e máxima, igual a $\ln N$, quando a distribuição é uniforme. Por
+isso, isoladamente, ela não serve como medida de complexidade. Um cristal
+perfeito tem entropia mínima e um gás ideal tem entropia máxima, mas nenhum dos
+dois é estruturalmente complexo: o primeiro é totalmente previsível, o segundo
+totalmente aleatório. A complexidade que interessa está entre os dois extremos.
+
+\subsection{Complexidade LMC}
+
+\citeonline{lmc1995} resolvem esse problema introduzindo um segundo termo, o
+desequilíbrio, que mede a distância quadrática da distribuição observada em
+relação à distribuição uniforme $P_e = \{1/N, \dots, 1/N\}$:
+
+\begin{equation}
+    D(P) = \sum_{i=1}^{N} \left( p_i - \frac{1}{N} \right)^{2}.
+    \label{eq:desequilibrio}
+\end{equation}
+
+A complexidade LMC é o produto dos dois termos, com a entropia normalizada pelo
+seu valor máximo:
+
+\begin{equation}
+    C_{\mathrm{LMC}}(P) = \frac{H(P)}{\ln N} \cdot D(P).
+    \label{eq:lmc}
+\end{equation}
+
+O produto na Equação~\ref{eq:lmc} anula-se nos dois extremos e é máximo em
+distribuições intermediárias. No cristal, $H \to 0$ e o primeiro fator zera; no
+gás ideal, $P \to P_e$ e o desequilíbrio zera. Uma discussão das propriedades e
+das limitações dessa formulação, incluindo variantes baseadas na divergência de
+Jensen-Shannon, encontra-se em \citeonline{lamberti2004} e
+\citeonline{rosso2010}.
+
+Duas propriedades são relevantes para este trabalho. A primeira é que
+$C_{\mathrm{LMC}}$ depende apenas do histograma dos valores, sendo portanto
+\emph{invariante a qualquer permutação} da sequência analisada. A segunda,
+consequência da primeira, é que a LMC não pode captar nenhuma informação
+posicional: se a memorização se manifestar na organização espacial dos pesos e
+não na distribuição de seus valores, a LMC será cega a ela.
+
+\section{Entropia Amostral}
+\label{sec:T-sampen}
+
+\subsection{Formulação unidimensional}
+
+A entropia amostral \cite{richman2000} quantifica a irregularidade de uma
+sequência medindo com que frequência padrões semelhantes permanecem semelhantes
+quando estendidos por uma amostra. Ela corrige o viés de autocomparação
+presente na entropia aproximada de \citeonline{pincus1991}.
+
+Seja a série $\{u(1), \dots, u(L)\}$ e os vetores de janela
+$\mathbf{x}_m(i) = \{u(i), \dots, u(i+m-1)\}$. Sejam $B$ o número de pares de
+janelas de comprimento $m$ cuja distância de Chebyshev é inferior à tolerância
+$r$, e $A$ o número correspondente para janelas de comprimento $m+1$. Define-se
+
+\begin{equation}
+    \mathrm{SampEn}(m, r, L) = -\ln \frac{A}{B}.
+    \label{eq:sampen}
+\end{equation}
+
+O parâmetro $m$ é o comprimento do padrão comparado e $r$ é a tolerância de
+similaridade, usualmente expressa como fração do desvio-padrão da série. Valores
+elevados de $\mathrm{SampEn}$ indicam baixa previsibilidade. A escolha de $m$ e
+$r$ não é neutra e afeta a estabilidade da estimativa, especialmente em séries
+curtas \cite{yentes2013}; por isso este trabalho reporta a sensibilidade dos
+resultados a esses parâmetros.
+
+Diferentemente da LMC, a entropia amostral \emph{não} é invariante à ordem, pois
+compara janelas consecutivas. Essa é precisamente a propriedade que a torna
+complementar à LMC neste trabalho.
+
+\subsection{Extensão bidimensional}
+
+A entropia amostral bidimensional \cite{silva2016} generaliza a
+Equação~\ref{eq:sampen} substituindo as janelas unidimensionais por
+sub-matrizes $m \times m$ deslizantes sobre uma matriz, com a mesma lógica de
+contagem de pares similares. Preserva-se assim a vizinhança nas duas direções,
+em vez de destruí-la pelo achatamento. Sua formulação e validação em textura de
+imagens são discutidas em \citeonline{silva2014embc} e \citeonline{silva2012qsampen}.
+
+Para este trabalho a SampEn2D é particularmente pertinente, pois a matriz de
+pesos de uma camada densa é um objeto naturalmente bidimensional --- cada linha
+corresponde a um neurônio de saída e cada coluna a uma característica de
+entrada --- e reduzi-la a um vetor descarta uma das duas estruturas.
+
+\subsection{Entropia multiescala}
+
+A entropia multiescala \cite{costa2002, costa2005} aplica a entropia amostral a
+versões da série granuladas em escalas crescentes, obtidas pela média de blocos
+consecutivos não sobrepostos. O perfil resultante distingue sinais cuja
+irregularidade se mantém através das escalas daqueles em que ela se concentra
+na escala fina. Está implementada neste trabalho e prevista como extensão.
+
+\section{A Camada Densa como Objeto de Medida}
+\label{sec:T-camada}
+
+\subsection{Por que a camada densa}
+
+Em uma rede convolucional de classificação, as camadas convolucionais produzem
+uma representação da imagem e a camada densa final converte essa representação
+em pontuações por classe. É nela que a decisão é efetivamente tomada, e é nela
+que a associação entre representação e rótulo precisa ser armazenada. Se a rede
+memoriza pares imagem--rótulo inconsistentes, é razoável esperar que essa
+associação se inscreva de forma mais direta nos pesos dessa camada. A escolha
+tem ainda a vantagem prática de manter o custo do monitoramento baixo: na
+ResNet-18 aplicada a seis classes, a matriz de pesos tem forma $6 \times 512$,
+totalizando \num{3072} parâmetros.
+
+\subsection{O caminho e a ordem de achatamento}
+
+Considere-se uma camada densa com $M$ entradas $x_1, \dots, x_M$ e $N$ neurônios
+$n_1, \dots, n_N$. A matriz de pesos é $W \in \mathbb{R}^{N \times M}$, e o
+elemento $w_{ji}$ é o peso do \emph{caminho} $x_i \rightarrow n_j$. Essa é
+exatamente a convenção do PyTorch, em que o atributo de pesos de uma camada
+linear tem forma $[N, M]$.
+
+Como a entropia amostral unidimensional depende da ordem, é necessário fixar o
+percurso pelo qual a matriz é lida como sequência. Duas ordens são naturais.
+Na ordem \emph{por neurônio}, percorrem-se todos os pesos que chegam a cada
+neurônio antes de passar ao seguinte:
+
+\begin{equation}
+    v_{n} = (w_{11}, w_{12}, \dots, w_{1M},\; w_{21}, \dots, w_{2M},\; \dots,\; w_{NM}).
+    \label{eq:ordem-n}
+\end{equation}
+
+Na ordem \emph{por entrada}, percorrem-se todos os pesos que partem de cada
+entrada:
+
+\begin{equation}
+    v_{x} = (w_{11}, w_{21}, \dots, w_{N1},\; w_{12}, \dots, w_{N2},\; \dots).
+    \label{eq:ordem-x}
+\end{equation}
+
+As duas leituras não são equivalentes e medem coisas distintas: a
+Equação~\ref{eq:ordem-n} avalia a regularidade \emph{dentro do campo receptivo
+de cada neurônio}, enquanto a Equação~\ref{eq:ordem-x} avalia a regularidade
+\emph{da distribuição de uma mesma entrada entre os neurônios}. Adota-se a
+ordem por neurônio como convenção padrão, e a comparação entre as duas é
+reportada como ablação. Para a complexidade LMC a distinção é irrelevante, pela
+invariância discutida na Seção~\ref{sec:T-complexidade}.
+
+Por coerência com a noção de caminho, o vetor de viés é excluído da análise: o
+viés é um deslocamento aditivo do neurônio, não a ligação entre uma entrada e
+um neurônio. Quando há mais de uma camada densa, cada uma é analisada
+separadamente, sem concatenação.
+
+\section{Definição Operacional de \emph{Overfitting}}
+\label{sec:T-overfitting}
+
+Para que a antecedência de um indicador seja mensurável, é preciso uma
+definição de \emph{overfitting} que produza um número de época, e não apenas
+uma descrição qualitativa. Adota-se a seguinte construção.
+
+Seja $\mathrm{val\_loss}(e)$ a perda no conjunto de validação na época $e$. A
+melhor época é $e^{*} = \arg\min_{e} \mathrm{val\_loss}(e)$. O início do
+\emph{overfitting} é a primeira época $e^{of} > e^{*}$ tal que
+$\mathrm{val\_loss}(e) > \mathrm{val\_loss}(e^{*}) + \delta$ de forma sustentada
+por um número pré-fixado de épocas consecutivas. Toda análise dos indicadores
+restringe-se às épocas $e \le e^{of}$; as posteriores permanecem registradas e
+são exibidas nas figuras em região sombreada, mas não sustentam nenhuma
+conclusão.
+
+Como referência temporal para o cálculo da antecedência utiliza-se uma âncora
+definida sobre a acurácia de validação --- a época em que ela passa a cair de
+forma sustentada. A opção pela acurácia, e não pela perda, decorre de uma
+observação empírica relatada no Capítulo~\ref{cap:resultados}: em repositórios
+que saturam rapidamente, a perda de validação começa a subir muito cedo, mesmo
+em execuções sem memorização, o que a torna uma âncora pouco discriminativa.
+
+A partição dos dados segue a separação em três conjuntos disjuntos. O conjunto
+de treino é o único que participa da retropropagação; o de validação é
+observado a cada época e nunca entra no gradiente; o de teste é consultado uma
+única vez, ao final, na época selecionada.
+
+\section{Síntese}
+\label{sec:T-sintese}
+
+Os conceitos aqui reunidos sustentam a proposta em três pontos. A complexidade
+LMC oferece uma leitura da distribuição de valores dos pesos, insensível à
+posição. A entropia amostral, uni e bidimensional, oferece uma leitura sensível
+à organização --- e, no caso bidimensional, preserva a estrutura de linhas e
+colunas da matriz de pesos. A formalização do caminho e da ordem de achatamento
+torna explícita uma escolha que, de outro modo, permaneceria arbitrária e não
+reprodutível.
