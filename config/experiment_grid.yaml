@@ -1,0 +1,58 @@
+# Experiment grid — thesis-complexity-nn
+# The orchestrator reads this file and generates the full (dataset × epochs × seed) run list.
+# Completed runs are tracked in results/status.json; add new cells freely.
+
+defaults:
+  # Optimiser — matches supervisor's validated hyperparameters
+  lr:           0.001
+  momentum:     0.9
+  weight_decay: 0.0001
+  batch_size:   64
+  image_size:   64
+  # Measurement schedule — K log-spaced checkpoints per run (no per-step .pt saved)
+  n_checkpoints:   100
+  max_flat_sample: 10000
+  num_workers:     4
+  data_root:       ./data
+  # Writer integration
+  writer_trigger_every: 5     # call writer after every N completed runs
+
+experiments:
+  # --- PathMNIST: histology patches, 9 classes ---
+  - dataset: PathMNIST
+    epochs:  30
+    seeds:   [42, 123, 2024]
+
+  - dataset: PathMNIST
+    epochs:  50
+    seeds:   [42, 123, 2024]
+
+  - dataset: PathMNIST
+    epochs:  100
+    seeds:   [42, 123, 2024]
+
+  # --- OrganAMNIST: abdominal CT axial, 11 classes ---
+  - dataset: OrganAMNIST
+    epochs:  30
+    seeds:   [42, 123, 2024]
+
+  - dataset: OrganAMNIST
+    epochs:  50
+    seeds:   [42, 123, 2024]
+
+  - dataset: OrganAMNIST
+    epochs:  100
+    seeds:   [42, 123, 2024]
+
+  # --- BloodMNIST: peripheral blood cells, 8 classes ---
+  - dataset: BloodMNIST
+    epochs:  30
+    seeds:   [42, 123, 2024]
+
+  - dataset: BloodMNIST
+    epochs:  50
+    seeds:   [42, 123, 2024]
+
+  - dataset: BloodMNIST
+    epochs:  100
+    seeds:   [42, 123, 2024]

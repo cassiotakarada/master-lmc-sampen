@@ -1,0 +1,17 @@
+defaults:
+  lr: 0.001
+  momentum: 0.9
+  weight_decay: 0.0001
+  batch_size: 64
+  image_size: 64
+  n_checkpoints: 20
+  max_flat_sample: 10000
+  num_workers: 4
+  data_root: ./data
+  data_seed: 0
+
+experiments:
+  - dataset: PathMNIST
+    epochs: 1
+    seeds: [999]
+    architectures: [densenet121]

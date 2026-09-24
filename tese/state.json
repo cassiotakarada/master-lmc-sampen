@@ -1,0 +1,8 @@
+{
+  "_comment": "Writer incremental state — managed by src/writer.py. Edit manually only if you know what you're doing.",
+  "batch_counter": 0,
+  "experiments_written": [],
+  "locked_sections": [],
+  "last_known_hashes": {},
+  "last_run_timestamp": null
+}

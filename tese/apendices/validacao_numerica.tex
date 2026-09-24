@@ -1,0 +1,111 @@
+%% apendices/validacao_numerica.tex
+%% Apêndice B — Validação numérica das medidas de complexidade
+
+\chapter{Validação numérica das medidas de complexidade}
+\label{ap:validacao-numerica}
+
+Este apêndice cumpre a parte do objetivo específico~1
+(\autoref{ch:introducao}) referente à \emph{validação numérica das medidas
+em casos analiticamente conhecidos}. As implementações descritas na
+\autoref{sec:medidas} --- complexidade LMC e \emph{Sample Entropy} 1D e 2D ---
+são aplicadas a distribuições e séries cujo comportamento esperado é conhecido
+em forma fechada ou qualitativamente, verificando-se que os valores produzidos
+coincidem com a teoria. Todos os resultados desta seção são reproduzíveis
+executando \texttt{scripts/validacao\_numerica.py} (semente $42$,
+\texttt{numpy}~1.26); para a LMC fixou-se $N = 100$ \emph{bins}, de modo que a
+entropia da uniforme tem valor de referência $\log_2 N \approx 6{,}6439$~bits.
+
+% ===========================================================================
+\section{Complexidade LMC}
+\label{sec:ap-validacao-lmc}
+
+Para a forma adotada $C = H \times D$, com $H$ em bits e
+$D = \sum_i (p_i - 1/N)^2$, os dois extremos têm valor analítico exato: a
+distribuição \emph{uniforme} maximiza a entropia ($H = \log_2 N$) e anula o
+desequilíbrio ($D = 0$), enquanto a distribuição \emph{degenerada} (toda a massa
+em um único \emph{bin}) anula a entropia ($H = 0$) e atinge
+$D = 1 - 1/N$; em ambos os casos $C = 0$. Uma distribuição \emph{gaussiana}
+representa o regime intermediário, com $0 < H < \log_2 N$, $D > 0$ e,
+portanto, $C > 0$. A \autoref{tab:val-lmc} confirma os três comportamentos.
+
+\begin{table}[H]
+  \centering
+  \caption{Validação da LMC ($N = 100$ \emph{bins}). Os casos uniforme e
+  degenerado reproduzem os valores analíticos com precisão de máquina.}
+  \label{tab:val-lmc}
+  \begin{tabular}{lrrrl}
+    \toprule
+    Distribuição & $H$ (bits) & $D$ & $C = H\times D$ & Esperado \\
+    \midrule
+    Uniforme            & $6{,}6439$ & $0{,}00000$ & $0{,}00000$ & $H=\log_2 N,\ D\approx0,\ C\approx0$ \\
+    Degenerada          & $0{,}0000$ & $0{,}99000$ & $0{,}00000$ & $H=0,\ D=1-1/N,\ C=0$ \\
+    Gaussiana           & $5{,}4638$ & $0{,}01646$ & $0{,}08994$ & $0<H<\log_2 N,\ D>0,\ C>0$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Sample Entropy 1D}
+\label{sec:ap-validacao-sampen1d}
+
+Com $m = 2$ e $r = 0{,}2\,\sigma$, uma série \emph{constante} é
+perfeitamente regular e produz $\mathrm{SampEn} = 0$ por definição; uma série
+\emph{periódica} é altamente previsível e produz valor próximo de zero;
+\emph{ruído branco gaussiano} maximiza a irregularidade e produz um valor finito
+e elevado, da ordem de $2{,}1$ --- compatível com o reportado na literatura para
+sinais sem estrutura sob essa parametrização. A \autoref{tab:val-sampen1d}
+confirma a ordenação esperada.
+
+\begin{table}[H]
+  \centering
+  \caption{Validação da SampEn 1D ($m = 2$, $r = 0{,}2\,\sigma$, séries de
+  $1000$ amostras).}
+  \label{tab:val-sampen1d}
+  \begin{tabular}{lrl}
+    \toprule
+    Série & SampEn & Esperado \\
+    \midrule
+    Constante                 & $0{,}0000$ & $0$ (perfeitamente regular) \\
+    Periódica (seno, $T=20$)  & $0{,}1864$ & $\approx 0$ (previsível) \\
+    Ruído branco gaussiano    & $2{,}0934$ & finito e elevado (irregular) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Sample Entropy 2D}
+\label{sec:ap-validacao-sampen2d}
+
+A SampEn 2D preserva os limites esperados: uma matriz \emph{constante}
+produz $0$, e uma matriz com \emph{estrutura periódica} produz valor baixo.
+Para \emph{ruído branco} $64 \times 64$, a tolerância padrão $r = 0{,}2\,\sigma$
+satura em $+\infty$ --- nenhum par de janelas $(m+1)\times(m+1)$ casa dentro da
+tolerância ---, exatamente o comportamento que motivou a adoção de
+$r = 0{,}5\,\sigma$ na \autoref{sec:medidas-extensoes}; sob essa tolerância o
+valor torna-se finito ($\approx 6{,}46$). A validação, portanto, não apenas
+confirma os limites como reproduz de forma independente a justificativa
+metodológica para a calibração de $r$ no caso 2D.
+
+\begin{table}[H]
+  \centering
+  \caption{Validação da SampEn 2D ($m = 2$, matrizes $64 \times 64$). O caso
+  do ruído sob $r = 0{,}2\,\sigma$ reproduz a saturação que motiva
+  $r = 0{,}5\,\sigma$.}
+  \label{tab:val-sampen2d}
+  \begin{tabular}{lrl}
+    \toprule
+    Matriz & SampEn 2D & Esperado \\
+    \midrule
+    Constante                    & $0{,}0000$ & $0$ (regular) \\
+    Estrutura periódica          & $0{,}8173$ & baixa (estruturada) \\
+    Ruído branco ($r=0{,}2\,\sigma$) & $+\infty$ & satura (motiva $r=0{,}5\,\sigma$) \\
+    Ruído branco ($r=0{,}5\,\sigma$) & $6{,}4636$ & finito e elevado (irregular) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Em conjunto, as três validações estabelecem que as implementações reproduzem os
+valores analíticos exatos nos extremos (LMC nas distribuições uniforme e
+degenerada; SampEn em séries constantes) e a ordenação qualitativa esperada nos
+regimes intermediários, sustentando o uso das medidas nas análises do
+\autoref{ch:resultados}.

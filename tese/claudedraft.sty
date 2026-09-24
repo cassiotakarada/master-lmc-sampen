@@ -1,0 +1,33 @@
+%% claudedraft.sty — visual marker for AI-generated thesis passages
+%%
+%% Usage: \begin{claudedraft} ... \end{claudedraft}
+%% Renders the enclosed text in orange italic to signal "draft by Claude".
+%% Lock a section in src/writer.py when you are satisfied with its content.
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{claudedraft}[2025/01/01 Claude draft environment]
+
+\RequirePackage{xcolor}
+\RequirePackage{mdframed}
+
+\definecolor{claudeorange}{RGB}{230, 120, 0}
+
+\newmdenv[
+  linecolor=claudeorange,
+  linewidth=1pt,
+  leftmargin=8pt,
+  rightmargin=8pt,
+  skipabove=6pt,
+  skipbelow=6pt,
+  innerleftmargin=8pt,
+  innerrightmargin=8pt,
+  innertopmargin=4pt,
+  innerbottommargin=4pt,
+]{claudedraftbox}
+
+\newenvironment{claudedraft}{%
+  \begin{claudedraftbox}%
+  \color{claudeorange}\itshape%
+}{%
+  \end{claudedraftbox}%
+}

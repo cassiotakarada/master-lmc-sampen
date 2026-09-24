@@ -1,0 +1,187 @@
+%% capitulos/introducao.tex — Capítulo 1: Introdução
+%%
+%% Bloco escrito por Claude com base na qualificação de 2025 e em buscas
+%% bibliográficas no scite (DOIs verificados). Sinalizado em laranja itálico
+%% pelo ambiente claudedraft. Trave a seção quando o conteúdo for aprovado:
+%%   python -m src.writer --lock introducao/full
+
+\chapter{Introdução}
+\label{ch:introducao}
+
+% WRITER:BEGIN:introducao/full
+\begin{claudedraft}
+
+\section{Contexto da análise de imagens médicas no diagnóstico clínico}
+\label{sec:intro-contexto}
+
+A imagem médica consolidou-se como um dos pilares do diagnóstico clínico
+contemporâneo. Modalidades como tomografia computadorizada, ressonância
+magnética, radiografia, ultrassonografia, tomografia por emissão de pósitrons
+e a histopatologia digital fornecem representações detalhadas de estruturas
+internas e teciduais que sustentam decisões de triagem, estadiamento e
+acompanhamento terapêutico em praticamente todas as especialidades médicas
+\cite{jiang2023}. O volume de dados gerado por esses exames cresce de modo
+contínuo, ao mesmo tempo em que sua interpretação permanece uma tarefa que
+exige treinamento especializado e está sujeita a variabilidade inter e
+intraobservador. Esse cenário motiva o desenvolvimento de ferramentas
+computacionais capazes de oferecer suporte quantitativo à análise dessas
+imagens, notadamente em tarefas de classificação, segmentação e detecção
+de anomalias.
+
+\section{Avanços em aprendizado profundo aplicados à medicina}
+\label{sec:intro-dl}
+
+Nas últimas décadas o aprendizado profundo (\emph{deep learning}, DL)
+emergiu como o paradigma dominante para o processamento de imagens médicas.
+Em particular, redes neurais convolucionais profundas, exemplificadas pela
+família de redes residuais introduzida por \citeonline{he2016}, alcançaram
+desempenho próximo ou superior ao de especialistas humanos em diversas
+tarefas de classificação e detecção \cite{jiang2023}. Esse progresso é
+sustentado, de um lado, pelo aumento sistemático do poder computacional e,
+de outro, pela disponibilização de coleções públicas padronizadas de imagens
+médicas que viabilizam treinamento, comparação e reprodutibilidade de
+modelos. Entre essas coleções destaca-se o \emph{benchmark} MedMNIST v2
+\cite{medmnist2023}, que reúne dezoito conjuntos de classificação 2D e 3D
+oriundos de patologia, radiologia e oftalmologia, padronizados em baixa
+resolução para permitir prototipagem rápida sem perder representatividade
+das modalidades clínicas.
+
+Apesar desses avanços, modelos profundos operam de modo essencialmente
+opaco do ponto de vista clínico: a relação entre os parâmetros aprendidos
+e as decisões de saída não é trivialmente legível, configurando o problema
+classicamente designado por \emph{caixa-preta}. Levantamentos recentes
+apontam que essa limitação constitui hoje a principal barreira à adoção
+de DL em fluxos diagnósticos sensíveis, mais relevante até que o ganho
+marginal de acurácia em métricas tradicionais \cite{teng2022}. Nesse
+contexto, a interpretabilidade dos modelos depende não apenas de explicações
+\emph{post hoc} sobre saídas individuais, mas também de instrumentos
+quantitativos que caracterizem o estado interno da rede durante o
+treinamento.
+
+\section{Justificativa do uso de medidas de complexidade}
+\label{sec:intro-justificativa}
+
+Métricas tradicionais de avaliação --- acurácia, perda de validação,
+área sob a curva ROC --- capturam o comportamento do modelo sobre um
+conjunto de dados específico, mas não oferecem leitura direta sobre a
+organização estatística dos pesos aprendidos. Essa lacuna é particularmente
+visível no fenômeno do \emph{overfitting}: redes com elevada capacidade
+podem memorizar o conjunto de treinamento de modo a atingir acurácia
+quase perfeita sobre ele, ao mesmo tempo em que generalizam mal para
+dados novos. Análises teóricas recentes da dinâmica de generalização em
+regimes de alta dimensionalidade indicam que os pesos atravessam fases
+qualitativamente distintas durante o treinamento, com implicações diretas
+sobre a capacidade preditiva do modelo \cite{advani2020}, e métodos
+dedicados à detecção de \emph{overfitting} em aplicações clínicas têm
+sido propostos como resposta prática a esse problema \cite{zhang2025}.
+
+A presente dissertação parte da hipótese de que medidas de complexidade
+aplicadas diretamente aos pesos da rede podem servir como marcadores
+objetivos da maturação do treinamento e do início do sobreajuste. Duas
+famílias de medidas dão sustentação a essa abordagem. A primeira é a
+Entropia de Amostra (\emph{Sample Entropy}, SampEn) introduzida por
+\citeonline{richman2000} como refinamento da Entropia Aproximada de
+\citeonline{pincus1991}; SampEn quantifica, sem viés sistemático associado a
+contagens de auto-coincidência, a regularidade de uma sequência de valores
+e tem aplicação consolidada na análise de sinais fisiológicos. Sua extensão
+bidimensional, SampEn2D, foi formalizada por \citeonline{silva2016} para
+caracterizar a irregularidade de texturas espaciais em imagens biomédicas,
+e é diretamente aplicável à matriz de pesos de uma camada convolucional.
+A análise multiescala (Multiscale Entropy, MSE) proposta por
+\citeonline{costa2002} complementa SampEn ao revelar regularidades que se
+manifestam em diferentes resoluções da mesma sequência ou matriz.
+
+A segunda família é a complexidade estatística de López-Ruiz, Mancini e
+Calbet \cite{lmc1995}, definida pelo produto entre uma medida de
+incerteza, tipicamente a entropia de Shannon, e uma medida de
+desequilíbrio em relação à distribuição uniforme. Diferentemente de
+medidas puramente entrópicas, a complexidade LMC anula-se nos extremos
+de ordem perfeita e desordem perfeita, atingindo valores máximos em
+regimes intermediários de auto-organização \cite{anteneodo1996}.
+Aplicada à distribuição dos pesos de uma rede neural, espera-se que ela
+descreva quantitativamente a transição entre o estado inicial aleatório
+e o estado treinado. A combinação entre SampEn (sensível à estrutura
+sequencial e espacial dos pesos) e LMC (sensível à forma da distribuição
+marginal) constitui o eixo metodológico desta investigação.
+
+\section{Hipótese, objetivos e escopo}
+\label{sec:intro-objetivos}
+
+A hipótese central deste trabalho é que a complexidade estatística dos
+pesos de uma rede neural profunda evolui de modo sistemático durante
+o treinamento e constitui um marcador objetivo do início do
+\emph{overfitting}. Mais especificamente, postula-se que a trajetória
+das medidas LMC e SampEn ao longo dos passos de otimização exibe
+inflexão não monotônica, e que essa inflexão precede ou coincide com a
+saturação da acurácia de validação.
+
+A pesquisa adota um \textbf{escopo deliberadamente restrito} a fim de
+permitir o controle das variáveis de interesse e a reprodutibilidade
+plena dos experimentos:
+
+\begin{itemize}
+  \item \textbf{Arquitetura única:} ResNet-18 \cite{he2016}, escolhida
+        por sua importância histórica, profundidade moderada e papel de
+        \emph{baseline} consagrado em classificação de imagens médicas.
+  \item \textbf{Conjuntos de dados:} três coleções 2D do \emph{benchmark}
+        MedMNIST v2 \cite{medmnist2023} --- PathMNIST (histopatologia
+        colorretal), OrganAMNIST (segmentação axial de órgãos abdominais
+        em tomografia computadorizada, reformulada para classificação) e
+        BloodMNIST (microscopia de células sanguíneas).
+  \item \textbf{Tarefa única:} classificação multiclasse, excluindo-se
+        explicitamente segmentação semântica, detecção e tarefas
+        ordinais.
+\end{itemize}
+
+Arquiteturas alternativas como U-Net e DenseNet, conjuntos de dados de
+maior escala como NIH ChestX-ray14 e TCIA, e tarefas adicionais como
+segmentação --- mencionados no projeto de qualificação --- ficam
+relegados a trabalhos futuros (\autoref{ch:conclusao}). Esse recorte
+permite que cada combinação de \emph{dataset} e número de épocas seja
+replicada em múltiplas sementes aleatórias (3 sementes $\times$ 3
+horizontes $\times$ 3 conjuntos $=$ 27 execuções completas), totalizando
+um grid suficiente para distinguir efeitos sistemáticos de ruído
+estocástico.
+
+Os objetivos específicos são:
+
+\begin{enumerate}
+  \item Implementar SampEn1D, SampEn2D, MSE e a complexidade LMC com
+        validação numérica em casos analiticamente conhecidos
+        (distribuições uniforme, gaussiana e séries periódicas), conforme
+        o \autoref{ap:validacao-numerica}.
+  \item Extrair os pesos da ResNet-18 a cada \emph{checkpoint} log-espaçado
+        ao longo do treinamento (cerca de 100 pontos por execução),
+        agrupando-os por tipo de camada (convolucional, densa, parâmetros
+        $\gamma$ e $\beta$ do \emph{batch normalization}) e excluindo
+        os \emph{biases} da análise.
+  \item Calcular a trajetória das medidas de complexidade para cada
+        grupo e cada execução, e confrontá-la com a evolução da perda
+        e da acurácia de validação.
+  \item Avaliar se a inflexão das trajetórias LMC e SampEn coincide,
+        antecipa ou sucede o início observável do sobreajuste, e
+        comparar os comportamentos entre os três conjuntos de dados.
+\end{enumerate}
+
+\section{Organização do trabalho}
+\label{sec:intro-organizacao}
+
+O restante desta dissertação está organizado em quatro capítulos. O
+\autoref{ch:fundamentacao} apresenta a fundamentação teórica das
+medidas de complexidade utilizadas (Entropia de Shannon, ApEn, SampEn,
+SampEn2D, MSE, complexidade LMC) e situa-as no contexto da literatura
+de redes neurais profundas e análise de séries de pesos. O
+\autoref{ch:metodologia} descreve a arquitetura, os conjuntos de dados,
+o protocolo de treinamento e \emph{checkpointing}, o esquema de
+agrupamento de parâmetros e os parâmetros adotados para cada medida
+($m$, $r$, número de \emph{bins}, escalas de coarse-graining). O
+\autoref{ch:resultados} apresenta as trajetórias de complexidade
+observadas no grid de 27 execuções, a análise por grupo de camadas e a
+correlação com indicadores tradicionais de generalização. O
+\autoref{ch:conclusao} sintetiza as evidências obtidas em relação à
+hipótese central, discute as limitações do recorte adotado e indica
+direções para extensões futuras envolvendo arquiteturas, modalidades
+de imagem e tarefas adicionais.
+
+\end{claudedraft}
+% WRITER:END:introducao/full

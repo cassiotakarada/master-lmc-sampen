@@ -1,0 +1,31 @@
+# Phase-2 grid — sensitivity to weight decay (regularization)
+#
+# Goal: test whether the LMC peak observed under subsampling (Phase 1)
+# generalises across different overfit propensities induced by weight decay.
+# The validated baseline (WD=1e-4) is already covered by experiment_grid.yaml
+# and is therefore NOT re-run here.
+#
+# Predictions:
+#   - WD=0 (no regularization)   → strongest specialization → largest LMC peak
+#   - WD=1e-5 (weak)             → close to baseline; slightly larger peak
+#   - WD=1e-3 (strong)           → underfit regime; LMC peak suppressed or absent
+#
+# Setup: full PathMNIST training set (no subsampling), 100 epochs, 3 seeds.
+
+defaults:
+  lr:           0.001
+  momentum:     0.9
+  batch_size:   64
+  image_size:   64
+  n_checkpoints:   100
+  max_flat_sample: 10000
+  num_workers:     4
+  data_root:       ./data
+  data_seed:       0
+  writer_trigger_every: 5
+
+experiments:
+  - dataset:        PathMNIST
+    epochs:         100
+    seeds:          [42, 123, 2024]
+    weight_decays:  [0.0, 0.00001, 0.001]   # 0, 1e-5, 1e-3

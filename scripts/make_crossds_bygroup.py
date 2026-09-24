@@ -1,0 +1,180 @@
+"""Per-group LMC analysis across datasets — diagnose the OrganAMNIST anomaly.
+
+Question: is OrganAMNIST's flat LMC trajectory specific to bn_gamma (the
+designated signal carrier), or does it show up in all four groups?
+
+Strategy: for each (dataset × group), apply the robust detector and report
+the peak epoch with bootstrap CI. Produce a 2×2 figure with all three
+datasets overlaid per group, and a table with all 12 cells.
+
+Outputs (results/crossds_figs/):
+    cds_f4_bygroup.{pdf,png}            — 2×2 grid LMC × epoch by group, 3 ds
+    cds_f5_bygroup_table.{csv,tex}      — peak epoch [CI] per (dataset, group)
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from robust_detector import bootstrap_peak_ci  # noqa: E402
+
+THESIS_ROOT = Path(__file__).resolve().parent.parent
+RUNS_DIR    = THESIS_ROOT / "results" / "runs"
+OUT         = THESIS_ROOT / "results" / "crossds_figs"
+OUT.mkdir(parents=True, exist_ok=True)
+
+DATASETS = ["PathMNIST", "OrganAMNIST", "BloodMNIST"]
+GROUPS   = ["conv", "dense", "bn_gamma", "bn_beta"]
+SEEDS    = [42, 123, 2024]
+EPOCHS   = 100
+
+DS_COLOR = {
+    "PathMNIST":   "#1f77b4",
+    "OrganAMNIST": "#2ca02c",
+    "BloodMNIST":  "#d62728",
+}
+DS_LABEL = {
+    "PathMNIST":   "PathMNIST",
+    "OrganAMNIST": "OrganAMNIST",
+    "BloodMNIST":  "BloodMNIST",
+}
+
+ROBUST_MIN_EP  = 0.5
+ROBUST_WINDOW  = 7
+ROBUST_POLY    = 3
+ROBUST_NBOOT   = 1000
+ROBUST_CI      = 0.95
+
+plt.rcParams.update({
+    "font.size": 10, "axes.titlesize": 11, "axes.labelsize": 10,
+    "legend.fontsize": 8.5, "figure.dpi": 130,
+})
+
+
+def load_metrics(ds, seed):
+    p = RUNS_DIR / f"{ds}_{EPOCHS}ep_seed{seed}" / "metrics.csv"
+    return pd.read_csv(p) if p.exists() else None
+
+
+def aggregate_for_plot(ds, group):
+    dfs = []
+    for seed in SEEDS:
+        m = load_metrics(ds, seed)
+        if m is None:
+            continue
+        sub = m[m["group"] == group][["step", "epoch", "lmc_complexity"]].copy()
+        sub["seed"] = seed
+        if not sub.empty:
+            dfs.append(sub)
+    if not dfs:
+        return None
+    cat = pd.concat(dfs, ignore_index=True)
+    return cat.groupby("step").agg(
+        epoch=("epoch", "first"),
+        mean=("lmc_complexity", "mean"),
+        std=("lmc_complexity", "std"),
+    ).reset_index().sort_values("step")
+
+
+def per_seed_late_dfs(ds, group):
+    """Per-seed DataFrames restricted to (group, epoch >= MIN_EP), for bootstrap."""
+    dfs = []
+    for seed in SEEDS:
+        m = load_metrics(ds, seed)
+        if m is None:
+            continue
+        sub = m[(m["group"] == group) & (m["epoch"] >= ROBUST_MIN_EP)]
+        sub = sub[["step", "epoch", "lmc_complexity"]].copy()
+        if not sub.empty:
+            dfs.append(sub)
+    return dfs
+
+
+# ============================================================================
+def fig_bygroup():
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8), sharex=True)
+    for ax, group in zip(axes.flat, GROUPS):
+        for ds in DATASETS:
+            agg = aggregate_for_plot(ds, group)
+            if agg is None or len(agg) == 0:
+                continue
+            ax.plot(agg["epoch"], agg["mean"], color=DS_COLOR[ds], linewidth=2,
+                    label=DS_LABEL[ds])
+            ax.fill_between(agg["epoch"], agg["mean"] - agg["std"], agg["mean"] + agg["std"],
+                            color=DS_COLOR[ds], alpha=0.16)
+        ax.set_xscale("symlog", linthresh=1e-2)
+        ax.set_title(f"Grupo {group}")
+        ax.set_ylabel("LMC"); ax.set_xlabel("Época (simlog)")
+        ax.grid(alpha=0.3); ax.legend(fontsize=8)
+    fig.suptitle("LMC por grupo de camadas e por dataset — PathMNIST 100 épocas",
+                 y=1.01, fontsize=12.5)
+    plt.tight_layout()
+    plt.savefig(OUT / "cds_f4_bygroup.pdf"); plt.savefig(OUT / "cds_f4_bygroup.png")
+    plt.close()
+    print("CDS-F4 ok")
+
+
+def build_table():
+    rows = []
+    for ds in DATASETS:
+        for group in GROUPS:
+            dfs = per_seed_late_dfs(ds, group)
+            if not dfs:
+                rows.append({"dataset": ds, "group": group,
+                             "epoch_peak": np.nan, "ci_low": np.nan, "ci_high": np.nan})
+                continue
+            peak = bootstrap_peak_ci(dfs, "lmc_complexity",
+                                     n_bootstrap=ROBUST_NBOOT, ci_level=ROBUST_CI,
+                                     window_size=ROBUST_WINDOW, polyorder=ROBUST_POLY)
+            rows.append({
+                "dataset":     ds,
+                "group":       group,
+                "epoch_peak":  peak.epoch_peak,
+                "ci_low":      peak.ci_low,
+                "ci_high":     peak.ci_high,
+            })
+    return pd.DataFrame(rows)
+
+
+def write_table(df):
+    df.to_csv(OUT / "cds_f5_bygroup_table.csv", index=False)
+    lines = [
+        "% Auto-generated by scripts/make_crossds_bygroup.py",
+        "\\begin{table}[H]",
+        "\\centering",
+        "\\caption{Pico da LMC por grupo de camadas e por dataset "
+        "(PathMNIST 100 ep, 3 sementes; bootstrap 95\\% CI; "
+        "épocas mostradas em escala numérica direta).}",
+        "\\label{tab:crossds-bygroup}",
+        "\\small",
+        "\\begin{tabular}{lcccc}",
+        "\\toprule",
+        "Dataset & \\texttt{conv} & \\texttt{dense} & \\texttt{bn\\_gamma} & \\texttt{bn\\_beta} \\\\",
+        "\\midrule",
+    ]
+    for ds in DATASETS:
+        cells = [ds]
+        for group in GROUPS:
+            row = df[(df["dataset"] == ds) & (df["group"] == group)].iloc[0]
+            cells.append(f"{row['epoch_peak']:.1f} [{row['ci_low']:.1f}, {row['ci_high']:.1f}]")
+        lines.append(" & ".join(cells) + " \\\\")
+    lines += ["\\bottomrule", "\\end{tabular}", "\\end{table}"]
+    (OUT / "cds_f5_bygroup_table.tex").write_text("\n".join(lines) + "\n")
+    print("CDS-F5 ok")
+
+
+def main():
+    fig_bygroup()
+    df = build_table()
+    write_table(df)
+    print("\nPeak epoch per (dataset, group):")
+    print(df.to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()

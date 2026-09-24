@@ -1,0 +1,434 @@
+%% capitulos/fundamentacao.tex — Capítulo 2: Fundamentação Teórica
+%%
+%% Bloco 1 (Conteúdo Teórico) escrito por Claude com base em buscas
+%% bibliográficas no scite (DOIs verificados). Sinalizado em laranja itálico
+%% pelo ambiente claudedraft. Trave a seção quando o conteúdo for aprovado:
+%%   python -m src.writer --lock fundamentacao/conteudo
+
+\chapter{Fundamentação Teórica}
+\label{ch:fundamentacao}
+
+% WRITER:BEGIN:fundamentacao/conteudo
+\begin{claudedraft}
+
+Este capítulo apresenta o aparato conceitual e operacional sobre o qual
+se constrói a metodologia da dissertação. A
+\autoref{sec:teoria-informacao} retoma a entropia de Shannon e seus
+desdobramentos em entropia diferencial e divergências, dando base
+formal às medidas que vêm a seguir. A \autoref{sec:apen-sampen}
+percorre a transição da Entropia Aproximada (ApEn) para a Entropia de
+Amostra (SampEn), explicitando os vieses que motivaram o refinamento e
+a interpretação probabilística de SampEn como log-verossimilhança
+condicional. As \autoref{sec:sampen2d} e \autoref{sec:mse} estendem
+SampEn ao domínio espacial bidimensional e ao plano multiescala,
+respectivamente, fornecendo as duas leituras complementares sobre a
+matriz de pesos de uma camada convolucional. Por fim, a
+\autoref{sec:lmc} apresenta a complexidade estatística de López-Ruiz,
+Mancini e Calbet (LMC), discute a controvérsia sobre normalização e
+intensividade que se seguiu à proposta original e justifica a
+convenção $C = H \times D$ adotada no restante do trabalho.
+
+\section{Entropia de Shannon e teoria da informação}
+\label{sec:teoria-informacao}
+
+A entropia de Shannon \cite{shannon1948} é a pedra angular sobre a
+qual se assenta toda a discussão subsequente. Para uma variável
+aleatória discreta $X$ que assume valores no alfabeto finito
+$\mathcal{X} = \{x_1, x_2, \ldots, x_N\}$ com distribuição de
+probabilidade $P = (p_1, p_2, \ldots, p_N)$, a entropia é definida por
+\begin{equation}
+  H(X) = -\sum_{i=1}^{N} p_i \log_2 p_i,
+  \label{eq:shannon-discrete}
+\end{equation}
+adotando-se, por convenção, $0 \log_2 0 = 0$. A escolha do logaritmo
+na base $2$ implica que $H$ é medida em bits, interpretação
+diretamente associada ao número médio mínimo de dígitos binários
+necessário para codificar uma realização de $X$. A entropia satisfaz
+$0 \le H(X) \le \log_2 N$, com extremos alcançados, respectivamente,
+pela distribuição degenerada (existe $i$ tal que $p_i = 1$) e pela
+distribuição uniforme ($p_i = 1/N$ para todo $i$). Caracterizações
+axiomáticas mostram que essas propriedades, junto da continuidade e da
+aditividade, determinam $H$ a menos de um fator multiplicativo
+\cite{coverthomas2006}.
+
+Quando $X$ é uma variável contínua com função de densidade de
+probabilidade $f$, a generalização natural --- a entropia diferencial
+--- é dada por
+\begin{equation}
+  h(X) = -\int_{\mathcal{X}} f(x) \log_2 f(x)\, dx,
+  \label{eq:shannon-diff}
+\end{equation}
+sempre que a integral exista. Diferentemente da versão discreta,
+$h(X)$ pode assumir valores negativos e não é invariante sob mudança
+de escala, o que limita seu uso direto como índice de
+``incerteza''. Em aplicações práticas com pesos de redes neurais,
+trabalha-se com a versão discretizada por meio de histogramas com $N$
+bins, recuperando a forma da \autoref{eq:shannon-discrete} a um custo
+controlado de viés e variância \cite{coverthomas2006}.
+
+Uma medida de dissimilaridade entre duas distribuições $P$ e $Q$
+sobre o mesmo alfabeto é a divergência de Kullback--Leibler
+\begin{equation}
+  D_{\mathrm{KL}}(P\|Q) = \sum_{i=1}^{N} p_i \log_2 \frac{p_i}{q_i},
+  \label{eq:kl}
+\end{equation}
+que é não negativa e nula se, e somente se, $P = Q$. A
+\autoref{eq:kl} é central nesta dissertação porque a noção de
+``desequilíbrio'' subjacente à complexidade LMC pode ser interpretada
+como uma medida de afastamento entre $P$ e a distribuição de
+referência (uniforme), tema retomado na \autoref{sec:lmc}.
+
+\section{Entropia Aproximada e Entropia de Amostra}
+\label{sec:apen-sampen}
+
+O salto da teoria da informação para a análise de séries temporais
+finitas exige um estimador de regularidade que opere com poucos pontos
+e seja robusto a ruído moderado. A Entropia Aproximada (ApEn),
+introduzida por \citeonline{pincus1991}, foi a primeira proposta a
+preencher esse papel para sinais fisiológicos. Dada uma série
+$\mathbf{u} = (u_1, u_2, \ldots, u_N)$, fixa-se um comprimento de
+embedding $m$ e uma tolerância $r$ e constroem-se os vetores
+$\mathbf{x}_i = (u_i, u_{i+1}, \ldots, u_{i+m-1})$ com
+$1 \le i \le N - m + 1$. Para cada $i$ define-se
+\begin{equation}
+  C_i^m(r) = \frac{\#\{j : d[\mathbf{x}_i, \mathbf{x}_j] \le r\}}
+                  {N - m + 1},
+  \label{eq:apen-ci}
+\end{equation}
+onde $d[\cdot, \cdot]$ é a distância de Chebyshev (máximo das
+diferenças absolutas componente a componente) e a contagem inclui o
+caso $j = i$ (\emph{self-match}). A ApEn é então
+\begin{equation}
+  \mathrm{ApEn}(m, r, N) = \Phi^m(r) - \Phi^{m+1}(r),
+  \quad
+  \Phi^m(r) = \frac{1}{N - m + 1}\sum_{i=1}^{N-m+1} \ln C_i^m(r).
+  \label{eq:apen}
+\end{equation}
+
+A inclusão de \emph{self-matches} em $C_i^m(r)$ é simultaneamente o
+recurso que viabiliza a definição (evita logaritmo de zero) e a fonte
+de seus dois principais defeitos: (i) ApEn é sistematicamente
+enviesada para valores menores em séries curtas, e (ii) sua
+consistência relativa --- a propriedade de que, ao se comparar duas
+séries em um mesmo $r$, a ordem dos valores se preserva quando $r$
+varia --- não é garantida \cite{richman2000,delgadobonal2019}. A
+literatura subsequente documenta cenários em que classificações
+fisiológicas baseadas em ApEn se invertem ao se mudar a tolerância,
+comprometendo seu uso como marcador objetivo
+\cite{yentes2013,delgadobonal2019}.
+
+A Entropia de Amostra (SampEn), proposta por \citeonline{richman2000},
+remove essas limitações por construção. Em vez de calcular o
+logaritmo médio de probabilidades locais, conta-se globalmente o
+número de pares de templates próximos. Sejam
+\begin{align}
+  B^m(r) &= \#\{(i, j) : i < j,\ d[\mathbf{x}_i, \mathbf{x}_j] \le r\},
+  \label{eq:sampen-B} \\
+  A^m(r) &= \#\{(i, j) : i < j,\ d[\mathbf{x}_i, \mathbf{x}_j] \le r,
+                       \ |u_{i+m} - u_{j+m}| \le r\},
+  \label{eq:sampen-A}
+\end{align}
+isto é, $B^m(r)$ conta pares de janelas de comprimento $m$ próximas e
+$A^m(r)$ conta os pares dessas janelas que permanecem próximas após
+um passo adicional. A SampEn é dada por
+\begin{equation}
+  \mathrm{SampEn}(m, r, N) = -\ln \frac{A^m(r)}{B^m(r)}.
+  \label{eq:sampen}
+\end{equation}
+Pela construção, ambas as contagens excluem o par $(i, i)$, eliminando
+o viés associado às auto-coincidências. A interpretação de
+\autoref{eq:sampen} é direta e instrutiva: SampEn é o negativo do
+logaritmo da probabilidade condicional de que duas janelas próximas
+em comprimento $m$ permaneçam próximas em comprimento $m + 1$.
+Valores baixos correspondem a séries muito regulares (a continuação
+é altamente previsível); valores altos, a séries irregulares
+(continuação imprevisível).
+
+A \autoref{eq:sampen} herda independência tanto de $N$ quanto da
+ordem dos pares por ser uma estatística baseada em razão de contagens
+globais. Demonstrou-se ainda que, em uma ampla família de processos
+estocásticos, SampEn possui consistência relativa entre tolerâncias,
+propriedade que ApEn não satisfaz \cite{richman2000}. Por outro lado,
+a literatura recente registra cenários particulares de processos do
+tipo $\mathrm{MIX}$ contaminados por ruído em que mesmo SampEn pode
+falhar essa consistência, recomendando cautela ao se interpretar
+diferenças finas entre séries de naturezas distintas
+\cite{delgadobonal2019}.
+
+A escolha dos parâmetros $m$ e $r$ é prática consagrada na
+literatura. Pela análise sistemática de \citeonline{yentes2013} sobre
+séries curtas, recomenda-se $m = 2$ e $r$ entre $0{,}1$ e $0{,}25$ do
+desvio padrão da série, com $N \ge 200$ para evitar instabilidade
+estatística. Esta dissertação adota $m = 2$ e $r = 0{,}2 \times
+\sigma$, com $\sigma$ tomado como desvio padrão populacional
+(\texttt{ddof}=0), em consonância com a convenção do grupo de pesquisa
+e com o intervalo recomendado pela literatura. Ressalva-se que tensores
+pequenos --- em particular os parâmetros $\gamma$ e $\beta$ do
+\emph{batch normalization} das camadas iniciais --- podem ter
+comprimento inferior a $N = 200$, regime em que a estimativa de SampEn
+é menos estável; esse limite é levado em conta na interpretação desses
+grupos.
+
+\section{Entropia de Amostra Bidimensional (SampEn2D)}
+\label{sec:sampen2d}
+
+A extensão bidimensional da SampEn surge da observação de que pesos
+de camadas convolucionais e parâmetros de matrizes têm estrutura
+espacial: a vizinhança de um peso é tão informativa quanto sua
+sequência linear, e o domínio natural para análise é a matriz, não
+o vetor. \citeonline{silva2014embc} apresentaram uma primeira
+formulação, validada posteriormente em \citeonline{silva2016} sobre
+imagens de textura sintéticas, do banco Brodatz e de cortes
+histológicos de nervo sural, demonstrando que SampEn2D recupera as
+propriedades qualitativas de SampEn 1D ao mesmo tempo em que
+incorpora a dependência bidimensional.
+
+Seja $\mathbf{W} \in \mathbb{R}^{H \times W}$ uma matriz de pesos
+extraída de uma camada da rede. Fixe-se um tamanho de janela $m$ e
+uma tolerância $r$. As janelas $m \times m$ centradas em
+$(i, j)$ formam a coleção
+$\mathcal{V}_m = \{ \mathbf{V}_{i,j}^{(m)} : 1 \le i \le H - m,\,
+1 \le j \le W - m\}$. Para uma janela maior $(m+1) \times (m+1)$,
+analogamente, escreve-se $\mathcal{V}_{m+1}$. Por construção,
+restringe-se às posições $(i, j)$ tais que ambas as janelas $m$ e
+$m+1$ caibam integralmente em $\mathbf{W}$, garantindo emparelhamento
+entre $\mathcal{V}_m$ e $\mathcal{V}_{m+1}$. Em analogia com as
+\autoref{eq:sampen-B} e \autoref{eq:sampen-A}, definem-se
+\begin{align}
+  B^m_{\mathrm{2D}}(r)
+    &= \#\{(p, q) : p \neq q,\ d[\mathbf{V}_p^{(m)}, \mathbf{V}_q^{(m)}] \le r\},
+    \label{eq:sampen2d-B} \\
+  A^m_{\mathrm{2D}}(r)
+    &= \#\{(p, q) : p \neq q,\ d[\mathbf{V}_p^{(m+1)}, \mathbf{V}_q^{(m+1)}] \le r\},
+    \label{eq:sampen2d-A}
+\end{align}
+em que $p, q$ percorrem as posições válidas e $d[\cdot, \cdot]$ é a
+distância de Chebyshev sobre a janela vista como vetor. A
+\emph{Sample Entropy 2D} é
+\begin{equation}
+  \mathrm{SampEn2D}(m, r, \mathbf{W})
+    = -\ln \frac{A^m_{\mathrm{2D}}(r)}{B^m_{\mathrm{2D}}(r)}.
+  \label{eq:sampen2d}
+\end{equation}
+A interpretação probabilística replica a do caso unidimensional:
+SampEn2D é o negativo do logaritmo da probabilidade de que duas
+janelas $m \times m$ próximas tenham vizinhanças que permaneçam
+próximas quando a janela é estendida em uma linha e uma coluna.
+
+A literatura aponta dois aspectos práticos relevantes. Primeiro, a
+SampEn2D pode produzir valores indefinidos para matrizes pequenas
+quando $A^m_{\mathrm{2D}}(r) = 0$, problema que motivou propostas
+alternativas baseadas em entropias de dispersão e
+fuzzificação. Segundo, o custo computacional cresce
+quadraticamente com o número de janelas válidas, tornando a
+estimativa custosa para matrizes grandes \cite{silva2016}. Para os
+fins desta dissertação, o tamanho típico das matrizes de uma camada
+convolucional na ResNet-18 mantém-se confortavelmente acima do
+regime patológico identificado pela literatura, e a SampEn2D é
+aplicada diretamente, sem recurso a substitutos.
+
+\section{Entropia Multiescala (MSE)}
+\label{sec:mse}
+
+A SampEn captura irregularidade em uma escala fixa. No entanto,
+sistemas com correlações de longo alcance --- batimentos cardíacos
+saudáveis, ruído $1/f$, dinâmica de redes complexas ---  apresentam
+estrutura em múltiplas escalas temporais simultaneamente. A Entropia
+Multiescala (MSE), proposta por \citeonline{costa2002} e
+sistematizada em \citeonline{costa2005}, lê esse fenômeno por meio de
+uma sequência de granulações grosseiras (\emph{coarse-grainings}) da
+série original.
+
+Dada uma série $\mathbf{u}$ e um fator de escala $\tau \in
+\mathbb{N}^{\ast}$, constrói-se a série granulosa
+\begin{equation}
+  y_j^{(\tau)} = \frac{1}{\tau} \sum_{i = (j-1)\tau + 1}^{j\tau} u_i,
+  \quad 1 \le j \le \lfloor N/\tau \rfloor,
+  \label{eq:mse-coarse}
+\end{equation}
+isto é, médias de blocos não sobrepostos de comprimento $\tau$. A
+escala $\tau = 1$ recupera a série original. Para cada $\tau$,
+calcula-se SampEn da série granulosa, formando o perfil multiescala
+$\{\mathrm{SampEn}(m, r, y^{(\tau)}) : \tau = 1, 2, \ldots,
+\tau_{\max}\}$.
+
+Um detalhe metodológico crítico: a tolerância $r$ é fixada uma única
+vez a partir do desvio padrão da série \emph{original} e mantida
+constante em todas as escalas, conforme prescrição de
+\citeonline{costa2005}. Recomputar $r$ em cada escala invalidaria a
+comparação entre escalas, pois mudanças no perfil de complexidade
+ficariam confundidas com a renormalização local. A interpretação
+qualitativa da curva $\mathrm{SampEn}$ versus $\tau$ separa três
+classes principais: ruído branco (entropia decresce monotonicamente),
+ruído $1/f$ (entropia constante ao longo das escalas) e periódicos
+(entropia próxima de zero em todas as escalas). Sistemas
+fisiológicos saudáveis apresentam padrão similar ao $1/f$,
+enquanto patologias frequentemente colapsam para perfis
+monotonicamente decrescentes \cite{costa2005}.
+
+Esta dissertação aplica MSE 1D ao vetor de pesos achatado e, na
+extensão proposta por \citeonline{silva2016} para SampEn2D, MSE 2D às
+matrizes via granulação por blocos $\tau \times \tau$. Em ambos os
+casos, $r$ é mantido fixo em $0{,}2 \times \sigma$ da matriz original,
+com $\sigma$ calculado em população.
+
+\section{Complexidade Estatística LMC}
+\label{sec:lmc}
+
+A entropia, isoladamente, não é uma boa medida de complexidade.
+Distribuições uniformes (entropia máxima) são tão simples quanto
+distribuições degeneradas (entropia mínima), no sentido de que ambas
+são facilmente descritíveis e desprovidas de estrutura interna.
+\citeonline{lmc1995}\,---\,doravante LMC\,---\,propuseram, como
+remédio, uma medida que se anula em ambos os extremos e atinge
+valores máximos em regimes intermediários de auto-organização. Para
+uma distribuição $P = (p_1, \ldots, p_N)$, define-se o
+\emph{desequilíbrio}
+\begin{equation}
+  D(P) = \sum_{i=1}^{N} \left( p_i - \frac{1}{N} \right)^{2},
+  \label{eq:lmc-disequilibrium}
+\end{equation}
+isto é, o quadrado da distância $L_2$ até a distribuição uniforme.
+A complexidade estatística LMC é o produto
+\begin{equation}
+  C(P) = H(P) \times D(P),
+  \label{eq:lmc}
+\end{equation}
+em que $H$ é a entropia de Shannon, dada pela
+\autoref{eq:shannon-discrete}. Como $H$ é máxima e $D$ é nula sob a
+distribuição uniforme, e $H$ é nula e $D$ é máxima sob a distribuição
+degenerada, $C$ se anula em ambos os extremos por construção. Para
+distribuições intermediárias, $C$ assume valores estritamente
+positivos, refletindo simultaneamente incerteza e afastamento do
+equilíbrio \cite{lmc1995}.
+
+A definição original gerou debate intenso. \citeonline{anteneodo1996}
+demonstraram, no contexto de ensembles físicos, que $C$ na forma
+\autoref{eq:lmc} \emph{não} é uma quantidade intensiva: ao se
+duplicar o tamanho do sistema, $C$ não satisfaz a relação de
+escala esperada de uma medida termodinâmica genuína. Esse fato
+limita a transferibilidade direta de $C$ entre sistemas de
+tamanhos distintos e motivou a busca por refinamentos.
+\citeonline{feldman1998}, em uma revisão crítica das medidas de
+complexidade estatística disponíveis na época, articularam três
+desideratos: a medida deve (i) anular-se nos extremos de ordem e
+desordem perfeitas, (ii) ser intensiva, e (iii) capturar a presença
+de estrutura correlacional em escalas relevantes do sistema.
+
+A resposta mais influente a essas críticas é a complexidade
+estatística generalizada (SCM, \emph{Statistical Complexity
+Measure}), introduzida por \citeonline{lamberti2004} e desenvolvida
+por \citeonline{rosso2010}. Em vez do produto $H \times D$, define-se
+\begin{equation}
+  C_{\mathrm{SCM}}(P) = Q_J(P, P_e) \cdot H(P) / H_{\max},
+  \label{eq:scm}
+\end{equation}
+em que $H_{\max} = \log_2 N$ normaliza a entropia, $P_e$ é a
+distribuição de equilíbrio (tipicamente uniforme), e $Q_J(P, P_e)$ é
+o desequilíbrio em divergência de Jensen-Shannon, normalizado de modo
+que $0 \le Q_J \le 1$. A construção \autoref{eq:scm} é intensiva,
+limitada ao intervalo $[0, 1]$ e aplicável a uma variedade de
+sistemas dinâmicos contínuos e discretos.
+
+Apesar das vantagens formais da SCM, esta dissertação adota a forma
+original \autoref{eq:lmc}\,---\,$C = H \times D$ em bits, sem
+normalização\,---\,por três razões metodológicas que merecem
+explicitação:
+
+\begin{enumerate}
+  \item \textbf{Comparação intra-modelo, não inter-sistema.} O objeto
+        de análise são as trajetórias de complexidade dos pesos de
+        \emph{uma mesma rede} em \emph{um mesmo grupo de camadas} ao
+        longo do treinamento. As comparações são pareadas por
+        \emph{checkpoint}, \emph{seed} e dataset; o argumento de
+        intensividade de \citeonline{anteneodo1996}, que diz respeito
+        à escalonamento entre sistemas de tamanhos distintos, não é
+        ativado nesse desenho experimental.
+  \item \textbf{Sensibilidade a transições intermediárias.} A forma
+        $H \times D$ é sensível justamente ao regime que interessa à
+        hipótese central\,---\,a transição entre o estado inicial
+        aleatório e o estado treinado. Versões normalizadas saturam
+        nas extremidades do intervalo $[0, 1]$, comprimindo as
+        diferenças que se busca medir. A versão não normalizada
+        preserva a granularidade necessária para detectar inflexões
+        sutis na trajetória.
+  \item \textbf{Convenção do grupo de pesquisa.} Trabalhos anteriores
+        do mesmo grupo \cite{silva2016,silva2012qsampen} adotam a
+        convenção $H \times D$ em bits, sem normalização, com
+        binarização adaptativa da forma $N = \min(100, \max(10,
+        n/5))$, onde $n$ é o número de amostras. Manter essa
+        convenção preserva a comparabilidade direta entre os
+        resultados desta dissertação e os da literatura imediata.
+\end{enumerate}
+
+A normalização adaptativa do número de bins $N$ é especialmente
+relevante para a aplicação a pesos de redes neurais, onde o número
+de parâmetros varia ordens de grandeza entre camadas: tipicamente
+poucas centenas em camadas iniciais e dezenas de milhares em
+camadas profundas. A regra $N = \min(100, \max(10, n/5))$ garante
+resolução suficiente para camadas pequenas sem incorrer em viés de
+subamostragem em camadas grandes.
+
+A combinação entre LMC (sensível à forma da distribuição marginal
+dos pesos) e SampEn (sensível à estrutura sequencial e espacial)
+fornece, portanto, dois ângulos complementares sobre o estado
+interno da rede ao longo do treinamento. Os parâmetros operacionais
+adotados, junto da fundamentação aqui apresentada, são retomados em
+detalhe no \autoref{ch:metodologia}.
+
+\end{claudedraft}
+
+% ===========================================================================
+\section{Trabalhos relacionados: análise de pesos e generalização}
+\label{sec:trabalhos-relacionados}
+
+\begin{claudedraft}
+A questão de \emph{por que} redes neurais profundas generalizam --- e de como
+\emph{antecipar} o sobreajuste (\emph{overfitting}) a partir do estado interno
+do modelo --- motivou uma extensa literatura de medidas calculadas sobre os
+próprios pesos da rede. Esta seção situa a presente dissertação frente a essas
+abordagens e explicita em que ela difere.
+
+Uma primeira família estabelece \emph{limites de generalização} baseados em
+normas e margens. \citeonline{bartlett2017} derivam um limite cuja magnitude
+escala com a complexidade espectral da rede --- o produto das normas espectrais
+das matrizes de peso, normalizado pela margem ---, mostrando empiricamente que
+essa quantidade acompanha o risco em excesso ao longo do treinamento. Numa
+linha probabilística, \citeonline{dziugaite2017} obtêm limites PAC-Bayes
+\emph{não vacuosos} para redes estocásticas com muito mais parâmetros do que
+dados, otimizando diretamente o limite sobre perturbações dos pesos. A
+diversidade dessas propostas levou \citeonline{jiang2020} a um estudo empírico
+de larga escala: avaliando mais de quarenta medidas de complexidade sobre mais
+de dez mil redes convolucionais, os autores constatam que algumas medidas
+baseadas em norma falham em prever a generalização, enquanto medidas ligadas a
+nitidez (\emph{sharpness}) e a fundamentos PAC-Bayes se mostram mais
+promissoras.
+
+Uma segunda família analisa o \emph{espectro} das matrizes de peso. A Teoria da
+Auto-Regularização de Cauda Pesada (\emph{Heavy-Tailed Self-Regularization}) de
+\citeonline{martin2021} ajusta leis de potência às densidades espectrais
+empíricas dos pesos e mostra que o expoente da lei de potência correlaciona-se
+com a qualidade do modelo, discriminando redes bem e mal treinadas \emph{sem
+acesso a dados de treino ou teste}. Essa abordagem --- materializada na
+ferramenta \texttt{WeightWatcher} --- evidencia que a distribuição dos pesos
+carrega, por si só, informação sobre generalização, ainda que por um ângulo
+puramente espectral. Em paralelo, estudos sobre a dinâmica de alta dimensão do
+erro de generalização \cite{advani2020} e sobre os próprios fundamentos das
+medidas de complexidade estatística \cite{feldman1998} reforçam que a forma das
+distribuições internas, e não apenas sua norma, é informativa.
+
+Frente a esse panorama, a contribuição desta dissertação distingue-se em três
+aspectos. Primeiro, em vez de normas escalares ou de espectros de valores
+singulares, adota-se uma leitura \emph{informação-teórica} da
+\emph{distribuição dos valores} dos pesos, via complexidade estatística LMC e
+entropia de amostra. Segundo, o foco é \emph{temporal}: as medidas são
+acompanhadas \emph{ao longo das épocas} e por grupo de camadas, buscando a
+inflexão que antecede o sobreajuste --- ao passo que a maioria das abordagens
+acima é avaliada em um único estado treinado. Terceiro, o domínio de aplicação
+é a imagem médica, em que detectar sobreajuste é particularmente crítico
+\cite{zhang2025}. Até onde se pôde verificar, o uso de complexidade estatística
+e de entropia de amostra dos pesos como \emph{marcador temporal de sobreajuste}
+não havia sido explorado, o que delimita a lacuna que este trabalho busca
+preencher.
+\end{claudedraft}
+% WRITER:END:fundamentacao/conteudo

@@ -1,0 +1,407 @@
+<title>Inventário da Tese</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --bg:        #e8eaee;
+    --surface:   #f7f8fa;
+    --surface-2: #dcdfe6;
+    --ink:       #1a1f2b;
+    --ink-soft:  #3b4354;
+    --muted:     #626b7d;
+    --rule:      #c9cdd6;
+    --rule-soft: #dee1e7;
+    --accent:    #2f4a8c;
+    --accent-dim:#2f4a8c16;
+    --ok:        #3f6b3a;
+    --ok-dim:    #3f6b3a18;
+    --warn:      #8a5f16;
+    --warn-dim:  #8a5f1618;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #12151c;
+      --surface:   #191d26;
+      --surface-2: #232935;
+      --ink:       #e5e8ee;
+      --ink-soft:  #c3c9d4;
+      --muted:     #929aab;
+      --rule:      #2e3542;
+      --rule-soft: #242a35;
+      --accent:    #8aa6e0;
+      --accent-dim:#8aa6e01c;
+      --ok:        #8fc086;
+      --ok-dim:    #8fc0861c;
+      --warn:      #d5a95e;
+      --warn-dim:  #d5a95e1c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:        #12151c;
+    --surface:   #191d26;
+    --surface-2: #232935;
+    --ink:       #e5e8ee;
+    --ink-soft:  #c3c9d4;
+    --muted:     #929aab;
+    --rule:      #2e3542;
+    --rule-soft: #242a35;
+    --accent:    #8aa6e0;
+    --accent-dim:#8aa6e01c;
+    --ok:        #8fc086;
+    --ok-dim:    #8fc0861c;
+    --warn:      #d5a95e;
+    --warn-dim:  #d5a95e1c;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Archivo, system-ui, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .doc { max-width: 960px; margin: 0 auto; padding: 56px 24px 100px; display: flex; flex-direction: column; gap: 46px; }
+
+  .eyebrow {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 14px;
+  }
+  h1 {
+    font-family: Archivo, sans-serif; font-weight: 700;
+    font-size: clamp(31px, 5.2vw, 46px); line-height: 1.06;
+    letter-spacing: -.028em; text-wrap: balance; margin-bottom: 14px;
+  }
+  .lede {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 18px; color: var(--ink-soft); max-width: 62ch;
+  }
+
+  /* ---- cartão de localização ---- */
+  .where {
+    border: 1px solid var(--rule); border-radius: 4px; background: var(--surface);
+    overflow: hidden; margin-top: 30px;
+  }
+  .where .hd {
+    background: var(--surface-2); padding: 11px 18px;
+    font-family: "Roboto Mono", monospace; font-size: 11px;
+    letter-spacing: .11em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--rule);
+  }
+  .where dl { display: grid; grid-template-columns: 150px 1fr; }
+  .where dt {
+    padding: 10px 18px; font-family: "Roboto Mono", monospace; font-size: 11.5px;
+    color: var(--muted); border-bottom: 1px solid var(--rule-soft);
+  }
+  .where dd {
+    padding: 10px 18px; font-family: "Roboto Mono", monospace; font-size: 12.5px;
+    color: var(--ink); border-bottom: 1px solid var(--rule-soft);
+    overflow-wrap: anywhere;
+  }
+  .where dl > :nth-last-child(-n+2) { border-bottom: none; }
+
+  /* ---- seções ---- */
+  section { display: flex; flex-direction: column; gap: 15px; }
+  .shead { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+  .letter {
+    font-family: "Roboto Mono", monospace; font-size: 13px; font-weight: 500;
+    color: var(--accent); border: 1px solid var(--accent); border-radius: 3px;
+    width: 26px; height: 26px; display: grid; place-items: center; flex: none;
+  }
+  h2 {
+    font-family: Archivo, sans-serif; font-weight: 600; font-size: 23px;
+    letter-spacing: -.018em; text-wrap: balance;
+  }
+  h2 .count { font-family: "Roboto Mono", monospace; font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 8px; }
+  p { font-family: "Source Serif 4", Georgia, serif; font-size: 16.5px; max-width: 68ch; color: var(--ink-soft); }
+  p strong { font-weight: 600; color: var(--ink); }
+
+  code {
+    font-family: "Roboto Mono", monospace; font-size: .85em;
+    background: var(--surface-2); padding: .12em .38em; border-radius: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- tabelas ---- */
+  .tw { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 500px; font-size: 14px; }
+  th, td { padding: 9px 15px; text-align: left; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: "Roboto Mono", monospace; font-size: 10.5px; font-weight: 500;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--rule); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.n { font-family: "Roboto Mono", monospace; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  td.f { font-family: "Roboto Mono", monospace; font-size: 12.5px; }
+  tfoot td {
+    font-family: "Roboto Mono", monospace; font-weight: 500; font-size: 13.5px;
+    border-top: 1px solid var(--rule); background: var(--surface-2);
+  }
+  tfoot td.n { text-align: right; }
+  tr.hi td { background: var(--accent-dim); }
+
+  .tag {
+    font-family: "Roboto Mono", monospace; font-size: 10.5px;
+    padding: 2px 7px; border-radius: 2px; white-space: nowrap;
+  }
+  .tag.ok   { background: var(--ok-dim);   color: var(--ok); }
+  .tag.warn { background: var(--warn-dim); color: var(--warn); }
+
+  /* ---- destaque ---- */
+  .call {
+    border-left: 2px solid var(--accent); background: var(--accent-dim);
+    padding: 16px 20px; border-radius: 0 3px 3px 0;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .call.warn { border-color: var(--warn); background: var(--warn-dim); }
+  .call .h { font-family: Archivo, sans-serif; font-weight: 600; font-size: 16px; color: var(--ink); }
+  .call p { font-size: 15.5px; max-width: 66ch; }
+
+  /* ---- totais ---- */
+  .totals {
+    border: 1px solid var(--rule); border-radius: 4px; background: var(--surface);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+  .tot { padding: 16px 18px; border-right: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); }
+  .tot .v {
+    font-family: "Roboto Mono", monospace; font-size: 25px; font-weight: 500;
+    font-variant-numeric: tabular-nums; color: var(--accent); line-height: 1.1;
+  }
+  .tot .k {
+    font-family: "Roboto Mono", monospace; font-size: 10.5px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--muted); margin-top: 5px;
+  }
+
+  @media (max-width: 620px) {
+    .doc { padding: 40px 16px 72px; gap: 36px; }
+    .where dl { grid-template-columns: 1fr; }
+    .where dt { padding-bottom: 0; border-bottom: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="doc">
+
+  <header>
+    <div class="eyebrow">FFCLRP-USP · Computação Aplicada</div>
+    <h1>Inventário da tese</h1>
+    <p class="lede">Onde a dissertação mora no disco e tudo o que já foi coletado, medido e desenhado até 28 de agosto de 2026.</p>
+
+    <div class="where">
+      <div class="hd">Localização</div>
+      <dl>
+        <dt>Projeto</dt>
+        <dd>~/Área de trabalho/Claude/thesis-complexity-nn/</dd>
+        <dt>Dissertação</dt>
+        <dd>tese/main.tex → tese/main.pdf</dd>
+        <dt>Capítulos</dt>
+        <dd>tese/capitulos/ — introducao · fundamentacao · metodologia · resultados · conclusao</dd>
+        <dt>Apêndices</dt>
+        <dd>tese/apendices/ — exemplo_numerico (ordem de extração) · validacao_numerica</dd>
+        <dt>Figuras</dt>
+        <dd>tese/figures/</dd>
+        <dt>Bibliografia</dt>
+        <dd>tese/referencias.bib</dd>
+        <dt>Estado</dt>
+        <dd>78 páginas · 1,6 MB · compila sem erros</dd>
+        <dt>Compilar</dt>
+        <dd>bash scripts/build_thesis.sh</dd>
+      </dl>
+    </div>
+  </header>
+
+  <section>
+    <div class="shead"><div class="letter">✳</div><h2>O resultado de ontem à noite</h2></div>
+    <p>A SampEn do grupo <code>conv</code> foi calculada sobre a <strong>população completa</strong> — os 11.166.912 pesos, sem subamostragem alguma. Levou 54,5 minutos e contou dois trilhões de pares. Com esse valor de referência em mãos, cada estratégia de subamostragem pode finalmente ser pontuada contra a verdade.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Estratégia</th><th class="n">SampEn</th><th class="n">Erro</th><th>Situação</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td><strong>população completa</strong> — 11.166.912 pesos</td><td class="n"><strong>2,0252</strong></td><td class="n">—</td><td>verdade de referência</td></tr>
+          <tr><td>sistemática, 10.000</td><td class="n">2,0109</td><td class="n">−0,7 %</td><td><span class="tag ok">em uso desde a correção</span></td></tr>
+          <tr><td>aleatória, 10.000</td><td class="n">2,0876</td><td class="n">+3,1 %</td><td><span class="tag warn">código antigo</span></td></tr>
+          <tr><td>bloco contíguo, 10.000</td><td class="n">1,7745</td><td class="n">−12,4 %</td><td><span class="tag warn">descartada</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="call">
+      <div class="h">Duas conclusões, uma delas contra o que eu havia sugerido</div>
+      <p>A correção aplicada está <strong>validada contra a verdade</strong>: o passo fixo erra 0,7 %, quatro vezes menos que o sorteio aleatório. Mas a amostragem por bloco contíguo, que eu havia proposto como a melhor opção, revela-se a <strong>pior das três</strong>. O valor baixo que ela produzia não era estrutura local preservada — era viés de região: o bloco cobria a <code>conv1</code> e o início da <code>layer1</code>, camadas mais suaves que a média da rede. A proposta está retirada.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">?</div><h2>O que é um checkpoint</h2></div>
+    <p>Um treino é como um filme, e um checkpoint é <strong>uma fotografia dos pesos num instante</strong>. Os pesos mudam a cada lote de imagens; se você só olhasse o modelo no fim, veria o destino e nada do trajeto. Então, de tempos em tempos, o código pausa e anota o valor de todos os pesos naquele momento.</p>
+    <p>São cerca de <strong>90 checkpoints por run</strong>, ao longo de 100 épocas — uma época é uma passada completa pelos dados de treino. Em cada checkpoint o código calcula LMC e SampEn dos quatro grupos e grava uma linha no <code>metrics.csv</code>. <strong>Cada checkpoint é um ponto na curva</strong>: é assim que as trajetórias dos gráficos são construídas.</p>
+    <div class="call warn">
+      <div class="h">Por que isso limita o que ainda dá para fazer</div>
+      <p>Os arquivos <code>.pt</code> de peso foram apagados após a extração das métricas, para poupar disco — sobrou apenas o último de cada run, 51 no total. Ablações sobre o <em>estado final</em> já rodam hoje; ablações sobre a <em>trajetória</em> exigem re-treino.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">A</div><h2>Experimentos<span class="count">51 runs</span></h2></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Bloco</th><th>Desenho</th><th class="n">Runs</th></tr></thead>
+        <tbody>
+          <tr><td>Baseline</td><td>3 datasets × 3 durações (30/50/100 ép.) × 3 sementes</td><td class="n">27</td></tr>
+          <tr><td>Subamostragem do treino</td><td>PathMNIST a 5 / 10 / 25 % × 3 sementes</td><td class="n">9</td></tr>
+          <tr><td>Weight decay</td><td>WD ∈ {0, 1e-5, 1e-3} × 3 sementes</td><td class="n">9</td></tr>
+          <tr><td>Arquitetura</td><td>ResNet-34 e DenseNet-121 × 3 sementes</td><td class="n">6</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="2">Total em disco</td><td class="n">51</td></tr></tfoot>
+      </table>
+    </div>
+    <p>Datasets: PathMNIST, OrganAMNIST e BloodMNIST, todos a 64×64. Otimizador SGD com lr 0,001, momentum 0,9 e weight decay 1e-4 no baseline. Os sweeps de weight decay e arquitetura reaproveitam o baseline, de modo que o desenho cobre 4 níveis de regularização e 3 arquiteturas.</p>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">B</div><h2>Dados brutos coletados</h2></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Arquivo</th><th>Conteúdo</th><th class="n">Volume</th></tr></thead>
+        <tbody>
+          <tr><td class="f">results/runs/*/metrics.csv</td><td>LMC (H, D, C), SampEn e normas L2 — por época e por grupo</td><td class="n">17.808 linhas</td></tr>
+          <tr><td class="f">results/runs/*/history.csv</td><td>perda e acurácia de treino e validação por época</td><td class="n">51</td></tr>
+          <tr><td class="f">results/runs/*/config.json</td><td>hiperparâmetros de cada run</td><td class="n">51</td></tr>
+          <tr><td class="f">results/runs/*/checkpoints/*.pt</td><td>pesos do último checkpoint de cada run</td><td class="n">51 · 4,4 GB</td></tr>
+          <tr><td class="f">results/results.csv</td><td>acurácia e perda finais consolidadas</td><td class="n">51 linhas</td></tr>
+          <tr><td class="f">results/status.json</td><td>estado do orquestrador</td><td class="n">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">C</div><h2>Figuras na dissertação<span class="count">25 em uso</span></h2></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Seção</th><th>Figura</th><th>Mostra</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="4">Metodologia</td><td class="f">fig_resnet18_overview</td><td>visão geral da ResNet-18</td></tr>
+          <tr><td class="f">fig_layer2_internal</td><td>estrutura interna da <code>layer2</code></td></tr>
+          <tr><td class="f">fig_conv_extraction</td><td>extração de um tensor convolucional</td></tr>
+          <tr><td class="f">fig_extraction_summary</td><td>resumo das regras de ordenação</td></tr>
+
+          <tr><td rowspan="5">Fase 1 · subamostragem</td><td class="f">overfit_f1_val_curves</td><td>curvas de validação</td></tr>
+          <tr><td class="f">overfit_f2_lmc</td><td>trajetória da LMC</td></tr>
+          <tr><td class="f">overfit_f3_sampen</td><td>trajetória da SampEn</td></tr>
+          <tr><td class="f">overfit_f4_by_group</td><td>decomposição por grupo de parâmetros</td></tr>
+          <tr><td class="f">overfit_f6_lead_time</td><td>antecedência do pico da LMC</td></tr>
+
+          <tr><td rowspan="5">Fase 2 · weight decay</td><td class="f">wd_f1_val_curves</td><td>curvas de validação</td></tr>
+          <tr><td class="f">wd_f2_lmc_overfit</td><td>trajetória da LMC</td></tr>
+          <tr><td class="f">wd_f3_sampen_overfit</td><td>trajetória da SampEn</td></tr>
+          <tr><td class="f">wd_f4_by_group</td><td>decomposição por grupo</td></tr>
+          <tr><td class="f">wd_f6_lead_time</td><td>antecedência do pico</td></tr>
+
+          <tr><td rowspan="5">Fase 3 · arquitetura</td><td class="f">arch_f1_val_curves</td><td>curvas de validação</td></tr>
+          <tr><td class="f">arch_f2_lmc_overfit</td><td>trajetória da LMC</td></tr>
+          <tr><td class="f">arch_f3_sampen_overfit</td><td>trajetória da SampEn</td></tr>
+          <tr><td class="f">arch_f4_by_group</td><td>decomposição por grupo</td></tr>
+          <tr><td class="f">arch_f6_lead_time</td><td>antecedência do pico</td></tr>
+
+          <tr><td rowspan="3">Cross-dataset</td><td class="f">cds_f1_lmc_trajectories</td><td>trajetórias nos três datasets</td></tr>
+          <tr><td class="f">cds_f2_lead_time</td><td>antecedência comparada</td></tr>
+          <tr><td class="f">cds_f4_bygroup</td><td>onde o OrganAMNIST se desloca</td></tr>
+
+          <tr><td rowspan="2">SampEn 2D</td><td class="f">sampen2d_f1_conv1_mosaic</td><td>mosaico 56×56 dos filtros da <code>conv1</code></td></tr>
+          <tr><td class="f">sampen2d_f2_per_channel</td><td>assimetria entre canais RGB</td></tr>
+
+          <tr><td>MSE 2D</td><td class="f">mse_f1_curves</td><td>curvas multiescala τ = 1 a 10</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">D</div><h2>Tabelas geradas<span class="count">.csv + .tex prontos</span></h2></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Arquivo</th><th>Conteúdo</th></tr></thead>
+        <tbody>
+          <tr><td class="f">overfit_figs/f5_inflection_table</td><td>épocas de inflexão — Fase 1</td></tr>
+          <tr><td class="f">wd_figs/wd_f5_inflection_table</td><td>épocas de inflexão — Fase 2</td></tr>
+          <tr><td class="f">arch_figs/arch_f5_inflection_table</td><td>épocas de inflexão — Fase 3</td></tr>
+          <tr><td class="f">crossds_figs/cds_f3_inflection_table</td><td>inflexão entre datasets</td></tr>
+          <tr><td class="f">crossds_figs/cds_f5_bygroup_table</td><td>decomposição por grupo</td></tr>
+          <tr><td class="f">sampen2d_figs/s2d_table · s2d_f2_table</td><td>SampEn 2D global e por canal</td></tr>
+          <tr><td class="f">sampen2d_figs/s2d_raw.csv · s2d_raw_conv1.csv</td><td>dados brutos da SampEn 2D</td></tr>
+          <tr><td class="f">mse2d_figs/mse_table · mse_raw.csv</td><td>MSE 2D multiescala</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">E</div><h2>Figuras prontas e não aproveitadas<span class="count">3</span></h2></div>
+    <p>Trabalho já feito que nunca entrou no texto — e as duas primeiras reforçam justamente o bloco que a revisão apontou como o mais frágil.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Figura</th><th>Mostra</th><th>Vale incluir?</th></tr></thead>
+        <tbody>
+          <tr><td class="f">s2d_f1_by_depth.pdf</td><td>SampEn 2D em função da profundidade da camada</td><td><span class="tag ok">provavelmente sim</span> — é o eixo que falta na §4.8</td></tr>
+          <tr><td class="f">s2d_f3_1d_vs_2d.pdf</td><td>comparação direta entre SampEn 1D e 2D</td><td><span class="tag ok">sim</span> — sustenta a afirmação de que o flatten encobre a diferença</td></tr>
+          <tr><td class="f">mse_f1_curves_log.pdf</td><td>curvas MSE 2D em escala logarítmica</td><td><span class="tag warn">opcional</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">F</div><h2>Análises desta semana<span class="count">fora da dissertação</span></h2></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Arquivo</th><th>Conteúdo</th></tr></thead>
+        <tbody>
+          <tr><td class="f">results/ablacao_ordem.json</td><td>ablações D2 (transposição), D3 (subamostragem) e número de bins</td></tr>
+          <tr><td class="f">results/ablacao_estrategias_subamostragem.json</td><td>as quatro estratégias de subamostragem comparadas</td></tr>
+          <tr><td class="f">src/sampen_exato.py</td><td>SampEn exata em O(N log N) por árvore k-d, validada bit a bit</td></tr>
+          <tr><td class="f">scripts/sampen_chunked.py</td><td>SampEn com memória O(N) em vez da matriz N×N</td></tr>
+          <tr><td class="f">scripts/ablacao_ordem.py · run_full_conv.py</td><td>scripts das medições</td></tr>
+          <tr><td class="f">src/weights.py → systematic_subsample()</td><td>a correção do D3, com 6 testes novos · suíte de 293 passa</td></tr>
+          <tr><td class="f">tese/fluxo_extracao.html · pauta_reuniao_28ago.html</td><td>material da reunião de orientação</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">G</div><h2>Projeto anterior<span class="count">90 gráficos</span></h2></div>
+    <p>Na pasta <code>~/Área de trabalho/Masters Claude/</code> — a base de onde vieram as convenções de análise, incluindo o corte de 10.000 elementos.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Pasta</th><th>Conteúdo</th><th class="n">PNGs</th></tr></thead>
+        <tbody>
+          <tr><td class="f">results/LMC and SamEn Graphs/1_50</td><td>LMC e SampEn por camada — MedMNIST, 50 épocas</td><td class="n">22</td></tr>
+          <tr><td class="f">results/LMC and SamEn Graphs/2_100</td><td>LMC e SampEn por camada — MedMNIST, 100 épocas</td><td class="n">24</td></tr>
+          <tr><td class="f">results/global_lmc_sampen</td><td>complexidade global nos quatro datasets</td><td class="n">8</td></tr>
+          <tr><td class="f">monai_weights/global_lmc_sampen</td><td>MedNIST/MONAI ao longo das épocas</td><td class="n">5</td></tr>
+          <tr><td class="f">monai_weights/*/lmc_sampen/epoch_metrics.csv</td><td>métricas por época, três sementes</td><td class="n">—</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="2">Total de gráficos no projeto anterior</td><td class="n">90</td></tr></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><div class="letter">Σ</div><h2>Totais</h2></div>
+    <div class="totals">
+      <div class="tot"><div class="v">51</div><div class="k">experimentos</div></div>
+      <div class="tot"><div class="v">17.808</div><div class="k">linhas de métrica</div></div>
+      <div class="tot"><div class="v">~90</div><div class="k">checkpoints por run</div></div>
+      <div class="tot"><div class="v">25</div><div class="k">figuras na tese</div></div>
+      <div class="tot"><div class="v">12</div><div class="k">tabelas geradas</div></div>
+      <div class="tot"><div class="v">3</div><div class="k">figuras não usadas</div></div>
+      <div class="tot"><div class="v">90</div><div class="k">gráficos anteriores</div></div>
+      <div class="tot"><div class="v">78</div><div class="k">páginas da tese</div></div>
+    </div>
+  </section>
+
+</div>

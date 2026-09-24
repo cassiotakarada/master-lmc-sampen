@@ -1,0 +1,23 @@
+{
+  "results/overview": {
+    "generated_at": "2026-08-26T01:06:05.154388+00:00",
+    "model": "claude-opus-4-7",
+    "prompt_hash": "c3ef6a878183",
+    "word_count": 555,
+    "n_runs": 2
+  },
+  "results/lmc_analysis": {
+    "generated_at": "2026-05-27T01:55:33.454317+00:00",
+    "model": "claude-opus-4-7",
+    "prompt_hash": "f15babcf28ca",
+    "word_count": 613,
+    "n_runs": 50
+  },
+  "results/sampen_analysis": {
+    "generated_at": "2026-05-27T01:56:11.256129+00:00",
+    "model": "claude-opus-4-7",
+    "prompt_hash": "0524e293fed4",
+    "word_count": 590,
+    "n_runs": 50
+  }
+}

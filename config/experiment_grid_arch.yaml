@@ -1,0 +1,30 @@
+# Phase-3 grid — sensitivity to architecture
+#
+# Goal: verify whether the LMC peak / lead-time relationship observed on
+# ResNet-18 in Phases 1 and 2 generalises across architectural families.
+#
+# The ResNet-18 baseline (WD=1e-4, full data) is already covered by
+# experiment_grid.yaml and is NOT re-run here.
+#
+# Architectures: ResNet-34 (~21M params, same family but ~2× deeper),
+# DenseNet-121 (~7M params, different connectivity / different growth rate).
+# Full PathMNIST training set, 100 epochs, 3 seeds.
+
+defaults:
+  lr:           0.001
+  momentum:     0.9
+  weight_decay: 0.0001
+  batch_size:   64
+  image_size:   64
+  n_checkpoints:   100
+  max_flat_sample: 10000
+  num_workers:     4
+  data_root:       ./data
+  data_seed:       0
+  writer_trigger_every: 5
+
+experiments:
+  - dataset:         PathMNIST
+    epochs:          100
+    seeds:           [42, 123, 2024]
+    architectures:   [resnet34, densenet121]

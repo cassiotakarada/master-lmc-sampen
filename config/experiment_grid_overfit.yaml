@@ -1,0 +1,37 @@
+# Phase-1 grid — induced overfit via training-set subsampling
+# Goal: produce a regime in which val_loss visibly rises during training, so that
+# LMC / SampEn trajectories can be tested as early-warning markers of overfit.
+#
+# Design:
+#   - PathMNIST only (richest, best-baselined dataset).
+#   - ResNet-18 unchanged (capacity fixed at ~11 M params).
+#   - Train set reduced to 5%, 10% and 25% of original; 100% baseline already
+#     covered by experiment_grid.yaml and is therefore not re-run here.
+#   - 100 epochs to allow late overfit to develop.
+#   - 3 model seeds × 3 fractions = 9 runs.
+#   - data_seed fixed at 0 so the same subset is reused across model seeds —
+#     this isolates the source of variance to *initialization + batch order*,
+#     not to which images were sampled.
+
+defaults:
+  # Optimiser — same as supervisor's validated grid
+  lr:           0.001
+  momentum:     0.9
+  weight_decay: 0.0001
+  batch_size:   64
+  image_size:   64
+  # Measurement schedule
+  n_checkpoints:   100
+  max_flat_sample: 10000
+  num_workers:     4
+  data_root:       ./data
+  # Subsample reproducibility
+  data_seed:       0
+  # Writer integration
+  writer_trigger_every: 5
+
+experiments:
+  - dataset:          PathMNIST
+    epochs:           100
+    seeds:            [42, 123, 2024]
+    train_fractions:  [0.05, 0.10, 0.25]

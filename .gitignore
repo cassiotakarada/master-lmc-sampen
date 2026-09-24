@@ -1,0 +1,27 @@
+# ─── Dados e resultados pesados (NAO versionar: ~6 GB) ───────────────────────
+results/
+data/
+audio/
+*.pt
+*.pth
+*.tar.gz
+*.npz
+
+# ─── Auxiliares do LaTeX ─────────────────────────────────────────────────────
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+*.bak-*
+
+# ─── Ambientes ───────────────────────────────────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/

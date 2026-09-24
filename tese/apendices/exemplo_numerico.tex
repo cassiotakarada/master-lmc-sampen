@@ -1,0 +1,288 @@
+%% apendices/exemplo_numerico.tex
+%% Apêndice A — Exemplo numérico da ordem de extração dos pesos
+
+\chapter{Exemplo numérico da ordem de extração dos pesos}
+\label{ap:exemplo-numerico}
+
+Este apêndice complementa o discutido na Seção~\ref{sec:extracao}
+rastreando, elemento a elemento, a correspondência entre os tensores de
+pesos do PyTorch e a sequência linear obtida via \texttt{flatten()}. São
+apresentados três exemplos minimalistas --- uma camada linear $2 \times 3$,
+uma convolução 2D com tensor de \emph{shape}
+$[C_{out}, C_{in}, H, W] = [2,2,2,2]$ e uma camada de \emph{batch
+normalization} com $C = 4$ canais ---, suficientes para tornar
+verificáveis e reproduzíveis as três regras de varredura adotadas. Em
+seguida discute-se, no mesmo exemplo da convolução, o efeito de transpor
+o tensor antes do \emph{flatten}, conforme antecipado pela
+decisão~D2~da Seção~\ref{sec:extracao-decisoes}.
+
+% ===========================================================================
+\section{Camada Linear: matriz \texorpdfstring{$2 \times 3$}{2x3}}
+\label{sec:ap-linear}
+
+Considere uma camada \texttt{nn.Linear(in\_features=3, out\_features=2)}
+cujo tensor \texttt{weight} de \emph{shape} $[\mathrm{Out}, \mathrm{In}] = [2, 3]$
+recebe valores inteiros para facilitar o rastreamento:
+\begin{equation}
+  W_{\text{lin}} \;=\;
+  \begin{pmatrix}
+    w_{0,0} & w_{0,1} & w_{0,2} \\
+    w_{1,0} & w_{1,1} & w_{1,2}
+  \end{pmatrix}
+  \;=\;
+  \begin{pmatrix}
+    1 & 2 & 3 \\
+    4 & 5 & 6
+  \end{pmatrix}.
+\end{equation}
+
+Aplicando \texttt{W\_lin.flatten()} obtemos o vetor
+
+\begin{equation}
+  W_{\text{lin}}.\texttt{flatten()} \;=\; [\,1,\;2,\;3,\;4,\;5,\;6\,].
+\end{equation}
+
+A Tabela~\ref{tab:ap-linear} mostra a correspondência elemento a elemento.
+Note que a leitura é feita \textbf{linha por linha}: primeiro saem todos os
+três pesos de entrada do neurônio de saída $\mathrm{Out}=0$, depois os três
+pesos do neurônio $\mathrm{Out}=1$. Cada linha contígua do vetor
+corresponde a \emph{um único neurônio de saída}.
+
+\begin{table}[H]
+\centering
+\caption{Mapeamento elemento a elemento da camada Linear $2 \times 3$.}
+\label{tab:ap-linear}
+\small
+\begin{tabular}{cccccc}
+\toprule
+\textbf{Posição no vetor} & 0 & 1 & 2 & 3 & 4 \\
+                          & ($\to$) 5 & & & & \\
+\midrule
+\textbf{Elemento}      & $w_{0,0}$ & $w_{0,1}$ & $w_{0,2}$ & $w_{1,0}$ & $w_{1,1}$ \\
+                       & $w_{1,2}$ & & & & \\
+\midrule
+\textbf{Valor}         & 1 & 2 & 3 & 4 & 5 \\
+                       & 6 & & & & \\
+\midrule
+\textbf{Pertence a}    & \multicolumn{3}{c}{\textbf{Saída $\mathrm{Out}=0$}} & \multicolumn{2}{c}{\textbf{Saída $\mathrm{Out}=1$}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Camada Conv2d: tensor \texorpdfstring{$[2,2,2,2]$}{[2,2,2,2]}}
+\label{sec:ap-conv}
+
+Considere uma \texttt{nn.Conv2d(in\_channels=2, out\_channels=2,
+kernel\_size=2)} cujo tensor \texttt{weight} de \emph{shape}
+$[C_{out}, C_{in}, H, W] = [2, 2, 2, 2]$ é preenchido com os 16
+inteiros consecutivos $0, 1, \dots, 15$:
+
+\begin{equation}
+  W_{\text{conv}}[c_{out}, c_{in}, h, w] \;=\;
+  c_{out} \cdot 8 + c_{in} \cdot 4 + h \cdot 2 + w.
+\end{equation}
+
+\noindent Em formato hierárquico, o tensor escreve-se como:
+
+\begin{equation}
+\setlength{\arraycolsep}{4pt}
+W_{\text{conv}} \;=\;
+\underbrace{
+\Bigg[
+\underbrace{
+\begin{pmatrix} 0 & 1 \\ 2 & 3 \end{pmatrix}
+}_{C_{in}=0}
+\;\;
+\underbrace{
+\begin{pmatrix} 4 & 5 \\ 6 & 7 \end{pmatrix}
+}_{C_{in}=1}
+\Bigg]
+}_{\text{Filtro de saída } C_{out}=0}
+\;\;
+\underbrace{
+\Bigg[
+\underbrace{
+\begin{pmatrix} 8 & 9 \\ 10 & 11 \end{pmatrix}
+}_{C_{in}=0}
+\;\;
+\underbrace{
+\begin{pmatrix} 12 & 13 \\ 14 & 15 \end{pmatrix}
+}_{C_{in}=1}
+\Bigg]
+}_{\text{Filtro de saída } C_{out}=1}
+\end{equation}
+
+\noindent Aplicando \texttt{W\_conv.flatten()} obtemos o vetor
+
+\begin{equation}
+  W_{\text{conv}}.\texttt{flatten()} \;=\;
+  [\,0,1,2,3,\;4,5,6,7,\;8,9,10,11,\;12,13,14,15\,].
+\end{equation}
+
+A Tabela~\ref{tab:ap-conv} mostra a correspondência completa
+elemento a elemento. Observa-se que os quatro \emph{loops} aninhados se
+manifestam diretamente nas colunas: $W$ varia a cada passo ($0 \to 1$),
+$H$ a cada dois passos ($0 \to 1$), $C_{in}$ a cada quatro passos
+($0 \to 1$) e $C_{out}$ a cada oito passos ($0 \to 1$). Cada bloco
+contíguo de quatro elementos do vetor corresponde a \emph{um canal de
+entrada inteiro} de um filtro de saída; cada bloco contíguo de oito
+elementos corresponde a \emph{um filtro de saída inteiro}.
+
+\begin{table}[H]
+\centering
+\caption{Mapeamento elemento a elemento da camada Conv2d $[2,2,2,2]$.
+Posições do vetor, índices do tensor e bloco semântico ao qual cada
+elemento pertence.}
+\label{tab:ap-conv}
+\footnotesize
+\begin{tabular}{rcccccl}
+\toprule
+\textbf{Pos.} & $C_{out}$ & $C_{in}$ & $H$ & $W$ & \textbf{Valor} & \textbf{Pertence ao bloco semântico} \\
+\midrule
+0  & 0 & 0 & 0 & 0 & 0  & \multirow{4}{*}{$C_{in}=0$ do filtro $C_{out}=0$} \\
+1  & 0 & 0 & 0 & 1 & 1  & \\
+2  & 0 & 0 & 1 & 0 & 2  & \\
+3  & 0 & 0 & 1 & 1 & 3  & \\
+\addlinespace[2pt]
+4  & 0 & 1 & 0 & 0 & 4  & \multirow{4}{*}{$C_{in}=1$ do filtro $C_{out}=0$} \\
+5  & 0 & 1 & 0 & 1 & 5  & \\
+6  & 0 & 1 & 1 & 0 & 6  & \\
+7  & 0 & 1 & 1 & 1 & 7  & \\
+\midrule
+8  & 1 & 0 & 0 & 0 & 8  & \multirow{4}{*}{$C_{in}=0$ do filtro $C_{out}=1$} \\
+9  & 1 & 0 & 0 & 1 & 9  & \\
+10 & 1 & 0 & 1 & 0 & 10 & \\
+11 & 1 & 0 & 1 & 1 & 11 & \\
+\addlinespace[2pt]
+12 & 1 & 1 & 0 & 0 & 12 & \multirow{4}{*}{$C_{in}=1$ do filtro $C_{out}=1$} \\
+13 & 1 & 1 & 0 & 1 & 13 & \\
+14 & 1 & 1 & 1 & 0 & 14 & \\
+15 & 1 & 1 & 1 & 1 & 15 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Contraste: efeito da transposição}
+\label{sec:ap-transposicao}
+
+A decisão~D2 da Seção~\ref{sec:extracao-decisoes} adota a ordem nativa
+$[C_{out}, C_{in}, H, W]$ deliberadamente. Esta seção quantifica o que
+mudaria caso o tensor fosse transposto para $[C_{in}, C_{out}, H, W]$ antes
+do \emph{flatten}, alterando a unidade contígua de ``filtro de saída
+inteiro'' para ``destino dos pesos a partir de um canal de entrada''.
+
+Aplicando \texttt{W\_conv.permute(1, 0, 2, 3).flatten()} ao mesmo tensor
+do exemplo anterior obtém-se:
+
+\begin{equation}
+  W_{\text{conv}}^{\mathsf{T}}.\texttt{flatten()} \;=\;
+  [\,0,1,2,3,\;8,9,10,11,\;4,5,6,7,\;12,13,14,15\,].
+\end{equation}
+
+Note que o vetor é uma \textbf{permutação} do anterior --- contém os
+mesmos 16 valores, mas agora os blocos contíguos de quatro elementos
+correspondem a um canal de entrada visto a partir de \emph{ambos} os
+filtros de saída, conforme a Tabela~\ref{tab:ap-transposicao}.
+
+\begin{table}[H]
+\centering
+\caption{Mapeamento elemento a elemento com transposição prévia
+$[C_{in}, C_{out}, H, W]$. Compare com a Tabela~\ref{tab:ap-conv}.}
+\label{tab:ap-transposicao}
+\footnotesize
+\begin{tabular}{rcccccl}
+\toprule
+\textbf{Pos.} & $C_{in}$ & $C_{out}$ & $H$ & $W$ & \textbf{Valor} & \textbf{Pertence ao bloco semântico} \\
+\midrule
+0  & 0 & 0 & 0 & 0 & 0  & \multirow{4}{*}{filtro $C_{out}=0$ a partir de $C_{in}=0$} \\
+1  & 0 & 0 & 0 & 1 & 1  & \\
+2  & 0 & 0 & 1 & 0 & 2  & \\
+3  & 0 & 0 & 1 & 1 & 3  & \\
+\addlinespace[2pt]
+4  & 0 & 1 & 0 & 0 & 8  & \multirow{4}{*}{filtro $C_{out}=1$ a partir de $C_{in}=0$} \\
+5  & 0 & 1 & 0 & 1 & 9  & \\
+6  & 0 & 1 & 1 & 0 & 10 & \\
+7  & 0 & 1 & 1 & 1 & 11 & \\
+\midrule
+8  & 1 & 0 & 0 & 0 & 4  & \multirow{4}{*}{filtro $C_{out}=0$ a partir de $C_{in}=1$} \\
+9  & 1 & 0 & 0 & 1 & 5  & \\
+10 & 1 & 0 & 1 & 0 & 6  & \\
+11 & 1 & 0 & 1 & 1 & 7  & \\
+\addlinespace[2pt]
+12 & 1 & 1 & 0 & 0 & 12 & \multirow{4}{*}{filtro $C_{out}=1$ a partir de $C_{in}=1$} \\
+13 & 1 & 1 & 0 & 1 & 13 & \\
+14 & 1 & 1 & 1 & 0 & 14 & \\
+15 & 1 & 1 & 1 & 1 & 15 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{Leitura comparativa.} As Tabelas~\ref{tab:ap-conv} e
+\ref{tab:ap-transposicao} contêm exatamente os mesmos 16 valores, mas em
+ordens diferentes. Sob a perspectiva da SampEn 1D --- que mede
+regularidade de sub-sequências consecutivas --- estas são
+\textbf{duas séries distintas}, e portanto a métrica pode reportar
+valores diferentes a partir delas. Esta sensibilidade à ordem é
+precisamente o que torna a decisão~D2 substantiva e justifica o
+experimento de controle previsto na Seção~\ref{sec:robustez}.
+
+% ===========================================================================
+\section{Camada BatchNorm2d: vetores \texorpdfstring{$\gamma$ e $\beta$}{gamma e beta}}
+\label{sec:ap-bn}
+
+Para uma \texttt{nn.BatchNorm2d(num\_features=4)}, os parâmetros
+aprendíveis são dois vetores 1D de comprimento 4: a escala $\gamma$
+(\texttt{bn.weight}) e o deslocamento $\beta$ (\texttt{bn.bias}). Na
+inicialização padrão do PyTorch:
+\begin{equation}
+  \gamma \;=\; [\,1,\,1,\,1,\,1\,], \qquad
+  \beta \;=\; [\,0,\,0,\,0,\,0\,].
+\end{equation}
+
+Após o treinamento, esses vetores evoluem para configurações como
+\begin{equation*}
+  \gamma \;\approx\; [\,1{,}23,\;0{,}08,\;0{,}95,\;1{,}51\,], \qquad
+  \beta \;\approx\; [\,-0{,}02,\;0{,}07,\;-0{,}11,\;0{,}04\,]
+\end{equation*}
+(valores ilustrativos extraídos de um \emph{run} preliminar em
+PathMNIST). Por se tratar de vetores 1D, a ordem do \emph{flatten} é
+trivialmente a ordem dos canais, sem ambiguidade. Os parâmetros do
+canal $c$ ocupam a posição $c$ no respectivo vetor, e os dois grupos
+\texttt{bn\_gamma} e \texttt{bn\_beta} são analisados separadamente
+pelos motivos expostos na Seção~\ref{sec:grupos-bn}.
+
+% ===========================================================================
+\section{Reprodutibilidade}
+\label{sec:ap-reproducao}
+
+Os valores apresentados neste apêndice podem ser reproduzidos
+diretamente em PyTorch. O fragmento abaixo gera todos os vetores das
+Tabelas~\ref{tab:ap-linear}, \ref{tab:ap-conv} e
+\ref{tab:ap-transposicao}:
+
+\begin{verbatim}
+    import torch
+
+    # Linear (Out=2, In=3)
+    W_lin = torch.tensor([[1., 2., 3.],
+                          [4., 5., 6.]])
+    print(W_lin.flatten().tolist())
+    # [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+
+    # Conv2d (C_out=2, C_in=2, H=2, W=2)
+    W_conv = torch.arange(16).reshape(2, 2, 2, 2).float()
+    print(W_conv.flatten().int().tolist())
+    # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+    # Conv2d transposed to [C_in, C_out, H, W]
+    print(W_conv.permute(1, 0, 2, 3).flatten().int().tolist())
+    # [0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15]
+\end{verbatim}
+
+A correspondência entre a regra row-major da Seção~\ref{sec:extracao} e
+os valores numéricos acima encerra a discussão sobre a ordem da extração
+em nível operacional. Resta, para os capítulos de Resultados, examinar
+empiricamente quanto essa ordem afeta as trajetórias de complexidade
+sobre dados reais.

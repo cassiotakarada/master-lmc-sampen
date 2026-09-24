@@ -1,0 +1,80 @@
+%% main.tex — Dissertação de Mestrado
+%% FFCLRP-USP — Programa de Pós-Graduação em Computação Aplicada
+%% Autor: Cássio Silva Takarada
+%% Orientador: Prof. Dr. Luiz Otávio Murta Junior
+
+\documentclass[
+  12pt,
+  openright,
+  twoside,
+  a4paper,
+  english,
+  brazil,
+]{abntex2}
+
+%% ─── Pacotes ────────────────────────────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage[alf,abnt-emphasize=bf]{abntex2cite}  % ABNT author-year citations (wraps natbib)
+\usepackage{claudedraft}     % orange draft environment for AI-generated passages
+
+%% ─── Metadados ───────────────────────────────────────────────────────────────
+\titulo{Complexidade Estatística dos Pesos de Redes Neurais Profundas como Marcador de Overfitting}
+\autor{Cássio Silva Takarada}
+\local{Ribeirão Preto}
+\data{2025}
+\orientador{Prof. Dr. Luiz Otávio Murta Junior}
+\instituicao{Universidade de São Paulo \\ Faculdade de Filosofia, Ciências e Letras de Ribeirão Preto}
+\tipotrabalho{Dissertação de Mestrado}
+
+\preambulo{Dissertação apresentada ao Programa de Pós-Graduação em Computação
+Aplicada da Faculdade de Filosofia, Ciências e Letras de Ribeirão Preto da
+Universidade de São Paulo, como parte dos requisitos para obtenção do título
+de Mestre em Ciências.}
+
+%% ─── Hifenização ─────────────────────────────────────────────────────────────
+\hyphenation{over-fitting under-fitting}
+
+\begin{document}
+
+\selectlanguage{brazil}
+\frenchspacing
+
+%% ─── Elementos pré-textuais ──────────────────────────────────────────────────
+\imprimircapa
+\imprimirfolhaderosto*
+\tableofcontents
+\listoffigures
+\listoftables
+
+%% ─── Corpo ───────────────────────────────────────────────────────────────────
+\textual
+
+\include{capitulos/introducao}
+\include{capitulos/fundamentacao}
+\include{capitulos/metodologia}
+\include{capitulos/resultados}
+\include{capitulos/conclusao}
+
+%% ─── Referências ─────────────────────────────────────────────────────────────
+\postextual
+\bibliography{referencias}
+
+%% ─── Apêndices ───────────────────────────────────────────────────────────────
+\begin{apendicesenv}
+\partapendices
+\include{apendices/exemplo_numerico}
+\include{apendices/validacao_numerica}
+\end{apendicesenv}
+
+\end{document}

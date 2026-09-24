@@ -1,0 +1,513 @@
+%% capitulos/metodologia.tex
+%% Capítulo 3 — Metodologia
+
+\chapter{Metodologia}
+\label{ch:metodologia}
+
+Este capítulo descreve o protocolo experimental adotado para investigar a
+evolução da complexidade estatística dos pesos de uma rede neural profunda
+durante o treinamento. A exposição é organizada do dado bruto às medidas
+finais: primeiro os conjuntos de dados (Seção~\ref{sec:dados}), em seguida a
+arquitetura empregada (Seção~\ref{sec:arquitetura}) e o protocolo de
+treinamento (Seção~\ref{sec:treinamento}); a Seção~\ref{sec:checkpointing}
+formaliza o esquema de \emph{snapshots} ao longo do treino; a
+Seção~\ref{sec:extracao} --- núcleo metodológico deste trabalho --- discute em
+detalhe a ordem de extração dos pesos, separando o que é herdado da
+arquitetura/biblioteca daquilo que constitui escolha analítica deste estudo;
+a Seção~\ref{sec:grupos} define os quatro grupos de pesos sobre os quais as
+medidas serão calculadas; a Seção~\ref{sec:medidas} apresenta as medidas de
+complexidade adotadas; e a Seção~\ref{sec:robustez} antecipa as análises de
+robustez planejadas.
+
+% ===========================================================================
+\section{Conjuntos de dados}
+\label{sec:dados}
+
+Utilizam-se três subconjuntos do \emph{benchmark} MedMNIST~v2
+\cite{medmnist2023}, selecionados por cobrirem modalidades clínicas
+distintas e apresentarem dificuldade não-saturada para a arquitetura adotada
+(Tabela~\ref{tab:datasets}). Todas as imagens são redimensionadas de
+$28 \times 28$ para $64 \times 64$ antes do treinamento, mantendo a
+representatividade clínica sem inflar excessivamente o custo computacional.
+
+\begin{table}[H]
+\centering
+\caption{Datasets MedMNIST utilizados nos experimentos.}
+\label{tab:datasets}
+\small
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Dataset} & \textbf{Treino} & \textbf{Classes (K)} & \textbf{Modalidade} \\
+\midrule
+PathMNIST    & 89.996 & 9  & Histopatologia colorretal (RGB) \\
+OrganAMNIST  & 34.581 & 11 & \emph{Slices} axiais de tomografia abdominal (cinza) \\
+BloodMNIST   & 11.959 & 8  & Microscopia de células sanguíneas (RGB) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Arquitetura ResNet-18}
+\label{sec:arquitetura}
+
+Adota-se a ResNet-18 \cite{he2016} (implementação \texttt{torchvision},
+sem pré-treinamento), com a camada totalmente conectada final substituída
+para o número de classes $K$ de cada conjunto. Esta arquitetura totaliza
+aproximadamente $11{,}2$ milhões de parâmetros distribuídos em
+\textbf{41 tensores com parâmetros aprendíveis}: 20 camadas convolucionais
+(\texttt{Conv2d}), 20 camadas de \emph{batch normalization}
+(\texttt{BatchNorm2d}) e 1 camada totalmente conectada (\texttt{Linear}).
+
+\subsection{Estrutura em três níveis hierárquicos}
+\label{sec:arquitetura-niveis}
+
+A organização interna da ResNet-18 possui três níveis aninhados, ilustrados
+na Figura~\ref{fig:resnet-overview}:
+
+\begin{enumerate}
+  \item \textbf{Nível superior (oito módulos nomeados):}
+  \texttt{conv1} (Conv2d $7\times 7$, com \emph{stride} 2),
+  \texttt{bn1} (BatchNorm2d),
+  \texttt{relu}, \texttt{maxpool},
+  \texttt{layer1}--\texttt{layer4} (contêineres \texttt{Sequential}),
+  \texttt{avgpool} (\emph{global average pooling}) e
+  \texttt{fc} (Linear $512 \to K$).
+  \item \textbf{Nível intermediário (BasicBlocks):} cada \texttt{layerN}
+  contém dois blocos residuais (\texttt{BasicBlock}). Em \texttt{layer2},
+  \texttt{layer3} e \texttt{layer4}, o primeiro \texttt{BasicBlock} contém
+  ainda um sub-módulo \texttt{downsample} responsável por ajustar
+  resolução e número de canais no caminho residual.
+  \item \textbf{Nível folha (operações elementares):} dentro de cada
+  \texttt{BasicBlock} encontram-se duas \texttt{Conv2d} ($3\times 3$) e
+  duas \texttt{BatchNorm2d}; o \texttt{downsample}, quando presente, contém
+  uma \texttt{Conv2d} ($1\times 1$) e uma \texttt{BatchNorm2d} adicionais.
+\end{enumerate}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/fig_resnet18_overview.png}
+  \caption{Estrutura de nível superior da ResNet-18: oito módulos
+  nomeados em sequência. As caixas indicam o tipo de camada
+  (azul: Conv2d; verde: BatchNorm2d; cinza: sem parâmetros; laranja: Linear).
+  As caixas \texttt{layer1}--\texttt{layer4} são contêineres
+  \texttt{Sequential} que ocultam sub-blocos detalhados na
+  Figura~\ref{fig:layer2-internal}.}
+  \label{fig:resnet-overview}
+\end{figure}
+
+\subsection{Composição interna de layer2 a layer4}
+\label{sec:arquitetura-layer2}
+
+Como exemplo representativo do nível intermediário, a
+Figura~\ref{fig:layer2-internal} expõe a estrutura de \texttt{layer2}, que
+contém os dez módulos com parâmetros característicos das três últimas
+\texttt{layerN}. Em particular, o primeiro \texttt{BasicBlock} contém um
+\texttt{downsample} composto por uma convolução $1\times 1$ e uma
+\texttt{BatchNorm2d} adicionais, totalizando seis módulos com parâmetros no
+primeiro bloco e quatro no segundo. A \texttt{layer1} segue o mesmo padrão
+mas sem \texttt{downsample}, pois não há mudança de número de canais
+(somando portanto oito módulos com parâmetros).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/fig_layer2_internal.png}
+  \caption{Expansão interna de \texttt{layer2}: dois \texttt{BasicBlock}s,
+  o primeiro com \texttt{downsample} adicional. Cada folha colorida é um
+  tensor com parâmetros aprendíveis, indicado pelo seu tipo e número de
+  parâmetros. \texttt{layer3} e \texttt{layer4} têm estrutura idêntica
+  (com canais maiores); \texttt{layer1} é mais simples (sem
+  \texttt{downsample}).}
+  \label{fig:layer2-internal}
+\end{figure}
+
+\subsection{Contagem agregada de tensores}
+\label{sec:arquitetura-contagem}
+
+A Tabela~\ref{tab:contagem-tensores} sintetiza, por tipo de camada, a
+quantidade de tensores e de parâmetros disponíveis para a análise de
+complexidade.
+
+\begin{table}[H]
+\centering
+\caption{Tensores com parâmetros aprendíveis na ResNet-18 utilizada
+neste trabalho.}
+\label{tab:contagem-tensores}
+\small
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Tipo} & \textbf{Tensores} & \textbf{Parâmetros (\%)} & \textbf{Localização} \\
+\midrule
+\texttt{Conv2d}      & 20 & $\sim 11{,}15$ M ($99{,}7\%$) & 1 em conv1 + 4 em layer1 + 5 em layer2/3/4 \\
+\texttt{BatchNorm2d} & 20 & $\sim 10$ k ($<0{,}1\%$)      & sempre pareada 1:1 com cada Conv2d \\
+\texttt{Linear}      & 1  & $\sim 4{,}6$ k                & fc \\
+\midrule
+\textbf{Total}       & \textbf{41} & $\sim 11{,}18$ M & ResNet-18 inteira \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Protocolo de treinamento}
+\label{sec:treinamento}
+
+O treinamento emprega o otimizador SGD com \emph{momentum} $0{,}9$, taxa de
+aprendizado $10^{-3}$ e \emph{weight decay} $10^{-4}$ ---
+hiperparâmetros validados pelo grupo de pesquisa em experimentos
+preliminares. A função objetivo é a entropia cruzada com pesos uniformes
+de classe. O \emph{batch size} é 64 e cada \emph{run} dura entre 30 e 100
+épocas, conforme o ponto experimental do grid (Seção~\ref{sec:grid}).
+Todos os experimentos são executados em CPU
+(\emph{torch} $2{,}4{,}1$ e \emph{torchvision} $0{,}19{,}1$).
+
+% ===========================================================================
+\section{Checkpointing log-espaçado em memória}
+\label{sec:checkpointing}
+
+A cada \emph{run}, $K \approx 88$ pontos de medição são distribuídos nos
+passos de treinamento com espaçamento logarítmico, concentrando maior
+densidade nas primeiras épocas, onde a distribuição dos pesos muda mais
+rapidamente. Em cada ponto, um \texttt{WeightSnapshot} é construído a
+partir do estado atual do modelo em memória, sem escrita de arquivo por
+passo --- evitando inflar o uso de disco em ordens de magnitude quando
+comparado a salvar todos os \texttt{state\_dict}s. Cada \emph{snapshot}
+contém referências para os tensores de \texttt{Conv2d}, \texttt{Linear} e
+\texttt{BatchNorm2d}, já agrupados conforme descrito na
+Seção~\ref{sec:grupos}.
+
+A escolha pelo espaçamento logarítmico, em contraste com um espaçamento
+uniforme, é deliberada: a literatura de dinâmica de generalização
+\cite{advani2020} indica que as fases qualitativamente distintas do
+treinamento ocorrem em escalas de tempo logarítmicas. Um espaçamento
+uniforme superamostraria a fase de saturação tardia e subamostraria a fase
+inicial de rápida reorganização das distribuições de pesos.
+
+% ===========================================================================
+\section{Extração ordenada dos pesos}
+\label{sec:extracao}
+
+A extração dos pesos é o procedimento que converte o estado da rede em uma
+sequência linear de números sobre os quais as medidas de complexidade são
+calculadas. Este procedimento opera em \emph{duas camadas} encadeadas
+(Seção~\ref{sec:extracao-pyramide}): uma \textbf{inferior}, totalmente
+determinada pela arquitetura ResNet-18 e pela convenção de armazenamento do
+PyTorch; e uma \textbf{superior}, composta por escolhas analíticas deste
+trabalho. A presente seção descreve cada uma e justifica explicitamente
+toda decisão da camada superior.
+
+\subsection{Camada inferior: o que se herda da arquitetura e do PyTorch}
+\label{sec:extracao-pyramide}
+
+Dois fatos são externos a este trabalho e simplesmente descritos:
+
+\paragraph*{Ordem entre módulos.} O método
+\texttt{model.state\_dict()} do PyTorch devolve um
+\texttt{OrderedDict} cuja ordem de iteração é exatamente a sequência em
+que os módulos foram registrados no \texttt{\_\_init\_\_} da
+\texttt{torchvision.models.resnet18}. Esta sequência é determinística e
+reprodutível entre \emph{runs}, e corresponde à travessia em
+profundidade da árvore de módulos exibida nas
+Figuras~\ref{fig:resnet-overview}--\ref{fig:layer2-internal}:
+\begin{equation*}
+  \texttt{conv1} \to \texttt{bn1} \to \texttt{layer1.0.conv1} \to
+  \texttt{layer1.0.bn1} \to \cdots \to
+  \texttt{layer2.0.downsample.0} \to \cdots \to \texttt{fc}.
+\end{equation*}
+
+\paragraph*{Ordem dentro de cada tensor.} O PyTorch armazena tensores em
+memória contígua (C-contiguous, \emph{row-major}). Isto significa que,
+ao aplicar \texttt{tensor.flatten()} ou ao iterar elementos via
+\texttt{numpy().flat}, o índice mais à esquerda do tensor é o de
+variação mais lenta, e o índice mais à direita é o de variação mais
+rápida (Figura~\ref{fig:conv-extraction}). Em particular:
+
+\begin{itemize}
+  \item \texttt{Conv2d}: tensor de shape $[C_{out}, C_{in}, H, W]$;
+  ordem de varredura é $C_{out} \to C_{in} \to H \to W$.
+  Cada bloco contíguo de $C_{in} \cdot H \cdot W$ elementos corresponde
+  a um \textbf{filtro de saída completo}.
+  \item \texttt{Linear}: tensor de shape $[\mathrm{Out}, \mathrm{In}]$;
+  ordem de varredura é $\mathrm{Out} \to \mathrm{In}$. Cada linha
+  contígua de $\mathrm{In}$ elementos corresponde aos
+  \textbf{pesos de entrada de um único neurônio de saída}.
+  \item \texttt{BatchNorm2d}: dois vetores 1D de comprimento $C$
+  (canais), na ordem $\gamma_0, \gamma_1, \dots$ seguido por
+  $\beta_0, \beta_1, \dots$ (ver Seção~\ref{sec:grupos-bn} para a
+  semântica de $\gamma$ e $\beta$).
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/fig_conv_extraction.png}
+  \caption{Ordem de varredura dentro de uma \texttt{Conv2d}, ilustrada
+  com um tensor mínimo $[C_{out}=2, C_{in}=2, H=2, W=2]$. A leitura
+  segue quatro \emph{loops} aninhados, com $C_{out}$ no nível externo
+  e $W$ no interno. Cada bloco contíguo de 4 elementos corresponde a um
+  canal de entrada de um filtro de saída.}
+  \label{fig:conv-extraction}
+\end{figure}
+
+A Figura~\ref{fig:extraction-summary} resume as três regras lado a lado
+para os três tipos de camada que possuem parâmetros aprendíveis na
+ResNet-18.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.85\linewidth]{figures/fig_extraction_summary.png}
+  \caption{Resumo das regras de ordenação dentro de cada tipo de tensor:
+  todas seguem ordem \emph{row-major}, com o índice mais à esquerda
+  variando mais lentamente.}
+  \label{fig:extraction-summary}
+\end{figure}
+
+\subsection{Camada superior: decisões analíticas deste trabalho}
+\label{sec:extracao-decisoes}
+
+Definida a camada inferior, restam cinco decisões analíticas, cada uma
+defendida abaixo em relação à hipótese central deste trabalho ---
+\emph{que medidas de complexidade aplicadas aos pesos servem como
+marcadores objetivos da maturação do treinamento}.
+
+\paragraph*{D1. Agrupamento em quatro categorias.} Os 41 tensores são
+particionados em quatro grupos (\texttt{conv}, \texttt{dense},
+\texttt{bn\_gamma}, \texttt{bn\_beta}; ver Seção~\ref{sec:grupos}). A
+justificativa é que esses grupos têm \emph{inicializações distintas} e
+\emph{dinâmicas estatísticas qualitativamente diferentes}, e juntar todos
+em uma única série temporal misturaria fontes incomparáveis.
+
+\paragraph*{D2. Conv2d: agrupamento por neurônio de saída, sem
+transposição.} O tensor \texttt{Conv2d} é processado na ordem nativa
+$[C_{out}, C_{in}, H, W]$. Como consequência, blocos contíguos de
+$C_{in} \cdot H \cdot W$ elementos correspondem a filtros de saída
+completos --- a unidade interpretável natural quando se discute o que o
+treinamento estruturou. A alternativa --- transpor para
+$[C_{in}, C_{out}, H, W]$ antes do \emph{flatten} --- agruparia por
+canal de entrada (resposta de fan-out por unidade da camada anterior).
+Esta segunda leitura é semanticamente válida, mas não casa com a hipótese
+central, que trata cada filtro como ``uma unidade aprendida''.
+A Seção~\ref{sec:robustez} descreve o experimento de controle que
+quantifica empiricamente o impacto desta decisão.
+
+\paragraph*{D3. Subamostragem sistemática.} Cada grupo de camadas
+acumula da ordem de $10^5$ a $10^6$ pesos. Para tornar o cálculo da
+SampEn computacionalmente viável (custo $O(N^2)$ na construção das
+distâncias par a par) e para uniformizar a contagem de elementos entre
+\emph{snapshots} de tensores de tamanhos distintos, aplicamos
+subamostragem para no máximo $10\,000$ elementos por grupo. Adotamos
+amostragem \emph{sistemática} (passo fixo no vetor concatenado),
+preservando a ordem original do \emph{flatten} --- e portanto a
+semântica de agrupamento decidida em D2. A alternativa de subamostragem
+aleatória embaralharia o vetor e reduziria a SampEn 1D a uma medida da
+distribuição marginal dos pesos, descartando a estrutura sequencial.
+A SampEn 2D, ao operar diretamente sobre a matriz dos filtros, é
+independente desta decisão.
+
+\paragraph*{D4. Cálculo por tensor com agregação posterior.} As medidas
+LMC e SampEn são calculadas \emph{para cada tensor} separadamente; em
+seguida agregadas (média e desvio-padrão) entre os tensores do mesmo
+grupo. A alternativa --- concatenar todos os pesos do grupo em uma única
+série de comprimento $\sim 10^6$ e calcular uma única medida --- mistura
+artificialmente populações de pesos com função arquitetural distinta
+(ex.: convs $3 \times 3$ principais e convs $1 \times 1$ de
+\emph{downsample}). A agregação posterior preserva a unidade
+arquitetural (cada tensor representa uma operação) e permite reportar
+incerteza entre tensores.
+
+\paragraph*{D5. Inclusão dos pesos de \emph{bias} apenas para
+\texttt{BatchNorm2d}.} Para \texttt{Conv2d} e \texttt{Linear}, apenas o
+tensor \texttt{weight} é incluído na análise; o \emph{bias}, quando
+existente, é excluído. Para \texttt{BatchNorm2d}, ambos $\gamma$
+(\texttt{weight}) e $\beta$ (\texttt{bias}) são incluídos por serem
+parâmetros funcionalmente centrais à operação de normalização afim
+(Seção~\ref{sec:grupos-bn}).
+
+A Tabela~\ref{tab:divisao-decisoes} sintetiza, por decisão, quem é
+responsável e o que precisa de defesa.
+
+\begin{table}[H]
+\centering
+\caption{Pirâmide de decisões da extração de pesos.}
+\label{tab:divisao-decisoes}
+\small
+\begin{tabular}{p{0.42\linewidth}ll}
+\toprule
+\textbf{Decisão} & \textbf{Origem} & \textbf{Mutável?} \\
+\midrule
+Ordem entre módulos (\texttt{conv1} $\to$ \dots $\to$ \texttt{fc}) & Arquitetura ResNet & Não \\
+Shape \texttt{Conv2d} $[C_{out}, C_{in}, H, W]$               & PyTorch         & Não \\
+Flatten \emph{row-major} & PyTorch (C-contig.) & Não \\
+D1. Quatro grupos (\texttt{conv}/\texttt{dense}/\texttt{bn\_$\gamma$}/\texttt{bn\_$\beta$}) & Este trabalho & Sim \\
+D2. Não transpor Conv2d antes do flatten          & Este trabalho   & Sim \\
+D3. Subamostragem sistemática (passo fixo, 10\,000 elementos) & Este trabalho   & Sim \\
+D4. Cálculo por tensor com agregação posterior    & Este trabalho   & Sim \\
+D5. Inclusão de $\gamma$ e $\beta$; exclusão de \emph{bias} de Conv/Linear & Este trabalho   & Sim \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===========================================================================
+\section{Agrupamento dos pesos em quatro categorias}
+\label{sec:grupos}
+
+Os 41 tensores são particionados em quatro grupos disjuntos. A
+Tabela~\ref{tab:grupos} sumariza suas características.
+
+\begin{table}[H]
+\centering
+\caption{Grupos de pesos sobre os quais as medidas de complexidade são
+calculadas.}
+\label{tab:grupos}
+\small
+\begin{tabular}{lrll}
+\toprule
+\textbf{Grupo} & \textbf{Tensores} & \textbf{Origem} & \textbf{Função arquitetural} \\
+\midrule
+\texttt{conv}     & 20 & \texttt{Conv2d.weight}      & Detectores de \emph{features} \\
+\texttt{dense}    & 1  & \texttt{Linear.weight}      & Cabeça classificadora \\
+\texttt{bn\_gamma} & 20 & \texttt{BatchNorm2d.weight} & Escala $\gamma$ por canal \\
+\texttt{bn\_beta}  & 20 & \texttt{BatchNorm2d.bias}   & Deslocamento $\beta$ por canal \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Por que separar \texorpdfstring{$\gamma$}{gamma} e
+\texorpdfstring{$\beta$}{beta} da BatchNorm}
+\label{sec:grupos-bn}
+
+Uma camada \texttt{BatchNorm2d} aplica uma transformação afim em duas
+etapas, por canal $c$:
+\begin{align}
+  \hat{x}_c &= \frac{x_c - \mu_c}{\sqrt{\sigma_c^2 + \varepsilon}}
+  & \text{(normalização, sem parâmetros)}, \\
+  y_c &= \gamma_c \cdot \hat{x}_c + \beta_c
+  & \text{(reescala afim, com parâmetros)}.
+\end{align}
+
+Os parâmetros aprendíveis $\gamma_c$ e $\beta_c$ têm papéis funcionalmente
+distintos --- $\gamma$ controla a variância de saída de cada canal e
+$\beta$ controla o seu centro --- e inicializações distintas
+($\gamma_c = 1$, $\beta_c = 0$). Como consequência, suas distribuições
+empíricas têm formas iniciais e dinâmicas diferentes:
+\begin{itemize}
+  \item $\gamma$ inicia como uma massa de Dirac em 1 e tende a se
+  alargar de forma assimétrica, com alguns valores tendendo a zero
+  (sinal de canais ``suprimidos'' pela rede);
+  \item $\beta$ inicia como uma massa de Dirac em 0 e se alarga de
+  forma aproximadamente simétrica em torno de zero, acumulando o
+  \emph{bias} aprendido por canal.
+\end{itemize}
+
+Tratar $\gamma$ e $\beta$ como um único grupo \texttt{bn} apagaria esse
+contraste, que se mostra particularmente informativo nas
+trajetórias de LMC e SampEn ao longo do treinamento
+(Capítulo~\ref{ch:resultados}).
+
+% ===========================================================================
+\section{Medidas de complexidade}
+\label{sec:medidas}
+
+Sobre cada tensor de cada \emph{snapshot}, e antes da agregação por grupo,
+são calculadas as medidas descritas a seguir. Todos os parâmetros
+seguem convenções validadas pelo grupo de pesquisa ou pela literatura
+citada.
+
+\subsection{Complexidade LMC}
+\label{sec:medidas-lmc}
+
+A complexidade estatística LMC \cite{lmc1995} é definida como o produto
+da entropia de Shannon \cite{shannon1948} pelo desequilíbrio em relação
+à distribuição uniforme:
+\begin{equation}
+  C_{\mathrm{LMC}}(p) \;=\; H(p) \cdot D(p),
+\end{equation}
+onde, para um histograma normalizado $p$ com $N$ \emph{bins},
+\begin{equation}
+  H(p) = -\sum_{i=1}^{N} p_i \log_2 p_i, \qquad
+  D(p) = \sum_{i=1}^{N} \left(p_i - \tfrac{1}{N}\right)^2.
+\end{equation}
+O número de \emph{bins} é determinado pela regra
+$N = \min(100, \max(10, n/5))$, onde $n$ é o número de pesos amostrados
+após D3 (Seção~\ref{sec:extracao-decisoes}). A entropia é computada em
+bits ($\log_2$) e o produto $H \cdot D$ é reportado sem normalização
+adicional.
+
+\subsection{Entropia amostral SampEn$_{1D}$}
+\label{sec:medidas-sampen}
+
+A entropia amostral \cite{richman2000,pincus1991} é definida como
+\begin{equation}
+  \mathrm{SampEn}(U, m, r) \;=\;
+  -\log \frac{A^{m+1}(r)}{B^{m}(r)},
+\end{equation}
+onde $U$ é o vetor de pesos amostrado, $m$ é o comprimento das
+sub-sequências comparadas e $r$ é a tolerância de similaridade. As
+quantidades $A^{m+1}$ e $B^{m}$ contam pares de sub-sequências cuja
+distância de Chebyshev é menor ou igual a $r$. Adotam-se os parâmetros
+$m = 2$ e $r = 0{,}2\,\sigma(U)$ \cite{yentes2013}, validados pelo
+grupo de pesquisa em estudos prévios.
+
+\subsection{Norma \texorpdfstring{$\ell_2$}{L2} por filtro}
+\label{sec:medidas-l2}
+
+Como medida de magnitude complementar, registra-se a norma $\ell_2$ por
+filtro de saída (ou por neurônio, no caso da \texttt{Linear}); reportam-se
+a média e o desvio-padrão dessa norma dentro de cada tensor. Esta medida
+não é uma medida de complexidade no sentido estrito, mas serve como
+referência para interpretar tendências observadas em $C_{\mathrm{LMC}}$
+e SampEn.
+
+\subsection{Extensões previstas: SampEn 2D e multiescala}
+\label{sec:medidas-extensoes}
+
+A SampEn 2D \cite{silva2016} e versões multiescala (MSE)
+\cite{costa2002,costa2005} estão implementadas no \emph{pipeline} e
+serão aplicadas em trabalho subsequente. A SampEn 2D opera diretamente
+sobre a matriz dos filtros sem \emph{flatten}, capturando estrutura
+espacial preservada e contornando a discussão sobre a ordem do
+\emph{flatten} apresentada em D2.
+
+% ===========================================================================
+\section{Análise de robustez planejada}
+\label{sec:robustez}
+
+Para dar lastro empírico às decisões D1--D5, três análises de robustez
+estão previstas e serão reportadas em conjunto com os resultados
+principais:
+
+\begin{enumerate}
+  \item \textbf{Sensibilidade ao agrupamento da Conv2d (D2).} Para uma
+  camada convolucional representativa de cada \texttt{layerN}
+  (\texttt{layer1.0.conv1}, \texttt{layer2.0.conv1},
+  \texttt{layer3.0.conv1}, \texttt{layer4.0.conv1}), recalcula-se a
+  SampEn 1D nos \emph{snapshots} do mesmo \emph{run} com o tensor
+  transposto para $[C_{in}, C_{out}, H, W]$ antes do \emph{flatten}, e
+  reporta-se o desvio absoluto resultante. Se o impacto for inferior à
+  variabilidade entre sementes, a escolha por não transpor é estabelecida
+  como secundária; caso contrário, ambas as leituras serão reportadas
+  lado a lado como achados independentes.
+
+  \item \textbf{Sensibilidade à subamostragem (D3).} Compara-se a
+  trajetória obtida com amostragem sistemática (adotada) contra
+  amostragem aleatória em uma \emph{seed} representativa de
+  PathMNIST 50 épocas; o objetivo é confirmar que a subamostragem
+  sistemática preserva sinais que a aleatória descarta, dado o
+  argumento conceitual apresentado em D3.
+
+  \item \textbf{Sensibilidade ao número de \emph{bins} da LMC.} O
+  cálculo de $H(p)$ é, no limite, sensível à discretização. Reporta-se o
+  comportamento de $C_{\mathrm{LMC}}$ ao variar o número de \emph{bins}
+  entre $\{20, 50, 100, 200\}$ em uma \emph{seed} representativa, para
+  documentar a estabilidade qualitativa das trajetórias.
+\end{enumerate}
+
+% ===========================================================================
+\section{Grid experimental}
+\label{sec:grid}
+
+O grid primário consiste em três \emph{datasets}
+$\times$ três horizontes de épocas $\{30, 50, 100\}$
+$\times$ três sementes $\{42, 123, 2024\}$, totalizando
+\textbf{27 \emph{runs}}. A finalidade do horizonte variável é avaliar a
+estabilidade das trajetórias para além do tempo de convergência típico
+($\sim 50$ épocas observadas em experimentos preliminares), enquanto as
+três sementes quantificam a variabilidade entre inicializações e
+ordenações de \emph{mini-batches}.

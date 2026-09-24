@@ -1,0 +1,504 @@
+<title>Pauta de 28 de Agosto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+  :root {
+    --bg:        #edeaeb;
+    --surface:   #f9f7f7;
+    --surface-2: #e3dee0;
+    --ink:       #221c22;
+    --ink-soft:  #453a43;
+    --muted:     #6d616a;
+    --rule:      #d4cbcf;
+    --rule-soft: #e2dadd;
+    --accent:    #7a3355;
+    --accent-dim:#7a335518;
+    --done:      #4a6b40;
+    --done-dim:  #4a6b4018;
+    --open:      #8f6416;
+    --open-dim:  #8f641618;
+    --risk:      #a03c2c;
+    --risk-dim:  #a03c2c18;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #171316;
+      --surface:   #1f1a1e;
+      --surface-2: #2a2329;
+      --ink:       #ece5e9;
+      --ink-soft:  #cdc2c9;
+      --muted:     #9d919a;
+      --rule:      #362d34;
+      --rule-soft: #2b2429;
+      --accent:    #d68ab0;
+      --accent-dim:#d68ab01f;
+      --done:      #9dc48f;
+      --done-dim:  #9dc48f1f;
+      --open:      #dbb055;
+      --open-dim:  #dbb0551f;
+      --risk:      #e5907c;
+      --risk-dim:  #e5907c1f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:        #171316;
+    --surface:   #1f1a1e;
+    --surface-2: #2a2329;
+    --ink:       #ece5e9;
+    --ink-soft:  #cdc2c9;
+    --muted:     #9d919a;
+    --rule:      #362d34;
+    --rule-soft: #2b2429;
+    --accent:    #d68ab0;
+    --accent-dim:#d68ab01f;
+    --done:      #9dc48f;
+    --done-dim:  #9dc48f1f;
+    --open:      #dbb055;
+    --open-dim:  #dbb0551f;
+    --risk:      #e5907c;
+    --risk-dim:  #e5907c1f;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Spectral, Georgia, serif;
+    font-size: 16.5px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sheet { max-width: 900px; margin: 0 auto; padding: 60px 26px 110px; display: flex; flex-direction: column; gap: 52px; }
+
+  /* ---------- topo ---------- */
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px;
+  }
+  h1 {
+    font-family: Spectral, Georgia, serif; font-weight: 600;
+    font-size: clamp(32px, 5.4vw, 48px); line-height: 1.08;
+    letter-spacing: -.018em; text-wrap: balance; margin-bottom: 14px;
+  }
+  .lede { font-size: 18.5px; color: var(--ink-soft); max-width: 62ch; font-weight: 300; }
+
+  /* ---------- cartão de números ---------- */
+  .figures {
+    border: 1px solid var(--rule); border-radius: 4px; background: var(--surface);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .fig { padding: 15px 18px; border-right: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); }
+  .fig dt {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
+  }
+  .fig dd {
+    font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 500;
+    font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.45;
+  }
+  .fig dd small { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+
+  /* ---------- itens da pauta ---------- */
+  .item { display: grid; grid-template-columns: 96px 1fr; gap: 26px; }
+  .rail { display: flex; flex-direction: column; gap: 5px; padding-top: 3px; }
+  .num {
+    font-family: "IBM Plex Mono", monospace; font-size: 27px; font-weight: 500;
+    line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .time {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px;
+    letter-spacing: .08em; color: var(--muted);
+  }
+  .body { display: flex; flex-direction: column; gap: 15px; min-width: 0; }
+  h2 {
+    font-family: Spectral, Georgia, serif; font-weight: 600; font-size: 25px;
+    line-height: 1.24; letter-spacing: -.012em; text-wrap: balance;
+    padding-bottom: 11px; border-bottom: 1px solid var(--rule);
+  }
+  h3 {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
+  }
+  p { max-width: 66ch; }
+  ul { list-style: none; display: flex; flex-direction: column; gap: 9px; max-width: 66ch; }
+  ul li { padding-left: 19px; position: relative; }
+  ul li::before {
+    content: ""; position: absolute; left: 2px; top: .72em;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--muted); opacity: .55;
+  }
+  code {
+    font-family: "IBM Plex Mono", monospace; font-size: .84em;
+    background: var(--surface-2); padding: .12em .38em; border-radius: 2px;
+  }
+  em { font-style: italic; }
+  strong { font-weight: 600; }
+  .block { display: flex; flex-direction: column; gap: 9px; }
+
+  /* destaque do item principal */
+  .item.star .body { border-left: 2px solid var(--accent); padding-left: 22px; margin-left: -24px; }
+  .item.star .num { font-size: 31px; }
+
+  /* ---------- caixas ---------- */
+  .note {
+    border-left: 2px solid var(--risk); background: var(--risk-dim);
+    padding: 14px 18px; border-radius: 0 3px 3px 0;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .note.acc { border-color: var(--accent); background: var(--accent-dim); }
+  .note.ok  { border-color: var(--done);   background: var(--done-dim); }
+  .note p { font-size: 15.5px; max-width: 64ch; }
+  .note .h { font-weight: 600; font-size: 15.5px; }
+
+  /* ---------- tabela ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 14.5px; }
+  th, td { padding: 9px 15px; text-align: left; border-bottom: 1px solid var(--rule-soft); }
+  thead th {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+    font-weight: 500; border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num-c { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; text-align: right; }
+  tfoot td { font-family: "IBM Plex Mono", monospace; font-weight: 500; border-top: 1px solid var(--rule); font-size: 14px; }
+  tfoot td.num-c { text-align: right; }
+
+  .pill {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+    padding: 2px 8px; border-radius: 2px; white-space: nowrap; letter-spacing: .04em;
+  }
+  .pill.done { background: var(--done-dim); color: var(--done); }
+  .pill.open { background: var(--open-dim); color: var(--open); }
+  .pill.risk { background: var(--risk-dim); color: var(--risk); }
+
+  /* ---------- perguntas ---------- */
+  .asks { display: flex; flex-direction: column; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  .ask { display: grid; grid-template-columns: 34px 1fr; gap: 14px; padding: 15px 18px; border-bottom: 1px solid var(--rule-soft); }
+  .ask:last-child { border-bottom: none; }
+  .ask .k {
+    font-family: "IBM Plex Mono", monospace; font-size: 14px; font-weight: 500;
+    color: var(--accent); padding-top: 2px;
+  }
+  .ask .q { font-weight: 600; margin-bottom: 3px; display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; }
+  .ask .why { font-size: 14.5px; color: var(--muted); max-width: 62ch; }
+
+  /* ---------- se ele perguntar ---------- */
+  .qa { display: flex; flex-direction: column; gap: 17px; }
+  .qa .q2 { font-weight: 600; font-style: italic; color: var(--ink); }
+  .qa .a2 { font-size: 15.5px; color: var(--ink-soft); max-width: 66ch; margin-top: 2px; }
+
+  .foot {
+    border-top: 1px solid var(--rule); padding-top: 20px;
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 26px;
+  }
+
+  @media (max-width: 620px) {
+    .sheet { padding: 42px 18px 80px; gap: 42px; }
+    .item { grid-template-columns: 1fr; gap: 12px; }
+    .rail { flex-direction: row; align-items: baseline; gap: 12px; }
+    .item.star .body { margin-left: 0; padding-left: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="sheet">
+
+  <header>
+    <div class="eyebrow">Reunião de orientação · presencial · ~65 min</div>
+    <h1>Pauta de 28 de agosto</h1>
+    <p class="lede">Estado da dissertação, correções aplicadas desde a última conversa, e o bloco central: a auditoria da ordem de extração dos pesos — que respondeu à sua pergunta e revelou um problema no caminho.</p>
+  </header>
+
+  <dl class="figures">
+    <div class="fig"><dt>Runs em disco</dt><dd>51<small>27 core · 9 frac · 9 wd · 6 arch</small></dd></div>
+    <div class="fig"><dt>Dissertação</dt><dd>78 págs<small>5 capítulos + 2 apêndices</small></dd></div>
+    <div class="fig"><dt>Otimizador</dt><dd>SGD<small>lr 0,001 · mom 0,9 · wd 1e-4</small></dd></div>
+    <div class="fig"><dt>Lead time (Fase 1)</dt><dd>+12 a +17<small>épocas antes do mín. val_loss</small></dd></div>
+    <div class="fig"><dt>Pico da LMC</dt><dd>6 · 6 · 24<small>Path · Blood · OrganA (épocas)</small></dd></div>
+    <div class="fig"><dt>SampEn conv</dt><dd>2,088 / 2,008<small>aleatório / sistemático</small></dd></div>
+    <div class="fig"><dt>Ruído entre sementes</dt><dd>0,008<small>40× menor que o efeito acima</small></dd></div>
+    <div class="fig"><dt>bn_gamma ResNet-18</dt><dd>4.800<small>abaixo do corte de 10.000</small></dd></div>
+  </dl>
+
+  <!-- ===================== 1 ===================== -->
+  <div class="item">
+    <div class="rail"><div class="num">1</div><div class="time">8 min</div></div>
+    <div class="body">
+      <h2>Onde a dissertação está hoje</h2>
+      <p>Abrir mostrando o objeto: 78 páginas, cinco capítulos e dois apêndices, compilando sem nenhum erro. O Apêndice A é o exemplo numérico da ordem de extração que o senhor pediu; o Apêndice B é a validação numérica das medidas contra casos analiticamente conhecidos.</p>
+
+      <div class="block">
+        <h3>Composição exata dos runs</h3>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Bloco</th><th>Desenho</th><th class="num-c">Runs</th></tr></thead>
+            <tbody>
+              <tr><td>Baseline</td><td>3 datasets × 3 durações (30/50/100) × 3 sementes</td><td class="num-c">27</td></tr>
+              <tr><td>Subamostragem do treino</td><td>PathMNIST a 5 / 10 / 25 % × 3 sementes</td><td class="num-c">9</td></tr>
+              <tr><td>Weight decay</td><td>WD ∈ {0, 1e-5, 1e-3} × 3 sementes</td><td class="num-c">9</td></tr>
+              <tr><td>Arquitetura</td><td>ResNet-34 e DenseNet-121 × 3 sementes</td><td class="num-c">6</td></tr>
+            </tbody>
+            <tfoot><tr><td colspan="2">Total em disco</td><td class="num-c">51</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="note">
+        <div class="h">Correção que eu preciso fazer de saída</div>
+        <p>Numa versão anterior do meu resumo eu tinha anotado «60+ runs», «12 de weight decay» e «9 de arquitetura». Conferi o disco: são <strong>51 runs</strong>. Os sweeps reaproveitam o baseline — ele já roda com wd = 1e-4 e ResNet-18 —, então o <em>desenho</em> cobre 4 níveis de weight decay e 3 arquiteturas, mas os <em>runs novos</em> são 9 e 6.</p>
+        <p>Faço questão de abrir com isso porque a contagem inconsistente já era um ponto frágil: a metodologia dizia 27, os resultados diziam 50 e a conclusão dizia 36. Agora há um número único e verificável.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 2 ===================== -->
+  <div class="item">
+    <div class="rail"><div class="num">2</div><div class="time">8 min</div></div>
+    <div class="body">
+      <h2>O que foi corrigido desde a última conversa</h2>
+      <p>Passei a dissertação por uma revisão crítica sistemática e corrigi o que ela apontou. Vale listar rápido, porque várias dessas coisas seriam ataque fácil de banca.</p>
+      <ul>
+        <li><strong>Otimizador.</strong> O capítulo de resultados dizia Adam; o código usa <strong>SGD</strong> (lr 0,001, momentum 0,9, weight decay 1e-4). Corrigido para bater com o código.</li>
+        <li><strong>Definição de C.</strong> Os resultados descreviam «entropia de Shannon normalizada»; a metodologia e o código dizem sem normalização, em bits. Verifiquei o código: não há normalização em lugar nenhum. Texto corrigido.</li>
+        <li><strong>Narrativa do pico da LMC.</strong> A inicialização He estava descrita como «próxima de uma distribuição quase-uniforme de alta entropia e baixo D» — fisicamente errado, e internamente contraditório com a trajetória relatada. Reescrito: gaussiana de entropia submáxima com D já estritamente positivo, e o pico explicado pelo <em>trade-off</em> real (D sobe, H cai, a queda de H domina).</li>
+        <li><strong>Validação numérica das medidas.</strong> Era objetivo específico declarado e não cumprido. Criei o Apêndice B e o <code>scripts/validacao_numerica.py</code>: H da uniforme = log₂N, C = 0 nos extremos, SampEn de série periódica ≈ 0.</li>
+        <li><strong>Trabalhos relacionados.</strong> Nova §2.6 posicionando a contribuição contra Bartlett (2017), Dziugaite (2017), Jiang (2020) e Martin &amp; Mahoney (2021).</li>
+        <li><strong>Notação e compilação.</strong> A tolerância deixou de ser escrita como «δ = 0» e virou «desvio padrão populacional (ddof = 0)»; e corrigi três erros de LaTeX pré-existentes que passavam despercebidos.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===================== 3 ===================== -->
+  <div class="item">
+    <div class="rail"><div class="num">3</div><div class="time">12 min</div></div>
+    <div class="body">
+      <h2>Os achados experimentais</h2>
+      <p>A hipótese de partida era «a complexidade dos pesos é marcador objetivo de sobreajuste». As quatro frentes experimentais a sustentam parcialmente e a refinam.</p>
+      <ul>
+        <li><strong>Subamostragem do treino</strong> — o único bloco que de fato induz overfitting. A LMC atinge seu extremo <em>antes</em> do mínimo de <code>val_loss</code> nos três regimes, com antecedência de 12 a 17 épocas.</li>
+        <li><strong>Weight decay</strong> — o pico da LMC fica em torno de 7 épocas independentemente do WD, enquanto o mínimo de <code>val_loss</code> passeia de 42 a 93 épocas. Isso é o argumento mais forte de que o pico não é o mínimo disfarçado.</li>
+        <li><strong>Arquitetura</strong> — pico na janela [4, 9] épocas para ResNet-18, ResNet-34 e DenseNet-121.</li>
+        <li><strong>Entre datasets, a invariância quebra.</strong> PathMNIST e BloodMNIST picam em 6 épocas; OrganAMNIST em 24 — fator 4×. Isso está reportado com destaque, não escondido, e a decomposição por grupo mostra que a anomalia aparece em <code>bn_gamma</code> e <code>bn_beta</code>, não em <code>conv</code>/<code>dense</code>.</li>
+        <li><strong>Onde mora o sinal.</strong> Em <code>bn_gamma</code>. O <code>conv</code> é ruidoso, o <code>dense</code> é monotônico, e o <code>bn_beta</code> acompanha o γ com mais ruído.</li>
+        <li><strong>SampEn 2D discrimina, SampEn 1D não.</strong> No checkpoint final, a 2D separa os três datasets com ICs que não se sobrepõem (3,98 / 5,77 / 6,18), enquanto a 1D fica quase idêntica entre eles (~2,07 a 2,10). Volto a esse ponto no item 4 — ele tem uma explicação nova.</li>
+      </ul>
+      <div class="note acc">
+        <div class="h">Proposta de reformulação da H1</div>
+        <p>Sugiro trocar «marcador objetivo de overfitting» por algo mais defensável: <em>a trajetória da LMC dos pesos de <code>bn_gamma</code> atinge seu extremo antes do mínimo de <code>val_loss</code>; o instante exato depende do dataset, mas o ordenamento temporal é robusto a subamostragem do treino, a intensidade de regularização e a família arquitetural dentro de um mesmo dataset.</em> Isso é a pergunta 5 do item 5.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 4 ===================== -->
+  <div class="item star">
+    <div class="rail"><div class="num">4</div><div class="time">20 min</div></div>
+    <div class="body">
+      <h2>A ordem de extração dos pesos</h2>
+      <p>Este é o bloco principal. A sua pergunta antiga — se eu <em>sabia</em> ter escolhido a ordem <code>[C_out, C_in, H, W]</code> ou se o PyTorch a escolheu por mim — me levou a auditar o código, e a auditoria achou uma coisa.</p>
+
+      <div class="block">
+        <h3>4.1 · A resposta, em duas partes</h3>
+        <p>A primeira parte resolve metade da questão de graça: <strong>a LMC não depende de ordem nenhuma.</strong> Ela transforma os pesos num histograma de 100 bins, e histograma não tem sequência — pode-se embaralhar o vetor à vontade que o valor não muda. E o achado central da dissertação é de LMC.</p>
+        <p>A segunda parte é onde a pergunta morde: <strong>a SampEn depende inteiramente da ordem</strong>, porque ela mede padrão na sequência. Para ela a ordem não é detalhe de implementação, é a matéria-prima.</p>
+        <p>Sobre a escolha em si, a decisão registrada é D2: <strong>não transpor</strong>. No achatamento nativo, cada bloco contíguo de C_in·kH·kW valores é um filtro inteiro — a unidade que a rede efetivamente aprendeu. Transpor para <code>[C_in, C_out, H, W]</code> picaria cada filtro em pedaços separados. O Apêndice A rastreia isso elemento a elemento num tensor <code>[2,2,2,2]</code>, com o contraste transposto ao lado, como o senhor sugeriu.</p>
+      </div>
+
+      <div class="block">
+        <h3>4.2 · O que a auditoria encontrou</h3>
+        <p>A metodologia, na decisão D3, diz textualmente que a subamostragem é <em>sistemática, com passo fixo, preservando a ordem</em> — e argumenta explicitamente contra a alternativa: «a subamostragem aleatória embaralharia o vetor e reduziria a SampEn 1D a uma medida da distribuição marginal dos pesos».</p>
+        <p>O código fazia exatamente a alternativa rejeitada: <code>rng.choice(..., replace=False)</code>, que sorteia <em>e devolve fora de ordem</em>.</p>
+        <p>Um ponto que quero deixar claro: <strong>isso não foi uma concessão ao custo computacional.</strong> As duas estratégias entregam os mesmos 10.000 pontos, no mesmo tempo. Não houve troca de rigor por desempenho — foi só um descuido.</p>
+      </div>
+
+      <div class="block">
+        <h3>4.3 · O tamanho do estrago</h3>
+        <p>A subamostragem só entra em ação acima de 10.000 pesos. Abaixo disso o grupo é usado inteiro, na ordem nativa — não havia o que embaralhar.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Grupo</th><th class="num-c">ResNet-18</th><th class="num-c">ResNet-34</th><th class="num-c">DenseNet-121</th><th>Situação</th></tr></thead>
+            <tbody>
+              <tr><td><code>conv</code></td><td class="num-c">11.166.912</td><td class="num-c">21.267.648</td><td class="num-c">6.870.208</td><td><span class="pill risk">embaralhado</span></td></tr>
+              <tr><td><code>bn_gamma</code></td><td class="num-c">4.800</td><td class="num-c">8.512</td><td class="num-c">41.824</td><td><span class="pill done">intacto, salvo DenseNet</span></td></tr>
+              <tr><td><code>bn_beta</code></td><td class="num-c">4.800</td><td class="num-c">8.512</td><td class="num-c">41.824</td><td><span class="pill done">intacto, salvo DenseNet</span></td></tr>
+              <tr><td><code>dense</code></td><td class="num-c">4.608</td><td class="num-c">4.608</td><td class="num-c">9.216</td><td><span class="pill done">intacto</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note ok">
+          <div class="h">O achado central não se move</div>
+          <p>A dissertação apoia sua hipótese na trajetória da <strong>LMC do grupo <code>bn_gamma</code> em ResNet-18</strong>. A LMC é indiferente a reordenação, e o <code>bn_gamma</code> tem 4.800 pesos — abaixo do corte, logo nunca passou por subamostragem alguma. O resultado principal vive exatamente na interseção das duas coisas que este problema não toca, e isso agora é demonstrável com número.</p>
+        </div>
+        <p>Há ainda um subproduto interessante: a conclusão negativa da §4.4.4 — «a SampEn 1D não funciona como marcador antecipador independente» — foi obtida sobre um vetor embaralhado. Ou seja, o resultado negativo pode ser artefato do método, não propriedade da rede.</p>
+      </div>
+
+      <div class="block">
+        <h3>4.4 · A ablação, com número</h3>
+        <p>Executei as ablações que a §3.6 prometia e nunca reportou. Três sementes do PathMNIST, checkpoint final, grupo <code>conv</code>:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Estratégia de subamostragem</th><th class="num-c">SampEn</th><th>Leitura</th></tr></thead>
+            <tbody>
+              <tr><td>aleatória — o que o código fazia</td><td class="num-c">2,088</td><td><span class="pill risk">ordem destruída</span></td></tr>
+              <tr><td>sistemática — o que a tese diz</td><td class="num-c">2,008</td><td><span class="pill done">ordem preservada</span></td></tr>
+              <tr><td>contígua — proposta em aberto</td><td class="num-c">1,775</td><td><span class="pill open">vizinhança preservada</span></td></tr>
+            </tbody>
+            <tfoot><tr><td colspan="2">Variação entre sementes do mesmo treino</td><td>0,008</td></tr></tfoot>
+          </table>
+        </div>
+        <p>Duas leituras. Primeira: <strong>a ordem carrega sinal real</strong> — a diferença entre aleatório e sistemático é dez vezes maior que o ruído entre sementes, e o sistemático dá valor <em>menor</em>, isto é, a ordem nativa é genuinamente mais regular. Segunda, mais incômoda: <strong>a escolha de <em>quais</em> 10.000 pesa mais que a rede</strong> — entre as três estratégias a SampEn varia 0,31 contra 0,008 de ruído.</p>
+        <p>Também rodei a ablação de D2: nativo 2,008 contra transposto 2,031. Efeito pequeno, mas consistente em sinal nas três sementes e sempre a favor do nativo — ou seja, a decisão D2 se sustenta empiricamente.</p>
+      </div>
+
+      <div class="block">
+        <h3>4.5 · O teto de 10.000 é da implementação, não da matemática</h3>
+        <p>Achei que valia medir de onde vem o limite. A SampEn é O(N²), mas o código monta a matriz de distâncias N×N inteira de uma vez, e é isso que domina:</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th class="num-c">N</th><th class="num-c">código atual</th><th class="num-c">contagem em blocos</th></tr></thead>
+            <tbody>
+              <tr><td class="num-c">10.000</td><td class="num-c">0,43 s</td><td class="num-c">0,45 s</td></tr>
+              <tr><td class="num-c">20.000</td><td class="num-c">136 s</td><td class="num-c">1,77 s</td></tr>
+              <tr><td class="num-c">50.000</td><td class="num-c">—</td><td class="num-c">11,35 s</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Os 136 segundos não são o O(N²) — este previa 1,8 s. São paginação de memória. Reescrevendo a contagem de pares em blocos (quinze linhas, valor idêntico ao original), o teto sobe cinco vezes de graça.</p>
+      </div>
+
+      <div class="block">
+        <h3>4.6 · O que já está corrigido</h3>
+        <p>A subamostragem agora é uma função dedicada, <code>systematic_subsample()</code>, com passo fixo e determinística. Escrevi seis testes que travam o comportamento — passo constante, ordem monotônica, determinismo e um teste ponta a ponta com um <code>state_dict</code> real. <strong>A suíte inteira, 293 testes, passa.</strong></p>
+      </div>
+
+      <div class="block">
+        <h3>4.7 · De onde veio o 10.000 — e o que isso revela sobre o D4</h3>
+        <p>Fui atrás da origem do corte de 10.000 elementos. <strong>Ele veio do código do grupo</strong>: os quatro scripts de análise (<code>data_analysis_summary.py</code>, <code>summary_complexity_plot.py</code>, <code>monai_lmc_sampen_plot.py</code>, <code>monai_wieghts_plot.py</code>) usam a mesma linha <code>rng.choice(flat, size=min(10000, len(flat)), replace=False)</code>. É uma convenção herdada, não um número derivado — e o embaralhamento que corrigi veio junto com ela.</p>
+        <p>A metodologia justifica o corte de duas formas, e vale ser honesto sobre as duas. A viabilidade computacional <strong>não é vinculante</strong>, como o item 4.5 mostra. E a uniformização da contagem entre tensores <strong>não se cumpre</strong>: os grupos ficaram com 10.000, 4.800, 4.800 e 4.608 elementos, então comparações de SampEn <em>entre grupos</em> seguem confundidas por N — embora as comparações <em>ao longo do tempo dentro de um grupo</em> estejam seguras, que é onde vive o achado central.</p>
+        <p>Sobre o tamanho em si: 10.000 é folgado. A literatura de SampEn trabalha com N da ordem de 10<sup>m</sup> a 30<sup>m</sup>, isto é, 100 a 900 para m = 2. O problema nunca foi a amostra ser pequena — foi <em>quais</em> 10.000.</p>
+        <div class="note acc">
+          <div class="h">E aqui está a descoberta que muda a pergunta</div>
+          <p>No código do grupo, o loop é <code>for name, tensor in weights.items()</code>: ele amostra até 10.000 de <strong>cada tensor</strong>, calcula LMC e SampEn de cada um, e tira a <strong>média</strong>. Isto é exatamente a decisão D4 que a metodologia descreve.</p>
+          <p>Ou seja: <strong>o D4 não é uma promessa que deixei de cumprir — é a descrição fiel do método validado pelo grupo, e foi a minha reimplementação que se desviou dele</strong>, concatenando o grupo inteiro e tirando 10.000 do total. No método do grupo, os 20 tensores <code>conv</code> do ResNet-18 geram até 200.000 valores em 20 medidas independentes, e uma BatchNorm de 64 canais entra inteira; no meu, sai uma medida só sobre o grupo inteiro.</p>
+        </div>
+        <p>Um ponto onde <em>não</em> há divergência, e vale dizer para não parecer que está tudo desalinhado: a regra de bins. O código do grupo passa <code>bins = 100</code> fixo, e a regra adaptativa <code>min(100, max(10, n//5))</code> da minha implementação sempre resulta em 100, porque todo grupo tem mais de 500 pesos. Os dois caminhos chegam ao mesmo lugar.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 5 ===================== -->
+  <div class="item">
+    <div class="rail"><div class="num">5</div><div class="time">12 min</div></div>
+    <div class="body">
+      <h2>Decisões que preciso do senhor</h2>
+      <p>As quatro primeiras mudam o que eu faço na semana que vem; as quatro últimas são de rumo e podem ficar para depois se o tempo apertar.</p>
+      <div class="asks">
+        <div class="ask"><div class="k">1</div><div>
+          <div class="q">D4: confirmo que devo voltar ao método do grupo? <span class="pill open">hoje</span></div>
+          <div class="why">Como mostro em 4.7, o código do grupo calcula por tensor e depois agrega — que é o que a metodologia descreve. Minha reimplementação concatenou o grupo. Se o senhor confirmar, eu alinho o código ao método original em vez de reescrever o texto. Muda todos os valores absolutos de C e SampEn, mas não a forma das trajetórias.</div>
+        </div></div>
+        <div class="ask"><div class="k">2</div><div>
+          <div class="q">Re-rodar o grid? <span class="pill open">hoje</span></div>
+          <div class="why">São 3 a 5 horas de GPU, e só <code>conv</code> em todas as arquiteturas e os grupos BN do DenseNet mudam de valor — os demais grupos do ResNet dão resultado idêntico. O risco é que a conclusão negativa da §4.4.4 pode mudar de sinal.</div>
+        </div></div>
+        <div class="ask"><div class="k">3</div><div>
+          <div class="q">SampEn por filtro como solução definitiva? <span class="pill open">hoje</span></div>
+          <div class="why">Um filtro da <code>layer4</code> tem 4.608 valores: cabe inteiro, sem subamostragem nenhuma. Alinharia D2, D3 e D4 de uma vez e resolveria o problema na raiz em vez de mitigá-lo. Ainda não testei — é proposta.</div>
+        </div></div>
+        <div class="ask"><div class="k">4</div><div>
+          <div class="q">Subo de 3 para 10 sementes? <span class="pill open">hoje</span></div>
+          <div class="why">Com três sementes, o bootstrap de 1.000 reamostragens não cria graus de liberdade — os intervalos de confiança ficam ilusoriamente precisos, e alguns saem larguíssimos (OrganAMNIST em [21,4; 100,0]). É o ataque mais provável da banca.</div>
+        </div></div>
+        <div class="ask"><div class="k">5</div><div>
+          <div class="q">Aceita a reformulação da H1?</div>
+          <div class="why">Passar de «marcador de overfitting» para «marcador da transição estrutural que precede a generalização ótima» — mais defensável, mas menos ambicioso. Prefere manter o enquadramento original?</div>
+        </div></div>
+        <div class="ask"><div class="k">6</div><div>
+          <div class="q">OrganAMNIST: investigo ou reporto?</div>
+          <div class="why">O deslocamento de fator 4× tem três explicações candidatas (modalidade, complexidade visual, cardinalidade) que o desenho atual não consegue separar. Rodar a subamostragem também no OrganAMNIST ajudaria, ou ficamos com a interpretação atual como achado honesto?</div>
+        </div></div>
+        <div class="ask"><div class="k">7</div><div>
+          <div class="q">Vale investir em detectores alternativos?</div>
+          <div class="why">O detector robusto exige três escolhas combinadas — restrição a <code>bn_gamma</code>, corte de warm-up e suavização Savitzky-Golay. Regressão segmentada ou change-point bayesiano fechariam o item 1 dos trabalhos futuros.</div>
+        </div></div>
+        <div class="ask"><div class="k">8</div><div>
+          <div class="q">SampEn 2D ao longo do treinamento?</div>
+          <div class="why">Hoje ela só existe no checkpoint final. Estendê-la ao eixo temporal exigiria salvar checkpoints completos a cada época, com custo de disco relevante. Vale a pena?</div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 6 ===================== -->
+  <div class="item">
+    <div class="rail"><div class="num">6</div><div class="time">5 min</div></div>
+    <div class="body">
+      <h2>O que eu faço na próxima semana</h2>
+      <div class="block">
+        <h3>Sem custo — os checkpoints e CSVs já existentes bastam</h3>
+        <ul>
+          <li><strong>Comparar a LMC contra uma métrica trivial.</strong> Os <code>metrics.csv</code> já guardam a norma L2 por época e o <code>history.csv</code> as perdas. Dá para testar se a norma L2 ou o <em>gap</em> treino/validação antecipam o mínimo de <code>val_loss</code> tão bem quanto a LMC. Sem esse teste, a banca pergunta e não há resposta.</li>
+          <li><strong>Reescrever a §3.6</strong>, hoje intitulada «Análise de robustez <em>planejada</em>», como seção efetivamente reportada.</li>
+          <li><strong>Blindar o bloco de SampEn 2D:</strong> <em>surrogate</em> gaussiano de mesma geometria como hipótese nula, SampEn por filtro 7×7 individual para eliminar o artefato de costura do mosaico, e varredura de tolerância entre 0,3σ e 0,8σ.</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Precisa de janela de GPU</h3>
+        <ul>
+          <li>Re-rodar o grid parcialmente, conforme a decisão 2 (3 a 5 h).</li>
+          <li>Subir para 10 sementes, conforme a decisão 4.</li>
+          <li>Induzir overfitting nos três datasets — hoje só o PathMNIST sofre indução, o que significa que a maior parte da análise não observa o fenômeno que a dissertação se propõe a marcar.</li>
+        </ul>
+      </div>
+      <p><strong>Pedido concreto:</strong> combinar a janela de GPU e a data da próxima conversa.</p>
+    </div>
+  </div>
+
+  <!-- ===================== anexo ===================== -->
+  <div class="item">
+    <div class="rail"><div class="num">✳</div><div class="time">anexo</div></div>
+    <div class="body">
+      <h2>Se ele perguntar</h2>
+      <div class="qa">
+        <div>
+          <div class="q2">«Quantos runs, afinal?»</div>
+          <div class="a2">51 em disco: 27 de baseline, 9 de subamostragem, 9 de weight decay e 6 de arquitetura. Os sweeps reaproveitam o baseline, então o desenho cobre 4 níveis de WD e 3 arquiteturas.</div>
+        </div>
+        <div>
+          <div class="q2">«Por que só ResNet-18 nas duas primeiras fases?»</div>
+          <div class="a2">Por compatibilidade com o baseline validado pelo grupo. A fase de arquitetura estende para ResNet-34 e DenseNet-121 e mostra invariância dentro da janela [4, 9] épocas.</div>
+        </div>
+        <div>
+          <div class="q2">«Como vocês detectaram o pico?»</div>
+          <div class="a2">Detector descrito na §4.4.3.1: restrição ao grupo <code>bn_gamma</code>, exclusão da janela de warm-up (época &lt; 0,5), suavização Savitzky-Golay com janela 7 e polinômio 3, e IC de 95 % por bootstrap de 1.000 reamostragens das sementes.</div>
+        </div>
+        <div>
+          <div class="q2">«Por que <code>bn_gamma</code> e não outro grupo?»</div>
+          <div class="a2">Identificado empiricamente na fase de subamostragem: o sinal antecipador se concentra nos parâmetros γ. É justificativa post-hoc, e eu declaro isso como tal — mas é internamente consistente e a decomposição por grupo a sustenta.</div>
+        </div>
+        <div>
+          <div class="q2">«E se o embaralhamento tiver afetado mais coisa do que você acha?»</div>
+          <div class="a2">O critério é objetivo e verificável: só grupos acima de 10.000 pesos foram subamostrados. Posso mostrar a contagem por grupo e por arquitetura, e os <code>metrics.csv</code> registram o <code>n_flat_samples</code> efetivo de cada linha — nos runs de ResNet-18 aparece 4.800 para <code>bn_gamma</code> e 10.000 para <code>conv</code>.</div>
+        </div>
+        <div>
+          <div class="q2">«Por que 10.000 e não outro número?»</div>
+          <div class="a2">Honestamente: porque é o que os scripts de análise do grupo usam — <code>min(10000, len(flat))</code>, nos quatro arquivos. Não é um número derivado. A justificativa de custo computacional eu já mostrei que não é vinculante, e a de uniformizar a contagem não se cumpre, porque os grupos ficaram com N diferentes. Mas 10.000 também não é pouco: a literatura de SampEn trabalha com N na casa das centenas para m = 2.</div>
+        </div>
+        <div>
+          <div class="q2">«Onde essa dissertação pode quebrar?»</div>
+          <div class="a2">Em três pontos, todos já reportados: o OrganAMNIST quebra a invariância entre datasets; a SampEn 1D não funciona como marcador independente — e agora sabemos que isso pode ser artefato; e o detector robusto depende de três escolhas combinadas que mereciam justificativa mais sistemática.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Material de apoio · fluxograma da extração</span>
+    <span>results/ablacao_ordem.json</span>
+    <span>results/ablacao_estrategias_subamostragem.json</span>
+    <span>scripts/ablacao_ordem.py · scripts/sampen_chunked.py</span>
+  </div>
+
+</div>
