@@ -150,10 +150,14 @@ O trabalho experimental organiza-se em torno da comparação pareada entre
 execuções com e sem \emph{overfitting} induzido. A indução é feita por corrupção
 controlada de uma fração dos rótulos do conjunto de treino, procedimento que
 força a rede a memorizar exemplos inconsistentes \cite{zhang2017}. Cada execução
-com corrupção possui uma execução de controle correspondente, idêntica em
-arquitetura, partição e semente de inicialização, diferindo apenas pela
-presença da corrupção --- de modo que a semente que governa o ruído é separada
-daquela que governa a partição e a inicialização.
+com corrupção possui uma execução de controle correspondente, que deve ser
+idêntica a ela em arquitetura, partição, semente, número de épocas e ajustes de
+regularização, diferindo \emph{apenas} pela presença da corrupção --- de modo
+que a semente que governa o ruído é separada daquela que governa a partição e a
+inicialização. O rigor desse pareamento é condição de validade do experimento:
+qualquer diferença adicional entre os grupos, como a presença de aumento de
+dados em apenas um deles, torna o contraste observado atribuível a mais de uma
+causa.
 
 Durante o treinamento, um monitor calcula a cada época a LMC, a SampEn e a
 SampEn2D sobre os pesos da camada densa. Ao final, compara-se a época em que

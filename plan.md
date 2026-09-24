@@ -1059,7 +1059,35 @@ as sementes de DenseNet é o próximo passo experimental natural.
 (rethinking generalization, 3.151), `arpit2017` (memorização, 332), `power2022`
 (grokking, 227), `prechelt1998` (early stopping, 1.022).
 
-**Falta para fechar a F7:** revisão do autor e do orientador.
+**🔴 ACHADO DE 2026-09-24 — os controles NÃO são pareados.** Ao preparar a ampliação
+da DenseNet descobriu-se que os runs de controle diferem dos de ruído em **quatro**
+parâmetros, e não em um:
+
+| Parâmetro | ruído30 | controle | |
+|-----------|---------|----------|---|
+| `label_noise` | 0,3 | 0,0 | variável de interesse |
+| `weight_decay` | 0,0 | 1e-4 | **regularização** |
+| `augment` | False | True | **regularização** |
+| `epochs` | 60 | 40 | |
+
+Vale para ResNet-18 **e** DenseNet-121, ou seja, atinge o achado central: a razão de
+5,71x não pode ser atribuída só à corrupção de rótulos, porque os controles também
+são regularizados. Ampliar sementes não corrige — só dá precisão a um número confundido.
+
+**Em execução (disparado em 2026-09-24):**
+- 5 runs de ruído DenseNet (seeds 13, 23, 99, 101, 202) — `dn121_ruido30_seed*`
+- 5 controles DenseNet **pareados** — `dn121_ctrlpar_seed*`
+- 8 controles ResNet **pareados** — `f6_ctrlpar_seed*`
+
+Controles pareados = `--weight_decay 0.0 --no_augment --epochs 60 --eval_train
+--label_noise 0.0`, diferindo dos runs de ruído apenas por `label_noise`.
+Os controles antigos ficam no disco, mas saem da análise principal.
+
+**Ressalva já escrita no texto** (§4.1 do projeto), a ser removida quando os
+controles pareados terminarem.
+
+**Falta para fechar a F7:** revisão do autor e do orientador, e substituição dos
+números pelos dos controles pareados.
 
 **Critério de aceite:** texto revisado, cada afirmação de estado da arte com referência verificada (usar o Scite para não inventar citação).
 

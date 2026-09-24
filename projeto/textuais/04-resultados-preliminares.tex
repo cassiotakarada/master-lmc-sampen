@@ -16,13 +16,37 @@ entre execuções, de modo que a comparação entre elas não seja contaminada p
 variação de amostragem.
 
 A memorização é induzida pela corrupção de uma fração dos rótulos do conjunto
-de treino, seguindo o protocolo de \citeonline{zhang2017}. Cada execução com
-corrupção possui uma execução de controle pareada, idêntica em tudo exceto pela
-ausência de corrupção. A semente que governa a corrupção é independente daquela
-que governa a partição e a inicialização --- distinção necessária, pois, se
-ambas fossem a mesma, repetir o experimento com semente diferente reproduziria
-exatamente os mesmos rótulos errados e mediria sensibilidade à inicialização,
-não replicação.
+de treino, seguindo o protocolo de \citeonline{zhang2017}. A semente que governa
+a corrupção é independente daquela que governa a partição e a inicialização ---
+distinção necessária, pois, se ambas fossem a mesma, repetir o experimento com
+semente diferente reproduziria exatamente os mesmos rótulos errados e mediria
+sensibilidade à inicialização, não replicação.
+
+\subsection*{Ressalva sobre o pareamento dos controles}
+
+Os resultados reportados neste capítulo foram obtidos com execuções de controle
+que \textbf{não são estritamente pareadas} às execuções com corrupção. Além da
+ausência de corrupção de rótulos, os controles diferem em três outros aspectos:
+utilizam aumento de dados, empregam decaimento de pesos de \num{e-4} contra zero
+nas execuções com corrupção, e foram treinados por \num{40} épocas em vez de
+\num{60}. Como aumento de dados e decaimento de pesos são, ambos, formas de
+regularização, parte do contraste observado entre os grupos pode ser atribuída a
+eles, e não exclusivamente à memorização induzida.
+
+Essa limitação foi identificada após a obtenção dos resultados e é registrada
+aqui de forma explícita. Está em execução um conjunto de controles estritamente
+pareados --- idênticos às execuções com corrupção em arquitetura, partição,
+semente, número de épocas, decaimento de pesos e ausência de aumento de dados,
+diferindo apenas por $\mathrm{label\_noise} = 0$ --- cujos resultados
+substituirão os aqui reportados. Até lá, as razões de amplitude das
+Tabelas~\ref{tab:discriminacao} e~\ref{tab:antecedencia} devem ser lidas como
+o contraste entre \emph{um regime de treinamento que favorece a memorização} e
+\emph{um regime regularizado}, e não como o efeito isolado da corrupção de
+rótulos.
+
+Convém registrar que a separação temporal descrita na
+Seção~\ref{sec:R-antecedencia} é menos sensível a essa ressalva do que as razões
+de amplitude, por não depender da escala do indicador.
 
 O conjunto principal de resultados compreende oito execuções com corrupção de
 30\% dos rótulos e oito execuções de controle, todas com ResNet-18.
