@@ -199,7 +199,7 @@ class Trainer:
             comp = None
             if self.monitor is not None:
                 t_comp = time.perf_counter()
-                comp = self.monitor.on_epoch_end(self.model, epoch, val_loss)
+                comp = self.monitor.on_epoch_end(self.model, epoch, val_loss, val_acc)
                 comp["overhead_s"] = time.perf_counter() - t_comp
                 self._log_complexity(comp)
             self._log_epoch(epoch, train_loss, val_loss, val_acc, comp, tr_eval)

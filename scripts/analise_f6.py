@@ -65,38 +65,24 @@ def _eixo(ax, xlabel, ylabel, titulo):
 # CALIBRACAO (protocolo do plan.md): estes parametros sao ajustados olhando os runs
 # NORMAIS -- onde nao ha overfitting e o indicador NAO deve disparar -- e so depois
 # aplicados ao run de ruido. Os normais funcionam como controle negativo.
+# CALIBRACAO (protocolo do plan.md): estes parametros sao ajustados olhando os runs
+# NORMAIS -- onde nao ha overfitting e o indicador NAO deve disparar -- e so depois
+# aplicados ao run de ruido. Os normais funcionam como controle negativo.
 BASE_EPOCAS = 5      # epocas iniciais que definem o plato de referencia
 BASE_K = 4.0         # quantos desvios do plato contam como afastamento
 BASE_P = 3           # epocas consecutivas fora da faixa para confirmar
 
+# O detector mora em src/training/overfit.py desde 2026-09-22 -- o status online (F4) e
+# a analise offline (F6) tem de usar exatamente o mesmo criterio, entao ele nao pode
+# existir em duas copias. Reexportado aqui pelo nome de sempre, para nao quebrar quem
+# importa deste modulo.
+from src.training.overfit import epoca_de_afastamento as _afastamento
 
-def epoca_de_afastamento(serie: np.ndarray, base_epocas: int = BASE_EPOCAS,
-                         k: float = BASE_K, p: int = BASE_P) -> int | None:
-    """Primeira epoca em que a serie se afasta, de forma sustentada, do seu plato inicial.
 
-    Por que nao "inversao de sinal": o evento relevante num indicador nao e
-    necessariamente um pico. Na SampEn2D do run de ruido, por exemplo, a serie parte de
-    um plato e comeca um declinio sustentado -- nao ha inversao nenhuma, e um detector
-    de pico nao veria nada.
-
-    Plato = media +- k*desvio das `base_epocas` primeiras epocas. O sinal e a primeira
-    epoca a partir da qual a serie fica fora dessa faixa por `p` epocas consecutivas.
-
-    Devolve a epoca (1-indexada) ou None se nunca se afastar -- o que e o resultado
-    esperado num run sem overfitting.
-    """
-    y = np.asarray(serie, dtype=float)
-    if len(y) < base_epocas + p:
-        return None
-    base = y[:base_epocas]
-    mu, sd = float(np.mean(base)), float(np.std(base))
-    if sd == 0:
-        return None
-    fora = np.abs(y - mu) > k * sd
-    for i in range(base_epocas, len(y) - p + 1):
-        if np.all(fora[i:i + p]):
-            return int(i + 1)
-    return None
+def epoca_de_afastamento(serie, base_epocas: int = BASE_EPOCAS, k: float = BASE_K,
+                         p: int = BASE_P):
+    """Ver `src.training.overfit.epoca_de_afastamento` -- fonte unica do criterio."""
+    return _afastamento(serie, base_epocas, k, p)
 
 
 def marcos_de_degradacao(df: pd.DataFrame, queda_pp: float = 0.01, p: int = 3) -> dict:

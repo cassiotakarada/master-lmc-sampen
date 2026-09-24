@@ -224,3 +224,4 @@ Convenções fixadas: `n_bins=100`, `m=2`, `r=0.20·σ`, ordem de achatamento `n
 ---
 
 🙋‍♂️ Feel free to fork, contribute or suggest ideas (like comparing architectures, new entropy metrics, or UI dashboards).
+# master-lmc-sampen

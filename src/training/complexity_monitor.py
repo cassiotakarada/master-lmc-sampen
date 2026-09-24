@@ -62,26 +62,58 @@ import torch.nn as nn
 
 from ..complexity import dense_complexity, flatten_dense, lmc_complexity, sample_entropy_1d, sample_entropy_2d
 from ..utils.logging import get_logger
-from .overfit import epocas_sem_melhora
+from .overfit import (epoca_de_afastamento, epoca_de_queda_relativa,
+                      epocas_abaixo_do_pico, epocas_sem_melhora)
 
 
 class TrainingStatus(str, Enum):
-    """Leitura do estado do treino a partir dos pesos + val_loss."""
+    """Leitura do estado do treino a partir dos pesos + acuracia de validacao."""
     INICIALIZANDO = "INICIALIZANDO"      # historico curto demais para concluir algo
-    APRENDENDO = "APRENDENDO"            # val_loss caindo e pesos ainda se reorganizando
-    CONVERGINDO = "CONVERGINDO"          # val_loss caindo, mas a complexidade estabilizou
-    ESTAGNADO = "ESTAGNADO"              # val_loss plano e complexidade plana
-    ALERTA_OVERFIT = "ALERTA_OVERFIT"    # complexidade inverteu ANTES de o val_loss subir
-    OVERFITTING = "OVERFITTING"          # val_loss sem melhorar ha `patience` epocas
+    APRENDENDO = "APRENDENDO"            # acuracia subindo e pesos ainda se reorganizando
+    CONVERGINDO = "CONVERGINDO"          # acuracia subindo, mas a complexidade estabilizou
+    ESTAGNADO = "ESTAGNADO"              # acuracia parada e complexidade plana
+    ALERTA_OVERFIT = "ALERTA_OVERFIT"    # SampEn2D saiu do plato ANTES de a acuracia cair
+    OVERFITTING = "OVERFITTING"          # acuracia abaixo do pico ha `patience` epocas
 
 
 @dataclass
 class LimiaresStatus:
-    """Limiares da maquina de estados. PROVISORIOS -- calibrar na F6."""
-    patience: int = 3
+    """Limiares da maquina de estados.
+
+    RECALIBRADOS EM 2026-09-22 PARA A ACURACIA (antes: val_loss). O protocolo declarado
+    no plan.md foi seguido: ajustados em 3 sementes de ruido + 3 de controle e
+    VERIFICADOS nas 2+2 restantes, que nao participaram do ajuste. Ver
+    `scripts/calibrar_status.py`, que refaz a busca e a verificacao a partir dos CSVs.
+
+    Resultado na VERIFICACAO (os runs que a busca nunca viu): 2/2 runs com ruido
+    detectados, 0/2 falsos positivos, alerta 5,0 epocas antes da degradacao real.
+    Um dos 2 controles alertou, na epoca 31 -- tarde, 21 epocas depois do ultimo alerta
+    de um run com ruido.
+
+    Por que a troca: com o val_loss o status dizia OVERFITTING em 10 de 10 runs (51 % das
+    epocas ate nos controles saudaveis). O MedNIST satura na 1a epoca, entao "o val_loss
+    parou de melhorar" e verdade cedo mesmo com a rede sa. Ver a secao da F6 no plan.md.
+    """
+    patience: int = 3                    # epocas consecutivas abaixo do pico p/ confirmar
     janela: int = 3                      # epocas da media movel
+    queda_acc: float = 0.005             # 0,5 ponto percentual abaixo do pico = degradacao
+    melhora_acc_minima: float = 0.001    # ganho de acuracia na janela abaixo disso = "plano"
     var_relativa_estavel: float = 0.02   # |inclinacao|/media abaixo disso = "estavel"
-    melhora_val_minima: float = 0.01     # melhora relativa do val_loss abaixo disso = "plano"
+    # Aviso antecipado, sobre a SampEn2D (a medida que a F6 mostrou discriminar: 5,3x de
+    # contraste contra 1,0x da LMC, que ocupava este lugar ate 2026-09-22).
+    #
+    # CRITERIO TROCADO EM 2026-09-24: era "afastou-se k desvios do plato das epocas 1-5";
+    # passou a ser "caiu `queda_rel` abaixo do maximo corrente por `queda_p` epocas". O
+    # anterior falhava na DenseNet-121 nas duas pontas (ver epoca_de_queda_relativa).
+    # Ajustados SO em runs de ResNet-18 (14 com ruido, 8 controles, 3 niveis de ruido) e
+    # testados as cegas na DenseNet-121: 3/3 detectados, margem de +17 epocas.
+    queda_rel: float = 0.10              # 10 % abaixo do maximo corrente
+    queda_p: int = 2                     # epocas consecutivas para confirmar
+    # Mantidos para reproduzir a analise anterior (scripts/ablacao_flatten.py, F6). O
+    # status NAO os usa mais.
+    afast_base: int = 5
+    afast_k: float = 5.0
+    afast_p: int = 3
 
 
 def _inclinacao_relativa(serie: List[float], janela: int) -> float:
@@ -129,6 +161,7 @@ class ComplexityMonitor:
         self.sampen2d_m = sampen2d_m
         self.calcular_ambas_ordens = calcular_ambas_ordens
         self._avisou_2d_indefinida = False
+        self._avisou_sem_acuracia = False
         self.limiares = limiares or LimiaresStatus()
         self.logger = logger or get_logger()
         self.historico: List[Dict] = []
@@ -186,43 +219,64 @@ class ComplexityMonitor:
         return m
 
     # ------------------------------------------------------------------ status
-    def _classificar(self, val_losses: List[float]) -> TrainingStatus:
+    def _classificar(self, val_accs: List[float]) -> TrainingStatus:
+        """Estado do treino com o que se sabe ate esta epoca -- so olha o passado.
+
+        Ordem das perguntas (a primeira que responder "sim" vence):
+          1. ja ha historico?                        -> INICIALIZANDO
+          2. a acuracia ja caiu e ficou caida?       -> OVERFITTING   (o fato)
+          3. a SampEn2D caiu do seu maximo?           -> ALERTA_OVERFIT (o aviso)
+          4. acuracia parada + complexidade parada?  -> ESTAGNADO
+          5. acuracia subindo + complexidade parada? -> CONVERGINDO
+          6. caso contrario                          -> APRENDENDO
+
+        O 2 vem antes do 3 de proposito: depois que a degradacao ja e fato, chamar de
+        "alerta" seria mentir sobre o tempo verbal.
+        """
         lim = self.limiares
-        if len(self.historico) < max(3, lim.janela):
+        if len(self.historico) < max(3, lim.janela) or not val_accs:
             return TrainingStatus.INICIALIZANDO
 
-        if epocas_sem_melhora(val_losses) >= lim.patience:
+        if epocas_abaixo_do_pico(val_accs, lim.queda_acc) >= lim.patience:
             return TrainingStatus.OVERFITTING
 
-        lmcs = [h["lmc"] for h in self.historico]
-        incl_lmc = _inclinacao_relativa(lmcs, lim.janela)
-        incl_lmc_antes = _inclinacao_relativa(lmcs[:-1], lim.janela)
+        # O aviso antecipado sai da SampEn2D -- a unica das tres medidas que discriminou
+        # overfitting na F6 (contraste 5,3x contra 1,0x da LMC, que ocupava este lugar
+        # ate 2026-09-22). Cai para a LMC apenas se a 2D nao estiver sendo calculada.
+        chave = "sampen2d" if self.calcular_2d else "lmc"
+        serie = [h[chave] for h in self.historico if np.isfinite(h.get(chave, np.nan))]
+        if len(serie) == len(self.historico):
+            if epoca_de_queda_relativa(serie, lim.queda_rel, lim.queda_p):
+                return TrainingStatus.ALERTA_OVERFIT
 
-        # val_loss ainda melhorando? (melhora relativa na janela)
-        vl = val_losses[-lim.janela:]
-        melhora_rel = (vl[0] - vl[-1]) / abs(vl[0]) if vl[0] not in (0, None) else 0.0
-        val_melhorando = melhora_rel > lim.melhora_val_minima
-
+        incl_lmc = _inclinacao_relativa([h["lmc"] for h in self.historico], lim.janela)
         complexidade_estavel = abs(incl_lmc) < lim.var_relativa_estavel
-        inverteu = (incl_lmc * incl_lmc_antes < 0
-                    and abs(incl_lmc) >= lim.var_relativa_estavel
-                    and abs(incl_lmc_antes) >= lim.var_relativa_estavel)
 
-        # A hipotese central do trabalho: a complexidade vira antes do val_loss.
-        if inverteu and val_melhorando:
-            return TrainingStatus.ALERTA_OVERFIT
-        if not val_melhorando and complexidade_estavel:
-            return TrainingStatus.ESTAGNADO
-        if val_melhorando and complexidade_estavel:
-            return TrainingStatus.CONVERGINDO
+        # Acuracia ainda subindo? Ganho ABSOLUTO na janela, em pontos de acuracia --
+        # ganho relativo nao serve numa metrica que vive em 0,999, onde todo movimento
+        # real e da terceira casa decimal.
+        va = val_accs[-lim.janela:]
+        acc_melhorando = (va[-1] - va[0]) > lim.melhora_acc_minima
+
+        if complexidade_estavel:
+            return (TrainingStatus.CONVERGINDO if acc_melhorando
+                    else TrainingStatus.ESTAGNADO)
         return TrainingStatus.APRENDENDO
 
     # ------------------------------------------------------------------ API
-    def on_epoch_end(self, model: nn.Module, epoch: int, val_loss: float) -> Dict:
-        """Mede, classifica e registra. Devolve o dict da epoca."""
+    def on_epoch_end(self, model: nn.Module, epoch: int, val_loss: float,
+                     val_accuracy: Optional[float] = None) -> Dict:
+        """Mede, classifica e registra. Devolve o dict da epoca.
+
+        `val_accuracy` e o que decide o status desde a recalibracao de 2026-09-22. Sem
+        ela o monitor ainda mede tudo, mas nao ha status: mentir dizendo APRENDENDO sem
+        base seria pior do que admitir que falta o dado.
+        """
         reg = self.medir(model)
         reg["epoch"] = epoch
         reg["val_loss"] = float(val_loss)
+        if val_accuracy is not None:
+            reg["val_accuracy"] = float(val_accuracy)
 
         anterior = self.historico[-1] if self.historico else None
         reg["d_lmc"] = reg["lmc"] - anterior["lmc"] if anterior else 0.0
@@ -231,8 +285,19 @@ class ComplexityMonitor:
                            else 0.0)
         self.historico.append(reg)
 
-        val_losses = [h["val_loss"] for h in self.historico]
-        reg["status"] = self._classificar(val_losses).value
+        val_accs = [h["val_accuracy"] for h in self.historico if "val_accuracy" in h]
+        if len(val_accs) == len(self.historico):
+            reg["status"] = self._classificar(val_accs).value
+        else:
+            if not self._avisou_sem_acuracia:
+                self._avisou_sem_acuracia = True
+                self.logger.warning(
+                    "Sem val_accuracy: o status fica indisponivel. Desde a recalibracao "
+                    "de 2026-09-22 a maquina de estados e ancorada na acuracia -- com o "
+                    "val_loss ela dizia OVERFITTING em 10 de 10 runs da F6. Passe "
+                    "val_accuracy em on_epoch_end para reativa-la."
+                )
+            reg["status"] = TrainingStatus.INICIALIZANDO.value
         reg["incl_lmc_rel"] = _inclinacao_relativa([h["lmc"] for h in self.historico],
                                                    self.limiares.janela)
         return reg

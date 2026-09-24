@@ -6,11 +6,17 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+from src.training.overfit import (  # noqa: E402
+    epoca_de_afastamento,
+    epoca_de_queda_relativa,
+    epocas_abaixo_do_pico,
+)
 from src.analysis.overfit_cut import (  # noqa: E402
     apenas_usaveis,
     carregar_relatorio,
@@ -139,3 +145,112 @@ class TestRunsReais:
         rel = carregar_relatorio(str(rd))
         assert rel["melhor_epoca"] == melhor
         assert rel["confirmado"] is confirmado
+
+
+class TestDetectoresOnline:
+    """As duas funcoes que a maquina de estados do monitor usa (recalibracao 2026-09-22).
+
+    Elas so podem olhar o passado: sao chamadas durante o treino, epoca a epoca.
+    """
+
+    def test_acuracia_sempre_subindo_nunca_acusa(self):
+        assert epocas_abaixo_do_pico([0.7, 0.8, 0.9, 0.95, 0.99], queda=0.01) == 0
+
+    def test_conta_epocas_consecutivas_abaixo_do_pico(self):
+        # pico 0.99 na 2a epoca; as 3 seguintes ficam >1pp abaixo
+        assert epocas_abaixo_do_pico([0.90, 0.99, 0.95, 0.94, 0.93], queda=0.01) == 3
+
+    def test_queda_isolada_nao_acumula(self):
+        """Uma epoca ruim no meio nao pode somar com outra la na frente."""
+        assert epocas_abaixo_do_pico([0.90, 0.99, 0.95, 0.99, 0.95], queda=0.01) == 1
+
+    def test_oscilacao_na_terceira_casa_nao_conta(self):
+        """O caso do MedNIST: acuracia saturada oscila, mas nao degrada."""
+        assert epocas_abaixo_do_pico([0.998, 0.999, 0.9985, 0.999, 0.9988],
+                                     queda=0.01) == 0
+
+    def test_usa_o_pico_CORRENTE_e_nao_o_global(self):
+        """Um pico futuro nao pode influenciar o juizo de uma epoca passada."""
+        serie = [0.90, 0.85, 0.84, 0.83, 0.99]
+        # ate a 4a epoca o pico corrente e 0.90, e as 3 seguintes estao abaixo dele
+        assert epocas_abaixo_do_pico(serie[:4], queda=0.01) == 3
+        # a ultima epoca reestabelece o pico e zera a contagem
+        assert epocas_abaixo_do_pico(serie, queda=0.01) == 0
+
+    def test_afastamento_sinaliza_saida_do_plato(self):
+        serie = [1.0, 1.01, 0.99, 1.0, 1.005] + [2.0] * 5
+        assert epoca_de_afastamento(serie, base_epocas=5, k=4.0, p=3) == 6
+
+    def test_afastamento_devolve_none_em_serie_estavel(self):
+        rng = np.random.default_rng(0)
+        serie = 1.0 + rng.normal(0, 0.01, 40)
+        assert epoca_de_afastamento(serie, base_epocas=5, k=4.0, p=3) is None
+
+    def test_afastamento_exige_persistencia(self):
+        """Um unico ponto fora da faixa nao e afastamento -- p=3 exige 3 seguidos."""
+        serie = [1.0, 1.01, 0.99, 1.0, 1.005, 5.0, 1.0, 1.0, 1.0, 1.0]
+        assert epoca_de_afastamento(serie, base_epocas=5, k=4.0, p=3) is None
+
+    def test_afastamento_e_causal(self):
+        """A decisao ate a epoca k nao pode mudar por causa do que vem depois."""
+        serie = [1.0, 1.01, 0.99, 1.0, 1.005] + [2.0] * 5
+        cedo = epoca_de_afastamento(serie[:8], base_epocas=5, k=4.0, p=3)
+        tarde = epoca_de_afastamento(serie + [9.0] * 5, base_epocas=5, k=4.0, p=3)
+        assert cedo == tarde == 6
+
+    def test_afastamento_sem_historico_suficiente(self):
+        assert epoca_de_afastamento([1.0, 1.0, 1.0], base_epocas=5, k=4.0, p=3) is None
+
+
+class TestQuedaRelativa:
+    """Criterio do ALERTA desde o redesenho de 2026-09-24.
+
+    O que se exige dele: ser INDEPENDENTE DE ESCALA. Foi a dependencia da escala (o
+    sigma do plato das epocas 1-5, que variava 47x entre runs) que fez o criterio
+    anterior quebrar na troca de ResNet-18 para DenseNet-121.
+    """
+
+    def test_serie_plana_nunca_alerta(self):
+        assert epoca_de_queda_relativa([5.0] * 20, queda_rel=0.10, p=2) is None
+
+    def test_queda_sustentada_alerta(self):
+        # cai 20 % a partir da 4a epoca e fica la
+        assert epoca_de_queda_relativa([10, 10, 10, 8, 8, 8], queda_rel=0.10, p=2) == 5
+
+    def test_queda_menor_que_o_limiar_nao_alerta(self):
+        assert epoca_de_queda_relativa([10, 10, 10, 9.5, 9.5], queda_rel=0.10, p=2) is None
+
+    def test_queda_isolada_nao_alerta(self):
+        """Uma epoca ruim nao e declinio: p=2 exige persistencia."""
+        assert epoca_de_queda_relativa([10, 10, 8, 10, 10], queda_rel=0.10, p=2) is None
+
+    def test_e_invariante_a_escala(self):
+        """O MESMO formato de serie, multiplicado por 1000, alerta na MESMA epoca.
+
+        Este e o teste que o criterio antigo nao passaria de forma util: ele dependia do
+        desvio absoluto das primeiras epocas.
+        """
+        base = [10, 10, 10, 8, 8, 8]
+        assert (epoca_de_queda_relativa(base, 0.10, 2)
+                == epoca_de_queda_relativa([v * 1000 for v in base], 0.10, 2)
+                == epoca_de_queda_relativa([v * 0.001 for v in base], 0.10, 2))
+
+    def test_nao_depende_de_quao_quieto_o_inicio_e(self):
+        """Duas series com o MESMO declinio, uma agitada no comeco e outra nao.
+
+        Reproduz em miniatura o que quebrou na DenseNet: la o inicio agitado inflava o
+        sigma e o alerta nunca saia, enquanto um inicio quieto demais disparava sozinho.
+        """
+        quieta = [10.0, 10.0, 10.0, 10.0, 10.0, 8.0, 8.0]
+        agitada = [10.0, 11.0, 9.0, 11.0, 10.0, 8.0, 8.0]
+        assert (epoca_de_queda_relativa(quieta, 0.10, 2)
+                == epoca_de_queda_relativa(agitada, 0.10, 2) == 7)
+
+    def test_usa_o_maximo_CORRENTE(self):
+        """Um pico tardio nao pode reclassificar epocas passadas."""
+        # sobe ate 20 na 5a epoca; so entao o 10 do inicio ficaria 50% abaixo do pico
+        serie = [10, 10, 10, 10, 20, 20]
+        assert epoca_de_queda_relativa(serie[:4], 0.10, 2) is None
+
+    def test_ignora_valores_nao_finitos(self):
+        assert epoca_de_queda_relativa([10, float("nan"), 10, 8, 8], 0.10, 2) == 5

@@ -632,6 +632,336 @@ Ressalva: os controles têm 40 épocas e os runs de ruído, 60 — comparar a *�
 porque todos compartilham dataset, arquitetura e schedule, e porque os sinais dos controles
 (25–31) caem dentro das 40 épocas disponíveis, não são truncamento.
 
+#### Ablação da ordem do achatamento (D2) — feita em 2026-09-22
+
+`scripts/ablacao_flatten.py`. O monitor da F4 já gravava **as duas ordens** a cada época
+(`sampen` e `sampen_x_major`), então a ablação não custou GPU nenhuma — só faltava analisar.
+Mesmo detector da F6 aplicado às duas, importado de `analise_f6` e não copiado.
+
+**Sanidade OK:** a LMC dá o mesmo número nas duas ordens até o último bit (diferença 0,0e+00
+em 3 épocas conferidas direto dos checkpoints). Era o esperado — a LMC só olha o histograma —
+e confirma que `flatten_dense` não perde nem duplica peso em nenhuma das ordens.
+
+| ordem | amplitude ruído | controles | razão | antecedência | falsos + | margem |
+|---|---|---|---|---|---|---|
+| `n_major` (padrão) | 19,4 % | 5,5 % | 3,5× | +3,6 ± 1,1 | 5/5 | +4 épocas |
+| **`x_major`** | **56,1 %** | 7,3 % | **7,7×** | **+7,4 ± 0,5** | 5/5 | **+2 épocas** |
+
+**A ordem importa, e muito — e a escolhida não é a melhor.** Trocar a ordem de leitura dos
+*mesmos* 3.072 pesos dobra a antecedência (3,6 → 7,4 épocas) e mais que dobra o poder de
+discriminação (3,5× → 7,7×, a maior razão medida no projeto, acima dos 5,3× da SampEn2D).
+
+**Mas a margem de separação piora:** o último sinal dos runs de ruído (época 8) e o primeiro
+dos controles (época 10) ficam a 2 épocas de distância, contra 4 do `n_major` e **17 da
+SampEn2D**. Ou seja: `x_major` avisa mais cedo e reage mais forte, porém um limiar de época
+construído sobre ele tem pouquíssima folga — e é a folga que sobrevive a um dataset novo.
+Amplitude e antecedência não são o critério final; a margem é.
+
+**`x_major` é quase uma redundância da SampEn2D:** correlação de +0,88 a +0,97 entre as duas
+séries nos 5 runs de ruído (contra +0,81 a +0,94 do `n_major`). Faz sentido — `x_major`
+percorre a matriz na direção curta (6 neurônios), aproximando a vizinhança que a SampEn2D lê
+de forma bidimensional. **A antecedência das duas é idêntica: +7,4 ± 0,5, com sinal nas épocas
+7-7-7-7-8.** Isto *reforça* o resultado central em vez de competir com ele: duas medidas com
+formulações diferentes, ao olharem a mesma vizinhança, chegam à mesma época.
+
+#### Linha do tempo do status (§4.2) — feita em 2026-09-22
+
+`scripts/status_timeline.py` → `status_timeline.png`. A faixa colorida por época, sob a
+curva de `val_loss`, mostra o que o monitor **dizia naquele momento** — um juízo online,
+sem conhecer o futuro.
+
+**O status, como está calibrado, não discrimina overfitting.**
+
+| grupo | OVERFITTING em… | 1ª vez (média) |
+|---|---|---|
+| 5 runs com ruído | 88 % das épocas | época 7,6 |
+| 5 controles saudáveis | **51 % das épocas** | época 8,8 |
+| razão | **1,7×** | — |
+
+1,7× contra os 5,3× da SampEn2D. O status dispara em **10 de 10 runs**, e a época em que
+dispara também não separa (7,6 × 8,8). Não é bug: é a definição em uso — `OVERFITTING` ali
+significa "o `val_loss` não melhora há `patience` épocas", e num problema que satura na 1ª
+época isso acontece cedo mesmo com a rede saudável. O `ALERTA_OVERFIT` aparece em 3 dos 5
+controles e em **nenhum** dos runs com ruído — exatamente o oposto do pretendido.
+
+Consequência para o texto: o status é **leitura auxiliar durante o treino**, não resultado,
+e o achado da F6 não se apoia nele — apoia-se na SampEn2D e no `overfit_report.json`,
+calculado sobre a trajetória completa. O aviso já escrito em `complexity_monitor.py`
+("os limiares são PROVISÓRIOS") fica assim confirmado pelos dados.
+
+#### ✅ Status recalibrado para a acurácia — 2026-09-22
+
+`scripts/calibrar_status.py`. **Resolve o item da F6 que pedia calibrar em algumas sementes
+e verificar em outras.** Duas mudanças na máquina de estados (§4.2):
+
+1. **`OVERFITTING` deixou de olhar `val_loss` e passa a olhar a acurácia** — "ficou
+   `queda_acc` abaixo do pico corrente por `patience` épocas". Detector online novo em
+   `overfit.py` (`epocas_abaixo_do_pico`), irmão do `detect_degradacao_acuracia` offline.
+2. **`ALERTA_OVERFIT` deixou de olhar a inversão da LMC e passa a olhar o afastamento da
+   SampEn2D** do seu platô inicial — a LMC ocupava esse lugar mas a própria F6 mostrou que
+   ela não discrimina (1,0× contra 5,3×). O detector `epoca_de_afastamento` saiu de
+   `scripts/analise_f6.py` para `src/training/overfit.py`: o status online e a análise
+   offline passam a usar **a mesma função**, não duas cópias.
+
+**Protocolo seguido à risca.** A busca em grade (3×3×3×3 = 81 combinações) enxergou apenas
+3 runs de ruído + 3 controles. As sementes 13 e 23, dos dois grupos, ficaram de fora e só
+foram usadas para verificar. Critério de escolha, nesta ordem: margem de separação maior,
+depois aviso mais cedo **em relação à degradação real** — não em relação ao próprio rótulo
+`OVERFITTING`, que se move quando os limiares mudam e premiaria limiar frouxo.
+
+Limiares escolhidos: `queda_acc=0,005`, `patience=3`, `afast_k=5,0`, `afast_p=3`.
+
+| conjunto | detectou | falsos positivos | antecedência do alerta |
+|---|---|---|---|
+| calibração (3+3) | 3/3 | 0/3 | +5,3 épocas |
+| **verificação (2+2)** | **2/2** | **0/2** | **+5,0 épocas** |
+
+**O desempenho na verificação é igual ao da calibração** — o limiar não decorou. Contraste
+antes × depois, nos mesmos 10 runs:
+
+| | com `val_loss` (antes) | com acurácia (depois) |
+|---|---|---|
+| runs com ruído acusados | 5/5 | 5/5 |
+| **controles acusados** | **5/5** | **0/5** |
+| OVERFITTING nos controles | 51 % das épocas | **0 %** |
+
+O `ALERTA_OVERFIT` dispara nos 5 runs com ruído (épocas 9–10) e em **1** dos 5 controles,
+na época 31 — 21 épocas depois do último alerta legítimo. Antes disso ele fazia o oposto:
+disparava em 3 controles e em nenhum run com ruído.
+
+Figuras: `status_timeline.png` (como estava, com `--fonte csv`) e
+`status_timeline_recalibrado.png` (com o classificador atual). O script ganhou `--fonte`
+justamente para que o "antes" continue reproduzível.
+
+**Ressalvas.** A antecedência do status (+5,0) é menor que a da SampEn2D crua (+7,4) porque
+`afast_k=5,0` é mais exigente que o `k=4,0` da análise — a calibração trocou 2 épocas de
+aviso por quase nenhum falso positivo. Com 6 runs de calibração e 4 de verificação, isto é
+uma verificação honesta, **não** uma estimativa estável: 54 das 81 combinações passavam a
+restrição dura, o que indica que o problema é fácil neste conjunto, não que o limiar é ótimo.
+
+#### Teste prospectivo — semente 99, dados que não existiam na calibração (2026-09-22)
+
+A verificação acima usou as sementes 13 e 23: elas ficaram fora da busca, mas os dados
+delas **já existiam** quando a grade foi percorrida. A semente 99 é diferente — os dois runs
+foram treinados **depois** de os limiares serem fixados, e o status saiu ao vivo no log, pelo
+caminho de produção, não por replay.
+
+| critério | resultado |
+|---|---|
+| overfitting detectado no run de ruído | ✅ época 14 |
+| falso positivo no controle | ✅ nenhum, nas 40 épocas |
+| memorização confirmada (anti-BatchNorm) | ✅ treino `eval()` 74,7 % → 97,5 %, validação 99,9 % → 84,3 % |
+| separação do alerta | ✅ época 12 (ruído) × 26 (controle), margem 14 épocas |
+| **antecedência do alerta** | ⚠️ **+3 épocas** |
+
+**A restrição dura sobreviveu intacta em dados novos; a antecedência não.**
+
+| run | conjunto | alerta | âncora | antecedência |
+|---|---|---|---|---|
+| `f6_ruido30` | calibração | 10 | 15 | +5 |
+| `f6_ruido30_seed1` | calibração | 9 | 15 | +6 |
+| `f6_ruido30_seed7` | calibração | 9 | 14 | +5 |
+| `f6_ruido30_seed13` | verificação | 10 | 14 | +4 |
+| `f6_ruido30_seed23` | verificação | 9 | 15 | +6 |
+| **`f6_ruido30_seed99`** | **prospectivo** | **12** | 15 | **+3** |
+
++3 ficou abaixo de todos os cinco runs anteriores (que variavam de +4 a +6). Com n = 1 não
+dava para saber se era a régua real ou azar de uma semente — daí as duas prospectivas
+seguintes.
+
+#### Fecho: 3 sementes prospectivas (99, 101, 202) — 2026-09-23
+
+| run | conjunto | alerta | overfit | âncora | antecedência |
+|---|---|---|---|---|---|
+| `f6_ruido30` | calibração | 10 | 17 | 15 | +5 |
+| `f6_ruido30_seed1` | calibração | 9 | 14 | 15 | +6 |
+| `f6_ruido30_seed7` | calibração | 9 | 14 | 14 | +5 |
+| `f6_ruido30_seed13` | verificação | 10 | 14 | 14 | +4 |
+| `f6_ruido30_seed23` | verificação | 9 | 15 | 15 | +6 |
+| `f6_ruido30_seed99` | prospectivo | 12 | 14 | 15 | **+3** |
+| `f6_ruido30_seed101` | prospectivo | 9 | 16 | 16 | **+7** |
+| `f6_ruido30_seed202` | prospectivo | 9 | 15 | 15 | **+6** |
+
+**O +3 da semente 99 foi azar, não viés.** A média prospectiva (5,3) é praticamente idêntica
+à da calibração (5,2) — Welch p = 0,92. O que a calibração subestimou foi a **dispersão**:
+desvio 0,8 nas 5 primeiras contra **2,1** nas 3 prospectivas.
+
+Reunindo os 8 runs de ruído: **+5,3 ± 1,3 épocas (IC 95 %: 4,2 a 6,3), faixa observada de 3
+a 7**. É esta a afirmação a levar para o texto — não o "+5,0 ± 0,5" que a calibração sugeria.
+A lição vale além deste número: *o desvio medido onde se calibrou mede o ajuste, não o
+fenômeno.*
+
+**O critério que interessa na prática não degradou em nada:**
+
+| | runs de ruído | controles |
+|---|---|---|
+| calibração + verificação | 5/5 detectados | 0/5 falsos |
+| **prospectivo** | **3/3 detectados** | **0/3 falsos** |
+| **total** | **8/8** | **0/8** |
+
+Os 3 controles prospectivos alertaram tarde (épocas 26, 28, 29) e nenhum chegou a
+`OVERFITTING`. Margem de separação do alerta em todos os 16 runs: **14 épocas** (último
+alerta num run de ruído: 12; primeiro num controle: 26).
+
+**Nota de reprodutibilidade.** A primeira tentativa destes 4 runs abortou com
+`CUDA error: out of memory` — a GPU 0 da máquina é compartilhada e estava com 31,9 GB de
+32,8 GB tomados por processos de outros usuários. Refeitos com `CUDA_VISIBLE_DEVICES=1`.
+O treino usa 190 MB de GPU; o problema é de convivência na máquina, não do projeto.
+
+#### 🎯 Níveis de ruído: 15 %, 30 % e 50 % — 2026-09-23
+
+`scripts/niveis_de_ruido.py` → `niveis_de_ruido.png`. Fecha a última lacuna da F6: até aqui
+**todo** o resultado vinha de um único nível, o que tornava a conclusão uma afirmação sobre
+"30 % de rótulos sorteados", não sobre overfitting. As sementes 42, 1 e 7 foram **reusadas**
+nos três níveis, então a única coisa que muda entre eles é o ruído.
+
+| ruído sorteado | errados de fato | época do **alerta** | época da degradação | antecedência | detectou |
+|---|---|---|---|---|---|
+| 15 % | 12,5 % | 10,0 ± 1,0 | 17,7 ± 0,6 | **+7,7 ± 1,5** | 3/3 |
+| 30 % | 25,0 % | 9,3 ± 0,6 | 14,7 ± 0,6 | **+5,3 ± 0,6** | 3/3 |
+| 50 % | 41,7 % | 10,0 ± 0,0 | 13,0 ± 1,0 | **+3,0 ± 1,0** | 3/3 |
+
+**O achado não é que a antecedência encolhe — é POR QUE ela encolhe.**
+
+| grandeza | inclinação por ponto de ruído | r | p | leitura |
+|---|---|---|---|---|
+| época do **alerta** | +0,002 | +0,04 | **0,92** | **não depende do ruído** |
+| época da degradação | −0,157 | −0,93 | 0,0004 | depende |
+| antecedência | −0,159 | −0,90 | 0,0009 | depende |
+
+A época em que a SampEn2D dispara é **estatisticamente indistinguível entre os três níveis**
+(ANOVA p = 0,42): ~10 em todos. Quem se move é a degradação visível, que chega cada vez mais
+cedo. A antecedência encolhe como consequência aritmética disso — **não porque o indicador
+piore com ruído alto**.
+
+**Interpretação.** A SampEn2D parece marcar o **início da memorização**, um evento que
+acontece na mesma altura do treino independentemente de quanto ruído existe. O que o ruído
+controla é a velocidade com que essa memorização vira dano mensurável na validação. Isso é
+mais forte do que "o indicador antecipa o overfitting": sugere que ele mede o *mecanismo*, e
+a validação mede o *sintoma*.
+
+Detecção: **9/9 runs** nos três níveis, sem falso positivo nos 8 controles. Memorização
+confirmada em todos (treino em `eval()` 96–99 % contra validação de 93 % a 63 %, conforme o
+nível). O nível de 15 % é o teste mais duro — metade do ruído original — e é justamente
+onde a antecedência é **maior**.
+
+**Ressalva:** 3 sementes por nível, 3 níveis, uma arquitetura, um dataset. A tendência é
+nítida e monotônica, mas a afirmação "o alerta não depende do nível de ruído" apoia-se em
+9 runs. E o `p = 0,92` do alerta é ausência de evidência de dependência, **não** evidência
+de independência — com n = 9 o teste não teria força para achar um efeito pequeno.
+
+#### ❌ DenseNet-121: a MEDIDA generaliza, o DETECTOR não — 2026-09-23
+
+6 runs (3 ruído 30 % + 3 controles), mesmas sementes dos runs de referência, prefixo
+`dn121_` para não contaminar as varreduras `f6_*`. Camada densa 6×**1024** em vez de 6×512.
+
+**O que generalizou:**
+
+| critério | ResNet-18 | DenseNet-121 |
+|---|---|---|
+| overfitting detectado (`OVERFITTING`) | 3/3 | **3/3** |
+| falso positivo nos controles | 0/3 | **0/3** |
+| amplitude da SampEn2D, ruído × controle | 5,5× | **2,8×** |
+
+O critério de acurácia atravessou a mudança de arquitetura sem arranhão, e a SampEn2D
+**continua discriminando** — com contraste menor (2,8× contra 5,5×), mas longe do 1,0× da LMC.
+
+**O que NÃO generalizou: o detector de afastamento.** O `ALERTA_OVERFIT` disparou em **1 de 3**
+runs de ruído, e um controle (`dn121_seed1`) alertou na **época 8** — antes do único alerta
+legítimo (época 21). A margem de separação, que era +14 épocas na ResNet, fica **negativa**.
+
+**A causa é diagnosticável, e é do detector, não da medida.** O critério é
+"afastou-se mais de `k`·σ do platô das épocas 1–5". Esse σ varia **47×** entre runs:
+
+| arquitetura | grupo | σ do platô (épocas 1–5) |
+|---|---|---|
+| ResNet-18 | ruído | 0,048 · 0,058 · 0,038 |
+| ResNet-18 | controle | 0,050 · 0,057 · 0,037 |
+| DenseNet-121 | ruído | **0,297 · 0,278 · 0,298** |
+| DenseNet-121 | controle | **0,024 · 0,006 · 0,027** |
+
+Duas falhas opostas, pelo mesmo motivo:
+1. **Nos runs de ruído da DenseNet o "platô" não é platô.** A dinâmica dela é ~2× mais lenta
+   (degradação na época 28–32 contra 14–15) e a série ainda está se movendo nas épocas 1–5.
+   O σ fica 6× maior, a faixa `5σ` fica larguíssima, e o afastamento posterior nunca a cruza.
+2. **No controle `dn121_seed1` o σ é 0,006** — quase zero. Qualquer flutuação ultrapassa
+   `5σ`, e ele alerta na época 6 com *qualquer* `k` testado (2, 3, 4 ou 5).
+
+Ou seja: normalizar pelo desvio das 5 primeiras épocas pressupõe que elas sejam um platô
+estável. Na ResNet isso valia; na DenseNet, não — nas duas pontas.
+
+**O que NÃO fiz, de propósito.** Re-ajustar `afast_base`/`afast_k` nestes 6 runs faria o
+alerta "funcionar" na DenseNet — e seria exatamente a circularidade contra a qual este plano
+avisa desde a F4. Um detector re-calibrado em cada arquitetura que encontra não é um
+indicador, é um ajuste de curva. Corrigi-lo exige repensar a normalização (escala relativa à
+própria série, ou platô detectado em vez de fixado nas épocas 1–5) e **validar em
+arquitetura nova**, não nestas.
+
+**Consequência para o texto.** A afirmação defensável passa a ser mais estreita e mais
+honesta: *a SampEn2D da camada densa discrimina memorização em duas arquiteturas; a regra
+de decisão que a transforma em alerta antecipado foi validada apenas na ResNet-18 e não
+transfere como está.* Separar a medida do detector é o que permite reportar os dois
+resultados sem que o negativo apague o positivo.
+
+#### ✅ Detector redesenhado: queda relativa ao máximo corrente — 2026-09-24
+
+**A troca.** Saiu "afastou-se `k`·σ do platô das épocas 1–5"; entrou **"caiu `queda_rel`
+abaixo do seu máximo corrente por `queda_p` épocas"** (`epoca_de_queda_relativa`).
+
+A escolha não foi por tentativa: é a **mesma forma** do critério de acurácia
+(`epocas_abaixo_do_pico`) — e aquele foi justamente o único que atravessou a troca de
+arquitetura sem ajuste. O que muda é a escala de normalização: o próprio máximo da série,
+em vez de um σ estimado com 5 pontos que variava 47× entre runs.
+
+Pressuposto declarado: **a SampEn2D cai durante a memorização.** Verificado nos 12 runs das
+duas arquiteturas (queda de 24–29 % nos runs com ruído contra 5–16 % nos controles).
+
+**Protocolo.** Limiares ajustados **só em runs de ResNet-18** (14 com ruído cobrindo os 3
+níveis, 8 controles) e aplicados **sem retoque** à DenseNet-121. Escolhidos:
+`queda_rel = 10 %`, `queda_p = 2`.
+
+| | ResNet-18 (ajuste) | DenseNet-121 (**teste cego**) |
+|---|---|---|
+| runs de ruído detectados | 14/14 | **3/3** |
+| runs de ruído que alertaram | 14/14 | **3/3** (época 6) |
+| controles com `OVERFITTING` | 0/8 | 0/3 |
+| controles que alertaram | **0/8** | 2/3, tarde (épocas 23 e 40) |
+| margem de separação | ∞ | **+17 épocas** |
+
+Contra o detector antigo na mesma DenseNet: 1/3 runs detectados e margem **negativa**.
+
+**O que a troca custou — e está no texto.** O critério novo detecta *acúmulo*, não *início*,
+então chega mais tarde: época 11–14 contra 7–9 na ResNet.
+
+| nível de ruído (ResNet) | antecedência antiga | antecedência nova |
+|---|---|---|
+| 15 % | +8 a +11 | +4 a +7 |
+| 30 % | +7 a +8 | +1 a +4 |
+| 50 % | +4 a +6 | **+1, +1, −1** |
+
+**Com 50 % de ruído o aviso deixa de ser aviso** — num dos runs ele chega depois da
+degradação. É o preço da robustez, e é um limite a declarar, não a esconder.
+
+**O terceiro desenho, medido e descartado.** Testei também "a série caiu em `p` épocas
+consecutivas" — só o sinal da variação, sem σ e sem nível. Detecta *início*: antecedência
+média **8,6** na ResNet (mínimo +6) e **24–28** na DenseNet, melhor que os outros dois em
+todos os runs. Foi descartado pela especificidade: dispara em **7 dos 8 controles** da
+ResNet, com margem de **2 épocas** (3 na DenseNet). Margem fina foi exatamente o que quebrou
+na primeira troca de arquitetura; trocar 8 épocas de aviso por uma margem que provavelmente
+não sobrevive a um dataset novo seria repetir o mesmo erro com outro nome.
+
+**Ressalva de honestidade.** Os totais de queda da DenseNet foram inspecionados **antes** de
+eu escolher a *forma* do critério — então o teste cego vale para os limiares e para as
+grandezas avaliadas (época do alerta, margem, antecedência), que não foram ajustadas nela,
+mas **não** é um cego perfeito no nível da escolha do desenho. O teste que falta é uma
+terceira arquitetura, nunca vista.
+
+**Decisão:** manter `n_major` como padrão — é a preferência declarada do orientador (D2) e tem
+margem melhor —, e **reportar a ablação como subseção de metodologia**, porque a sensibilidade
+à ordem é um resultado, não um detalhe de implementação. A SampEn2D segue como indicador
+principal: mesma antecedência do melhor `x_major`, margem 8× maior e sem depender de escolher
+ordem alguma — que era exatamente o argumento da F2 para adotá-la.
+
 Memorização confirmada nas cinco (checagem anti-BatchNorm da F3): acurácia de treino em `eval()`
 sobe de ~74 % para 97–98 % enquanto a de validação cai de ~99,9 % para 83–85 %. Comportamento
 notavelmente uniforme entre sementes.
@@ -667,6 +997,8 @@ seleciona o critério. Resolve o item deixado em aberto na F5.
 - **O detector dispara em 3 dos 5 controles** (SampEn2D). A separação só aparece ao olhar
   *quando* ele dispara. Falta transformar isso numa regra de decisão explícita, com limiar de
   época declarado, e validá-la fora das sementes usadas para escolhê-lo.
+- A margem de separação (2 a 17 épocas, conforme a medida) foi medida nas MESMAS 5+5 sementes
+  que calibraram o detector. Uma margem medida onde se calibrou é otimista por construção.
 - Só uma arquitetura (ResNet-18), um dataset (MedNIST), um nível de ruído (30 %).
 - O MedNIST satura em 1 época; o efeito só aparece porque o ruído foi induzido artificialmente.
 

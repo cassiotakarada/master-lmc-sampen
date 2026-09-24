@@ -183,29 +183,59 @@ class TestMedicao:
 # ==========================================================================
 
 class TestStatus:
-    def _rodar(self, val_losses, mexer_pesos, limiares=None):
+    def _rodar(self, val_losses, mexer_pesos, limiares=None, val_accs=None):
+        """Roda o monitor epoca a epoca.
+
+        `val_accs` e o que decide o status desde a recalibracao de 2026-09-22. Quando
+        nao for passado, deriva-se uma acuracia plausivel do val_loss apenas para manter
+        os testes legiveis -- acuracia alta quando a perda e baixa.
+        """
         torch.manual_seed(0)
         model = ModeloFake()
         mon = ComplexityMonitor(calcular_2d=False, calcular_ambas_ordens=False,
                                 limiares=limiares or LimiaresStatus())
+        if val_accs is None:
+            pior = max(val_losses)
+            val_accs = [1.0 - 0.5 * (vl / pior) for vl in val_losses]
         estados = []
-        for i, vl in enumerate(val_losses, start=1):
+        for i, (vl, va) in enumerate(zip(val_losses, val_accs), start=1):
             mexer_pesos(model, i)
-            estados.append(mon.on_epoch_end(model, i, vl)["status"])
+            estados.append(mon.on_epoch_end(model, i, vl, va)["status"])
         return estados
 
     def test_primeiras_epocas_sao_inicializando(self):
         est = self._rodar([1.0, 0.9, 0.8, 0.7, 0.6], lambda m, i: None)
         assert est[0] == est[1] == TrainingStatus.INICIALIZANDO.value
 
-    def test_val_loss_travado_leva_a_overfitting(self):
-        """Depois de `patience` epocas sem melhorar, o status tem de acusar."""
-        est = self._rodar([1.0, 0.5, 0.6, 0.7, 0.8, 0.9], lambda m, i: None)
+    def test_acuracia_caida_leva_a_overfitting(self):
+        """Depois de `patience` epocas abaixo do pico, o status tem de acusar."""
+        est = self._rodar([1.0] * 6, lambda m, i: None,
+                          val_accs=[0.90, 0.99, 0.95, 0.94, 0.93, 0.92])
         assert est[-1] == TrainingStatus.OVERFITTING.value
 
-    def test_pesos_congelados_e_val_plano_dao_estagnado(self):
-        est = self._rodar([1.0, 0.99, 0.99, 0.99, 0.99, 0.99], lambda m, i: None)
-        assert TrainingStatus.ESTAGNADO.value in est or TrainingStatus.OVERFITTING.value in est
+    def test_acuracia_saturada_nao_leva_a_overfitting(self):
+        """O caso que motivou a recalibracao (F6).
+
+        Com o val_loss, um treino saudavel numa metrica saturada era rotulado
+        OVERFITTING em metade das epocas: "a perda parou de melhorar" e verdade cedo
+        quando ela ja esta no chao. A acuracia presa em 99,9 %% NAO e degradacao.
+        """
+        est = self._rodar([0.01, 0.009, 0.011, 0.010, 0.012, 0.011], lambda m, i: None,
+                          val_accs=[0.998, 0.999, 0.999, 0.998, 0.999, 0.999])
+        assert TrainingStatus.OVERFITTING.value not in est
+
+    def test_pesos_congelados_e_acuracia_plana_dao_estagnado(self):
+        est = self._rodar([1.0] * 6, lambda m, i: None,
+                          val_accs=[0.90, 0.90, 0.90, 0.90, 0.90, 0.90])
+        assert TrainingStatus.ESTAGNADO.value in est
+
+    def test_sem_acuracia_o_status_fica_indisponivel(self):
+        """Sem o dado que decide, o monitor admite que nao sabe -- nao chuta."""
+        torch.manual_seed(0)
+        model = ModeloFake()
+        mon = ComplexityMonitor(calcular_2d=False, calcular_ambas_ordens=False)
+        est = [mon.on_epoch_end(model, i, 1.0 / i)["status"] for i in range(1, 7)]
+        assert set(est) == {TrainingStatus.INICIALIZANDO.value}
 
     def test_status_sempre_e_valor_valido_do_enum(self):
         validos = {s.value for s in TrainingStatus}
@@ -236,7 +266,12 @@ class TestLimiares:
         lim = LimiaresStatus()
         assert lim.patience == 3 and lim.janela == 3
         assert lim.var_relativa_estavel == 0.02
-        assert lim.melhora_val_minima == 0.01
+        # Valores escolhidos pela calibracao de 2026-09-22 (scripts/calibrar_status.py):
+        # ajustados em 3+3 runs e verificados em 2+2 que a busca nunca viu.
+        assert lim.queda_acc == 0.005
+        assert lim.afast_k == 5.0 and lim.afast_p == 3 and lim.afast_base == 5
+        assert not hasattr(lim, "melhora_val_minima"), (
+            "o status deixou de ser ancorado no val_loss na recalibracao de 2026-09-22")
 
     def test_sao_configuraveis(self):
         """A F6 precisa calibra-los; nao podem estar fixos no codigo."""

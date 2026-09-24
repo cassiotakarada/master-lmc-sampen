@@ -98,7 +98,70 @@ EXPERIMENTS: List[Experiment] = [
                label_noise=0.30, noise_seed=13, augment=False, weight_decay=0.0, eval_train=True),
     Experiment(run_id="f6_ruido30_seed23", model_name="resnet18", image_size=64, seed=23, epochs=60,
                label_noise=0.30, noise_seed=23, augment=False, weight_decay=0.0, eval_train=True),
+    # Semente 99: INEDITA de proposito. As outras cinco (42, 1, 7, 13, 23) participaram da
+    # calibracao dos limiares do status -- ainda que 13 e 23 so como verificacao, os dados
+    # delas ja existiam quando a grade foi buscada. Estes dois runs sao o primeiro teste
+    # dos limiares em dados que nao existiam no momento da escolha, e rodando pelo caminho
+    # de producao (status ao vivo no log), nao por replay.
+    Experiment(run_id="f6_ruido30_seed99", model_name="resnet18", image_size=64, seed=99, epochs=60,
+               label_noise=0.30, noise_seed=99, augment=False, weight_decay=0.0, eval_train=True),
+    Experiment(run_id="f6_seed99", model_name="resnet18", image_size=64, seed=99, epochs=40),
+    # Mais duas prospectivas (101 e 202). Com a 99 sozinha, "antecedencia +3" tanto podia
+    # ser a regua real quanto azar de uma semente -- n=1 nao distingue as duas coisas.
+    # Os controles vao junto para que a afirmacao "nao acusa treino saudavel" tambem seja
+    # testada prospectivamente, e nao so em 1 run.
+    Experiment(run_id="f6_ruido30_seed101", model_name="resnet18", image_size=64, seed=101, epochs=60,
+               label_noise=0.30, noise_seed=101, augment=False, weight_decay=0.0, eval_train=True),
+    Experiment(run_id="f6_seed101", model_name="resnet18", image_size=64, seed=101, epochs=40),
+    Experiment(run_id="f6_ruido30_seed202", model_name="resnet18", image_size=64, seed=202, epochs=60,
+               label_noise=0.30, noise_seed=202, augment=False, weight_decay=0.0, eval_train=True),
+    Experiment(run_id="f6_seed202", model_name="resnet18", image_size=64, seed=202, epochs=40),
 ]
+
+# ===========================================================================
+# Niveis de ruido: o indicador vale so para 30 %? (maior lacuna que restava da F6)
+# ===========================================================================
+# Ate aqui TODO o resultado veio de um unico nivel de ruido. Sem variar isso, "a SampEn2D
+# antecipa o overfitting" e uma afirmacao sobre 30 % de rotulos sorteados, nao sobre
+# overfitting.
+#
+# As sementes 42, 1 e 7 sao REUSADAS de proposito: com a mesma inicializacao e a mesma
+# ordem de lotes dos runs de 30 %, a unica coisa que muda entre os tres niveis e o ruido.
+# Sementes novas misturariam duas fontes de variacao e a comparacao ficaria mais fraca.
+#
+# Fracao efetivamente ERRADA (o sorteio inclui a classe verdadeira, entao e f*5/6):
+#   15 % sorteados -> 12,5 % errados   (sinal mais fraco: teste de sensibilidade)
+#   30 % sorteados -> 25,0 % errados   (ja rodado)
+#   50 % sorteados -> 41,7 % errados   (sinal mais forte: teste de saturacao)
+for _s in (42, 1, 7):
+    for _f, _tag in ((0.15, "15"), (0.50, "50")):
+        EXPERIMENTS.append(Experiment(
+            run_id=f"f6_ruido{_tag}_seed{_s}", model_name="resnet18", image_size=64,
+            seed=_s, epochs=60, label_noise=_f, noise_seed=_s,
+            augment=False, weight_decay=0.0, eval_train=True))
+
+# ===========================================================================
+# Outra arquitetura: DenseNet-121 (ultima generalizacao que faltava)
+# ===========================================================================
+# ATENCAO AO PREFIXO: estes runs NAO comecam com "f6_" de proposito. Os scripts de
+# analise varrem `monai_weights/f6_*`, e misturar duas arquiteturas na mesma tabela
+# agregada daria medias sem sentido. O prefixo `dn121_` os mantem invisiveis para
+# aquelas varreduras; a comparacao entre arquiteturas e feita por script proprio.
+#
+# A camada densa muda de 6x512 (ResNet-18) para 6x1024 (DenseNet-121) -- o dobro de
+# pesos, e uma matriz ainda mais assimetrica. Se o indicador so funcionasse na forma
+# especifica da ResNet, e aqui que isso apareceria.
+#
+# Mesmas sementes e mesmo nivel de ruido (30 %) dos runs de referencia, para que a
+# arquitetura seja a unica diferenca. ~31 s/epoca contra ~10 s da ResNet-18.
+for _s in (42, 1, 7):
+    EXPERIMENTS.append(Experiment(
+        run_id=f"dn121_ruido30_seed{_s}", model_name="densenet121", image_size=64,
+        seed=_s, epochs=60, label_noise=0.30, noise_seed=_s,
+        augment=False, weight_decay=0.0, eval_train=True))
+    EXPERIMENTS.append(Experiment(
+        run_id=f"dn121_seed{_s}", model_name="densenet121", image_size=64,
+        seed=_s, epochs=40))
 
 
 def is_complete(run_dir: str, epochs: int) -> bool:
