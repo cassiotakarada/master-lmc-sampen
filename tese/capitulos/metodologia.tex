@@ -511,3 +511,167 @@ estabilidade das trajetórias para além do tempo de convergência típico
 ($\sim 50$ épocas observadas em experimentos preliminares), enquanto as
 três sementes quantificam a variabilidade entre inicializações e
 ordenações de \emph{mini-batches}.
+
+\section{Segundo desenho experimental: memorização induzida e a camada densa}
+\label{sec:desenho2}
+
+As seções anteriores descrevem o desenho que sustenta os resultados do
+Capítulo~\ref{ch:resultados}, no qual o sobreajuste é induzido por
+\emph{subamostragem} do conjunto de treinamento e as medidas incidem
+principalmente sobre os grupos convolucional e de \emph{batch
+normalization}. Esta seção descreve um segundo desenho, complementar ao
+primeiro, construído para responder a uma questão que o primeiro não
+isola: se as medidas de complexidade detectam \emph{memorização} ---
+isto é, o ajuste a associações que não generalizam --- e não apenas a
+escassez de dados.
+
+A distinção importa porque subamostrar o treino reduz simultaneamente a
+quantidade de informação disponível e a diversidade dos exemplos, de modo
+que a degradação observada pode ter mais de uma origem. Corromper rótulos,
+em contrapartida, mantém o volume de dados e introduz exclusivamente
+associações inconsistentes, forçando a rede a memorizá-las
+\cite{zhang2017}.
+
+\subsection{Diferenças em relação ao primeiro desenho}
+
+A Tabela~\ref{tab:dois-desenhos} explicita as diferenças, que não se
+restringem ao mecanismo de indução. Elas devem ser consideradas ao
+comparar os resultados dos dois estudos, pois qualquer divergência entre
+eles pode, em princípio, decorrer de qualquer uma dessas dimensões.
+
+\begin{table}[H]
+\centering
+\caption{Comparação entre os dois desenhos experimentais.}
+\label{tab:dois-desenhos}
+\small
+\begin{tabular}{lll}
+\toprule
+ & \textbf{Primeiro desenho} & \textbf{Segundo desenho} \\
+\midrule
+Conjuntos        & PathMNIST, OrganAMNIST, BloodMNIST & MedNIST \\
+Indução          & subamostragem (5, 10, 25\%)        & corrupção de rótulos (15, 30, 50\%) \\
+Pesos analisados & \texttt{conv}, \texttt{bn\_gamma}, \texttt{bn\_beta} & \texttt{dense} \\
+Otimizador       & SGD com \emph{momentum}            & AdamW \\
+Arquiteturas     & ResNet-18, ResNet-34               & ResNet-18, DenseNet-121 \\
+Amostragem       & sistemática, até $10^4$ por grupo  & integral (3.072 pesos) \\
+Medição          & \emph{snapshots} log-espaçados     & a cada época, durante o treino \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Registre-se em particular que o segundo desenho \textbf{não subamostra}:
+a camada densa da ResNet-18 aplicada a seis classes possui
+$6 \times 512 = 3.072$ pesos, quantidade que torna o cálculo integral
+viável a cada época. Elimina-se assim a decisão D3 da
+Seção~\ref{sec:extracao-decisoes} e a discussão de viés de amostragem que
+a acompanha.
+
+\subsection{Protocolo de corrupção de rótulos}
+
+Uma fração $\rho \in \{0{,}15;\ 0{,}30;\ 0{,}50\}$ dos exemplos do
+conjunto de treinamento tem seu rótulo substituído por outro, sorteado
+uniformemente entre as classes restantes. A corrupção incide
+\emph{apenas} sobre o treino; validação e teste permanecem íntegros, de
+modo que a degradação da validação mede exatamente a perda de
+generalização induzida.
+
+A semente que governa a corrupção é independente daquela que governa a
+partição e a inicialização dos pesos. A separação é necessária: se ambas
+fossem a mesma, repetir o experimento alterando apenas a semente
+reproduziria os mesmos rótulos corrompidos, medindo sensibilidade à
+inicialização em lugar de replicação.
+
+Cada execução com corrupção possui uma execução de controle
+\textbf{estritamente pareada}, idêntica a ela em arquitetura, partição,
+semente, número de épocas, decaimento de pesos e ausência de aumento de
+dados, diferindo unicamente por $\rho = 0$. O rigor desse pareamento é
+condição de validade: qualquer diferença adicional entre os grupos, como
+a presença de aumento de dados em apenas um deles, tornaria o contraste
+observado atribuível a mais de uma causa.
+
+A confirmação de que houve memorização, e não apenas degradação, é feita
+\emph{a posteriori}: verifica-se que a acurácia de treino em modo de
+avaliação sobe até ajustar os rótulos corrompidos, enquanto a acurácia de
+validação cai.
+
+\subsection{A camada densa como objeto de medida}
+\label{sec:camada-densa}
+
+Seja a camada densa com $M$ entradas $x_1, \dots, x_M$ e $N$ neurônios
+$n_1, \dots, n_N$. A matriz de pesos é $W \in \mathbb{R}^{N \times M}$, e
+o elemento $w_{ji}$ é o peso do \emph{caminho} $x_i \rightarrow n_j$ ---
+convenção que coincide com a forma nativa de \texttt{Linear.weight} no
+PyTorch, $[\textrm{out\_features}, \textrm{in\_features}]$.
+
+Como a SampEn$_{1D}$ compara janelas consecutivas, a ordem de achatamento
+precisa ser fixada. Duas ordens são naturais. Na ordem \emph{por
+neurônio}, percorrem-se todos os pesos que chegam a cada neurônio antes
+de passar ao seguinte:
+
+\begin{equation}
+    v_{n} = (w_{11}, w_{12}, \dots, w_{1M},\; w_{21}, \dots, w_{2M},\; \dots,\; w_{NM}),
+    \label{eq:ordem-neuronio}
+\end{equation}
+
+\noindent
+o que corresponde ao achatamento nativo, sem transposição. Na ordem
+\emph{por entrada}, percorrem-se todos os pesos que partem de cada
+entrada:
+
+\begin{equation}
+    v_{x} = (w_{11}, w_{21}, \dots, w_{N1},\; w_{12}, \dots, w_{N2},\; \dots),
+    \label{eq:ordem-entrada}
+\end{equation}
+
+\noindent
+equivalente a transpor $W$ antes do achatamento. A
+Equação~\ref{eq:ordem-neuronio} mede a regularidade \emph{dentro do campo
+receptivo de cada neurônio}; a Equação~\ref{eq:ordem-entrada} mede a
+regularidade \emph{da distribuição de uma mesma entrada entre os
+neurônios}. Adota-se a primeira como convenção padrão, por coerência com
+a decisão D2 da Seção~\ref{sec:extracao-decisoes}, e a comparação entre
+as duas é reportada como ablação. Para a complexidade LMC a distinção é
+irrelevante, pois a medida depende apenas do histograma dos valores e é
+invariante a permutações.
+
+O vetor de viés é excluído da análise: o viés é um deslocamento aditivo
+do neurônio, não a ligação entre uma entrada e um neurônio, e portanto
+não é um caminho no sentido aqui adotado.
+
+\subsection{Monitoramento durante o treinamento}
+\label{sec:monitor}
+
+Diferentemente do primeiro desenho, que analisa \emph{snapshots}
+armazenados, o segundo calcula as medidas \textbf{a cada época, dentro do
+laço de treinamento}. A escolha decorre do objetivo: se o propósito é
+oferecer ao desenvolvedor um aviso utilizável, a medida precisa estar
+disponível enquanto o treinamento ocorre, e não apenas em análise
+posterior.
+
+São calculadas por época a complexidade LMC com $N_{bins} = 100$, a
+SampEn$_{1D}$ com $m = 2$ e $r = 0{,}20\,\sigma$, e a SampEn2D com
+$m = 1$ e o mesmo $r$. A escolha de $m = 1$ para a variante bidimensional
+é deliberada e merece justificativa: com $m = 2$, as janelas comparadas
+são sub-matrizes $3 \times 3$, que em uma matriz de apenas seis linhas
+raramente encontram pares similares, produzindo contagens instáveis. Com
+$m = 1$, comparam-se janelas $1 \times 1$ contra $2 \times 2$, o que
+mantém as contagens em regime numericamente estável.
+
+O custo do monitoramento é baixo, pois incide sobre 3.072 pesos, e pode
+ser desativado por opção de linha de comando.
+
+\subsection{Definição operacional da referência temporal}
+
+Para quantificar antecedência é preciso uma referência que produza um
+número de época. Adota-se como âncora a época em que a acurácia de
+validação passa a cair de forma sustentada.
+
+A opção pela acurácia, e não pela perda de validação, decorre de uma
+observação empírica. Ancorando o diagnóstico na perda, o monitor
+sinalizava sobreajuste em todas as execuções, incluindo os controles, e
+em cerca de metade das épocas --- consequência de o MedNIST saturar muito
+cedo, fazendo a perda de validação subir logo após as primeiras épocas
+mesmo em treinamentos saudáveis. Reancorado na acurácia, o comportamento
+tornou-se o esperado. O episódio ilustra que a definição operacional de
+sobreajuste não é detalhe de implementação, mas condição de validade do
+resultado.
