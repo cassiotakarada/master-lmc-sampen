@@ -569,11 +569,34 @@ a acompanha.
 \subsection{Protocolo de corrupção de rótulos}
 
 Uma fração $\rho \in \{0{,}15;\ 0{,}30;\ 0{,}50\}$ dos exemplos do
-conjunto de treinamento tem seu rótulo substituído por outro, sorteado
-uniformemente entre as classes restantes. A corrupção incide
-\emph{apenas} sobre o treino; validação e teste permanecem íntegros, de
-modo que a degradação da validação mede exatamente a perda de
-generalização induzida.
+conjunto de treinamento tem seu rótulo substituído por um valor sorteado
+uniformemente entre \emph{todas} as classes, inclusive a verdadeira ---
+convenção adotada por \citeonline{zhang2017}. A consequência precisa ser
+declarada, para que a fração sorteada não seja confundida com a fração
+efetivamente errada: com $K$ classes, uma fração sorteada $\rho$ produz
+$\rho\,(K-1)/K$ de rótulos de fato incorretos. Nos experimentos com seis
+classes, portanto, $\rho = 0{,}30$ corresponde a \SI{25}{\percent} de
+rótulos errados, e $\rho = 0{,}15$ e $\rho = 0{,}50$ correspondem a
+\SI{12,5}{\percent} e \SI{41,7}{\percent}, respectivamente. O registro de
+cada execução reporta as duas quantidades.
+
+A corrupção incide \emph{apenas} sobre o treino; validação e teste permanecem
+íntegros, de modo que a degradação da validação mede exatamente a perda de
+generalização induzida --- corromper a régua junto com o objeto medido não
+mediria nada.
+
+Convém registrar por que a indução por corrupção de rótulos substituiu, neste
+segundo desenho, a alternativa de simplesmente reduzir o conjunto de treino.
+Experimentos preliminares mostraram que a redução produz um falso positivo
+convincente: com poucos passos de otimização, as estatísticas móveis das camadas
+de normalização em lote não convergem, e o modelo colapsa em modo de avaliação
+--- inclusive sobre o próprio conjunto de treino. O quadro se parece com
+sobreajuste catastrófico, mas o mesmo modelo acerta cerca de
+\SI{94,5}{\percent} da validação quando a normalização usa as estatísticas do
+lote corrente. Mede-se, nesse caso, um artefato de normalização, e não perda de
+generalização. A corrupção de rótulos não tem esse problema, pois preserva as
+\num{47164} amostras de treino e mantém as estatísticas de normalização
+saudáveis.
 
 A semente que governa a corrupção é independente daquela que governa a
 partição e a inicialização dos pesos. A separação é necessária: se ambas
