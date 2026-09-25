@@ -1372,3 +1372,164 @@ mais preciso do que a hipótese original: a capacidade de marcar o sobreajuste
 não é propriedade de uma medida isolada, mas da combinação entre a medida
 empregada, o grupo de pesos observado e o mecanismo que origina a perda de
 generalização.
+
+\section{Delineamento cruzado: o grupo de pesos ou o mecanismo?}
+\label{sec:res-cruzado}
+
+A Seção~\ref{sec:res-d2-tensao} registrou que a complexidade LMC antecipa a
+degradação no primeiro desenho e não discrimina no segundo, e que os
+experimentos até então realizados não permitiam identificar qual das dimensões
+divergentes --- o grupo de pesos observado ou o mecanismo de indução ---
+responde pela diferença. Esta seção reporta a tentativa de completar o
+delineamento, cujo resultado é parcialmente conclusivo.
+
+O delineamento pretendido tem quatro células, conforme a
+Tabela~\ref{tab:cruzado-plano}. Duas delas já constavam do capítulo.
+
+\begin{table}[H]
+\centering
+\caption{Delineamento cruzado pretendido. As duas células sem marca constituíam
+o objeto desta seção.}
+\label{tab:cruzado-plano}
+\small
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Subamostragem} & \textbf{Corrupção de rótulos} \\
+\midrule
+LMC sobre \texttt{bn\_gamma}  & antecipa (Seção~\ref{sec:overfit-subamostragem}) & célula A \\
+SampEn2D sobre a camada densa & célula B & antecipa (Seção~\ref{sec:res-d2-antecedencia}) \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
+
+\subsection{Célula A: a LMC sobre os \texorpdfstring{$\gamma$}{gamma} sob corrupção de rótulos}
+\label{sec:res-cruzado-a}
+
+Esta célula não exigiu novo treinamento. Os registros das execuções com
+corrupção preservam os pesos de todas as \num{60} épocas, o que permitiu
+calcular a LMC sobre o grupo \texttt{bn\_gamma} retroativamente, nas oito
+execuções com corrupção e nos oito controles pareados --- \num{960} estados de
+rede em total.
+
+\begin{table}[H]
+\centering
+\caption{Amplitude de variação da LMC sobre \texttt{bn\_gamma} e sobre a camada
+densa, sob corrupção de rótulos, com oito execuções por grupo.}
+\label{tab:cruzado-a}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Grupo de pesos} & \textbf{Com corrupção} & \textbf{Controle pareado} &
+\textbf{Razão} & \textbf{$p$} \\
+\midrule
+\texttt{bn\_gamma}        & $0{,}760 \pm 0{,}196$ & $0{,}584 \pm 0{,}228$ & $1{,}30$ & $0{,}065$ \\
+Camada densa & $1{,}219 \pm 0{,}055$ & $1{,}138 \pm 0{,}134$ & $1{,}07$ & $0{,}195$ \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
+
+A LMC \textbf{não discrimina} memorização sobre os $\gamma$. A razão de
+$1{,}30$ é superior à observada na camada densa, e o valor $p = \num{0,065}$
+situa-se na fronteira da significância convencional, o que indica sensibilidade
+maior nesse grupo; ainda assim, não há discriminação. A época do pico tampouco
+separa as condições: nas execuções com corrupção os picos ocorrem entre as
+épocas \num{3} e \num{9}, e nos controles entre \num{1} e \num{12},
+com sobreposição integral.
+
+O achado é informativo. Elimina a explicação de que a cegueira da LMC à
+memorização decorreria de alguma particularidade da camada densa: a medida não
+discrimina memorização em \emph{nenhum} dos dois grupos examinados, inclusive
+naquele em que se mostrara mais informativa no primeiro desenho.
+
+\subsection{Célula B: subamostragem não induz sobreajuste no MedNIST}
+\label{sec:res-cruzado-b}
+
+A segunda célula exigia induzir sobreajuste por subamostragem do conjunto de
+treinamento, mantendo tudo o mais pareado, para então medir a SampEn2D da camada
+densa. Foram executadas quinze novas execuções, em três frações do conjunto de
+treino, com cinco sementes cada e horizonte de \num{200} épocas. O resultado
+impede o preenchimento da célula, e por razão que merece registro.
+
+\begin{table}[H]
+\centering
+\caption{Degradação da acurácia de validação por fração do conjunto de treino,
+em ResNet-18 sobre o MedNIST. A queda é a diferença entre a acurácia máxima e a
+final. Valores como média $\pm$ desvio-padrão amostral.}
+\label{tab:cruzado-b}
+\small
+\begin{tabular}{rrccc}
+\toprule
+\textbf{Fração} & \textbf{Imagens} & \textbf{Execuções} &
+\textbf{Acurácia final de treino} & \textbf{Queda da validação (p.p.)} \\
+\midrule
+\SI{100}{\percent} & \num{47164} & 8 & \SI{100,0}{\percent} & $0{,}02 \pm 0{,}02$ \\
+\SI{10}{\percent}  & \num{4716}  & 5 & \SI{100,0}{\percent} & $0{,}05 \pm 0{,}03$ \\
+\SI{2}{\percent}   & \num{943}   & 5 & \SI{100,0}{\percent} & $0{,}22 \pm 0{,}18$ \\
+\SI{1}{\percent}   & \num{471}   & 5 & \SI{100,0}{\percent} & $0{,}01 \pm 0{,}01$ \\
+\midrule
+\multicolumn{3}{l}{Corrupção de rótulos (\SI{25}{\percent} errados)} & \SI{97,5}{\percent} & $15{,}80 \pm 0{,}72$ \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
+
+Não há sobreajuste a ser antecipado. Com \num{471} imagens de treino ---
+\SI{1}{\percent} do conjunto --- a rede ainda alcança \SI{99,6}{\percent} de
+acurácia de validação, e a queda ao longo do treinamento é de
+$0{,}01$ ponto percentual. Nas frações de \SI{2}{\percent} e \SI{1}{\percent},
+a acurácia de validação atinge seu máximo em torno da época \num{123} de
+\num{200}, isto é, a rede continuava a melhorar quando o treinamento foi
+encerrado.
+
+A comparação com o mecanismo de corrupção é da ordem de duas magnitudes: a
+degradação média é de $15{,}80$ pontos percentuais sob corrupção contra
+$0{,}22$ na fração mais desfavorável da subamostragem, uma razão de
+aproximadamente \num{74} vezes ($p = \num{0,0008}$, teste de Mann-Whitney
+unilateral).
+
+Conclui-se que, no MedNIST, \textbf{os dois mecanismos de indução não são
+intercambiáveis}: a corrupção de rótulos produz perda de generalização
+substancial, e a subamostragem não produz perda mensurável em nenhuma das
+frações examinadas. A célula B é, portanto, inviável neste conjunto de dados, e
+sua realização exigiria um repositório de maior dificuldade intrínseca --- o
+que reintroduziria a variável \emph{conjunto de dados} que o delineamento
+pretendia justamente eliminar.
+
+Registre-se que esse resultado confirma, com valores medidos, uma ressalva
+antecipada no planejamento da pesquisa: a de que o MedNIST poderia ser
+excessivamente fácil para induzir sobreajuste por escassez de dados.
+
+\subsection{O que o delineamento parcial autoriza concluir}
+\label{sec:res-cruzado-sintese}
+
+Com três das quatro células preenchidas, a atribuição da divergência deixa de
+ser indeterminada, embora não alcance o grau de certeza que o delineamento
+completo proporcionaria.
+
+A hipótese de que a divergência decorre do \emph{grupo de pesos} fica
+enfraquecida pela célula A: a LMC não discrimina memorização nos $\gamma$,
+justamente o grupo em que se mostrara informativa sob subamostragem. Se o grupo
+de pesos fosse o fator determinante, esperar-se-ia discriminação ali.
+
+Resta como explicação mais compatível com os dados que o fator determinante seja
+o \emph{mecanismo}: a LMC responde à alteração da distribuição dos pesos
+provocada pela escassez de dados, e não à reorganização provocada pela
+memorização de rótulos inconsistentes. Essa leitura é coerente com a
+invariância da LMC a permutações, discutida na Seção~\ref{sec:lmc}.
+
+Duas ressalvas impedem afirmação mais forte. A primeira é que a célula B
+permanece vazia, de modo que não se verificou a recíproca --- se a SampEn2D, que
+detecta memorização, também detectaria escassez de dados. A segunda, e mais
+séria, é que a comparação entre os dois desenhos atravessa conjuntos de dados
+distintos: o primeiro desenho opera sobre o MedMNIST e o segundo sobre o
+MedNIST. A célula A, por incidir sobre execuções do segundo desenho, não
+elimina essa diferença. A atribuição ao mecanismo é, portanto, a explicação mais
+econômica entre as compatíveis com os dados, e não uma conclusão demonstrada.
+
+A recomendação que decorre desta seção é de ordem prática: a escolha do
+mecanismo de indução de sobreajuste não é detalhe de protocolo, mas determina
+qual medida pode ser validada. Trabalhos que pretendam comparar marcadores de
+sobreajuste precisam declarar o mecanismo empregado, sob pena de compararem
+respostas a fenômenos distintos.

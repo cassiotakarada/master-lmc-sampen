@@ -183,9 +183,28 @@ Tomados isoladamente, os achados parecem incompatíveis: a LMC antecipa a
 degradação no primeiro desenho e não discrimina no segundo. A incompatibilidade
 é aparente, e sua dissolução depende de reconhecer que os dois desenhos diferem
 em três dimensões simultâneas --- o grupo de pesos observado, o mecanismo que
-origina a perda de generalização e o conjunto de dados. Nenhum dos experimentos
-realizados permite isolar qual dessas dimensões responde pela divergência, e
-essa é uma limitação que deve ser declarada sem atenuação.
+origina a perda de generalização e o conjunto de dados.
+
+O delineamento cruzado reportado na Seção~\ref{sec:res-cruzado} foi conduzido
+precisamente para isolar essas dimensões, e produziu resultado parcial. A
+célula que mede a LMC sobre os parâmetros $\gamma$ sob corrupção de rótulos
+\textbf{enfraquece a hipótese do grupo de pesos}: a medida não discrimina
+memorização nem nesse grupo (razão de $1{,}30$; $p = \num{0,065}$), justamente
+aquele em que se mostrara informativa sob subamostragem. A célula recíproca, que
+mediria a SampEn2D sob subamostragem, revelou-se \textbf{inviável no MedNIST}:
+nenhuma das frações examinadas --- \SI{10}{\percent}, \SI{2}{\percent} e
+\SI{1}{\percent} do conjunto de treino --- produz degradação mensurável da
+validação, com queda máxima de $0{,}22$ ponto percentual contra
+$15{,}80$ sob corrupção de rótulos, razão de aproximadamente \num{74} vezes.
+
+A explicação mais compatível com os dados é, portanto, que o fator determinante
+seja o \textbf{mecanismo} e não o grupo de pesos: a LMC responde à alteração da
+distribuição dos pesos provocada pela escassez de dados, não à reorganização
+provocada pela memorização de rótulos inconsistentes. Duas ressalvas impedem
+afirmação mais forte --- a célula recíproca permanece vazia, e a comparação entre
+os desenhos ainda atravessa conjuntos de dados distintos. Trata-se da explicação
+mais econômica entre as compatíveis com a evidência, não de conclusão
+demonstrada, e essa limitação deve ser declarada sem atenuação.
 
 O que os resultados autorizam afirmar, em caráter conclusivo, é mais modesto e
 mais preciso do que a hipótese original: \textbf{a capacidade de marcar o
@@ -220,15 +239,16 @@ a comparação com uma segunda arquitetura (DenseNet-121). Eles permanecem
 listados apenas nos aspectos que seguem em aberto.
 
 \begin{enumerate}
-  \item \textbf{Delineamento cruzado das duas condições.} É a extensão mais
-  imediata e mais informativa, e decorre diretamente da
-  Seção~\ref{sec:conc-reformulacao}. Trata-se de calcular a LMC sobre os
-  parâmetros $\gamma$ nas execuções com corrupção de rótulos, e a SampEn2D
-  sobre a camada densa nas execuções com subamostragem, completando as quatro
-  células da combinação medida $\times$ mecanismo. Só esse delineamento
-  permite distinguir se a divergência observada decorre do grupo de pesos ou do
-  mecanismo de indução. Parte das execuções necessárias já existe, o que torna o
-  custo computacional moderado.
+  \item \textbf{Conclusão do delineamento cruzado em repositório mais
+  difícil.} Três das quatro células foram preenchidas na
+  Seção~\ref{sec:res-cruzado}. A célula restante --- SampEn2D sob
+  subamostragem --- não pôde ser obtida porque o MedNIST não sofre perda de
+  generalização por escassez de dados, nem com \SI{1}{\percent} do conjunto de
+  treino. Completá-la exige repositório de maior dificuldade intrínseca, como o
+  PathMNIST empregado no primeiro desenho, ao custo de reintroduzir a variável
+  \emph{conjunto de dados}. A alternativa metodologicamente superior é repetir
+  \emph{ambos} os mecanismos de indução no mesmo repositório difícil,
+  eliminando essa variável de uma vez.
 
   \item \textbf{Sobreajuste espontâneo.} Toda a evidência do segundo desenho
   provém de memorização induzida por corrupção de rótulos. Resta demonstrar que
