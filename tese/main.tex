@@ -1,63 +1,175 @@
-%% main.tex — Dissertação de Mestrado
-%% FFCLRP-USP — Programa de Pós-Graduação em Computação Aplicada
+%% ═══════════════════════════════════════════════════════════════════════════
+%% Dissertação de Mestrado — FFCLRP/USP
+%% Programa de Pós-Graduação em Computação Aplicada
 %% Autor: Cássio Silva Takarada
 %% Orientador: Prof. Dr. Luiz Otávio Murta Junior
+%%
+%% Formatação ABNT via abnTeX2:
+%%   NBR 14724 — estrutura do trabalho acadêmico
+%%   NBR 10520 — citações (sistema autor-data, opção `alf`)
+%%   NBR 6023  — referências (estilo abntex2-alf)
+%% ═══════════════════════════════════════════════════════════════════════════
 
 \documentclass[
-  12pt,
-  openright,
-  twoside,
+  12pt,                 % corpo do texto (ABNT)
+  openright,            % capítulos começam em página ímpar
+  twoside,              % impressão frente e verso
   a4paper,
-  english,
-  brazil,
+  chapter=TITLE,        % título de capítulo em maiúsculas
+  section=TITLE,
+  english,              % idioma secundário (abstract)
+  brazil                % idioma principal
 ]{abntex2}
 
-%% ─── Pacotes ────────────────────────────────────────────────────────────────
+%% ─── Codificação e fontes ───────────────────────────────────────────────────
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
 \usepackage{microtype}
+\usepackage{indentfirst}          % recuo no primeiro parágrafo (ABNT)
+\usepackage{nomencl}
+\usepackage{color}
+
+%% ─── Matemática ─────────────────────────────────────────────────────────────
 \usepackage{amsmath,amssymb}
+\usepackage{mathtools}
+
+%% ─── Figuras, tabelas e unidades ────────────────────────────────────────────
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{longtable}
 \usepackage{siunitx}
+\sisetup{output-decimal-marker={,}, group-separator={.}, group-digits=integer}
+
+%% ─── Citações e referências (NBR 10520 e NBR 6023) ──────────────────────────
+%% alf .................. sistema autor-data, exigido pela NBR 10520
+%% abnt-emphasize=bf .... destaque do título em negrito nas referências
+%% abnt-etal-list=3 ..... usa "et al." a partir de 3 autores na lista final
+%% abnt-etal-cite=2 ..... usa "et al." a partir de 2 autores na citação
+%% abnt-and-type=e ...... liga o último autor com "e" (português)
+%% abnt-full-initials=no  mantém prenomes abreviados
+\usepackage[
+  alf,
+  abnt-emphasize=bf,
+  abnt-etal-list=3,
+  abnt-etal-cite=2,
+  abnt-and-type=e,
+  abnt-doi=doi,
+  abnt-url-package=url,
+  abnt-verbatim-entry=no,
+  abnt-repeated-author-omit=yes
+]{abntex2cite}
+
+%% ─── Hyperref (sempre por último entre os pacotes) ──────────────────────────
 \usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  bookmarksdepth=4
+}
 \usepackage{cleveref}
-\usepackage[alf,abnt-emphasize=bf]{abntex2cite}  % ABNT author-year citations (wraps natbib)
-\usepackage{claudedraft}     % orange draft environment for AI-generated passages
+\usepackage{claudedraft}   % ambiente de rascunho (trechos em revisão)
 
-%% ─── Metadados ───────────────────────────────────────────────────────────────
-\titulo{Complexidade Estatística dos Pesos de Redes Neurais Profundas como Marcador de Overfitting}
+%% ─── Ajustes de layout ABNT ─────────────────────────────────────────────────
+\setlength{\parindent}{1.3cm}
+\setlength{\parskip}{0.2cm}
+
+%% ─── Metadados ──────────────────────────────────────────────────────────────
+\titulo{Complexidade Estatística dos Pesos de Redes Neurais Profundas como
+Marcador de Overfitting}
 \autor{Cássio Silva Takarada}
-\local{Ribeirão Preto}
+\local{Ribeirão Preto--SP}
 \data{2025}
-\orientador{Prof. Dr. Luiz Otávio Murta Junior}
-\instituicao{Universidade de São Paulo \\ Faculdade de Filosofia, Ciências e Letras de Ribeirão Preto}
+\orientador[]{Prof. Dr. Luiz Otávio Murta Junior}
+\instituicao{%
+  Universidade de São Paulo \par
+  Faculdade de Filosofia, Ciências e Letras de Ribeirão Preto \par
+  Departamento de Computação e Matemática \par
+  Programa de Pós-Graduação em Computação Aplicada}
 \tipotrabalho{Dissertação de Mestrado}
+\preambulo{Monografia apresentada à Faculdade de Filosofia, Ciências e Letras
+de Ribeirão Preto da Universidade de São Paulo, como parte das exigências para
+a obtenção do título de Mestre em Ciências.}
 
-\preambulo{Dissertação apresentada ao Programa de Pós-Graduação em Computação
-Aplicada da Faculdade de Filosofia, Ciências e Letras de Ribeirão Preto da
-Universidade de São Paulo, como parte dos requisitos para obtenção do título
-de Mestre em Ciências.}
+\hyphenation{over-fitting under-fitting gro-kking me-mo-ri-za-ção}
 
-%% ─── Hifenização ─────────────────────────────────────────────────────────────
-\hyphenation{over-fitting under-fitting}
+%% ─── Capa personalizada ─────────────────────────────────────────────────────
+%% A capa padrão do abnTeX2 não imprime a instituição; aqui ela aparece no
+%% topo, como no modelo do programa.
+\renewcommand{\imprimircapa}{%
+  \begin{capa}%
+    \centering
+    {\ABNTEXchapterfont\large\imprimirinstituicao\par}
+    \vfill
+    {\ABNTEXchapterfont\large\imprimirautor\par}
+    \vfill
+    {\ABNTEXchapterfont\bfseries\Large\imprimirtitulo\par}
+    \vfill
+    \vfill
+    {\ABNTEXchapterfont\large\imprimirlocal\par}
+    {\ABNTEXchapterfont\large\imprimirdata\par}
+    \vspace*{1cm}
+  \end{capa}%
+}
 
+%% ─── Folha de rosto personalizada ───────────────────────────────────────────
+%% Ordem do modelo: autor, título, preâmbulo, orientador, local, data.
+\renewcommand{\folhaderostocontent}{%
+  \centering
+  {\ABNTEXchapterfont\large\imprimirautor\par}
+  \vfill
+  {\ABNTEXchapterfont\bfseries\Large\imprimirtitulo\par}
+  \vfill
+  \hfill
+  \begin{minipage}{.5\textwidth}
+    \SingleSpacing
+    \imprimirpreambulo
+  \end{minipage}
+  \par
+  \vfill
+  {\ABNTEXchapterfont\large\imprimirorientador\par}
+  \vfill
+  \vfill
+  {\ABNTEXchapterfont\large\imprimirlocal\par}
+  {\ABNTEXchapterfont\large\imprimirdata\par}
+  \vspace*{1cm}
+}
+
+% ════════════════════════════════════════════════════════════════════════════
 \begin{document}
 
 \selectlanguage{brazil}
 \frenchspacing
 
-%% ─── Elementos pré-textuais ──────────────────────────────────────────────────
-\imprimircapa
-\imprimirfolhaderosto*
-\tableofcontents
-\listoffigures
-\listoftables
+%% ═══ ELEMENTOS PRÉ-TEXTUAIS ════════════════════════════════════════════════
+\pretextual
 
-%% ─── Corpo ───────────────────────────────────────────────────────────────────
+\imprimircapa                              % 1. Capa
+\imprimirfolhaderosto                      % 2. Folha de rosto (contracapa)
+
+\include{pre-textuais/agradecimentos}      % 3. Agradecimentos
+\include{pre-textuais/epigrafe}            % 4. Epígrafe
+\include{pre-textuais/resumo}              % 5. Resumo
+\include{pre-textuais/abstract}            % 6. Abstract
+
+%% Listas ANTES do sumário — ordem da NBR 14724
+\pdfbookmark[0]{\listfigurename}{lof}
+\listoffigures*                            % 7. Lista de figuras
+\cleardoublepage
+
+\pdfbookmark[0]{\listtablename}{lot}
+\listoftables*                             % 8. Lista de tabelas
+\cleardoublepage
+
+\pdfbookmark[0]{\contentsname}{toc}
+\tableofcontents*                          % 9. Sumário
+\cleardoublepage
+
+%% ═══ ELEMENTOS TEXTUAIS ════════════════════════════════════════════════════
 \textual
 
 \include{capitulos/introducao}
@@ -66,11 +178,11 @@ de Mestre em Ciências.}
 \include{capitulos/resultados}
 \include{capitulos/conclusao}
 
-%% ─── Referências ─────────────────────────────────────────────────────────────
+%% ═══ ELEMENTOS PÓS-TEXTUAIS ════════════════════════════════════════════════
 \postextual
-\bibliography{referencias}
 
-%% ─── Apêndices ───────────────────────────────────────────────────────────────
+\bibliography{referencias}                 % Referências (NBR 6023)
+
 \begin{apendicesenv}
 \partapendices
 \include{apendices/exemplo_numerico}
