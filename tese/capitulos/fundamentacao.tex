@@ -28,6 +28,95 @@ Mancini e Calbet (LMC), discute a controvérsia sobre normalização e
 intensividade que se seguiu à proposta original e justifica a
 convenção $C = H \times D$ adotada no restante do trabalho.
 
+\section{Sistemas complexos, auto-organização e emergência}
+\label{sec:sistemas-complexos}
+
+Esta seção fixa o vocabulário conceitual sobre o qual as medidas das seções
+seguintes se apoiam. A justificativa para sua presença é direta: o restante
+desta dissertação afirma que os pesos de uma rede em treinamento apresentam
+regimes de \emph{auto-organização}, e essa afirmação não tem conteúdo
+verificável enquanto o termo não for definido.
+
+\subsection{A noção de sistema complexo}
+
+Um sistema complexo pode ser informalmente caracterizado como uma rede de
+muitos componentes que interagem entre si e cujo comportamento coletivo surge e
+evolui por auto-organização \cite{sayama2015}. A caracterização carrega duas
+exigências que não são triviais. A primeira é a \emph{multiplicidade} de
+componentes interagentes. A segunda, mais restritiva, é que a informação
+relevante do sistema resida nas \emph{relações} entre as partes, e não nas
+partes isoladamente; se o comportamento do todo for recuperável pela simples
+soma dos comportamentos individuais, o sistema é agregado, não complexo.
+
+Uma rede neural profunda em treinamento satisfaz ambas as exigências. Os
+milhões de pesos constituem componentes que interagem indiretamente, pela
+retropropagação do gradiente, e nenhum peso isolado codifica a função aprendida
+--- o conteúdo do modelo está na configuração conjunta. Essa observação não é
+retórica: é ela que autoriza aplicar ao treinamento o instrumental
+desenvolvido para sistemas complexos, em lugar de tratar a rede apenas como um
+problema de otimização de alta dimensão.
+
+\subsection{Emergência}
+
+Denomina-se \emph{emergente} a propriedade que se manifesta no nível
+macroscópico do sistema e que não é redutível às propriedades dos componentes
+isolados \cite{sayama2015}. O conceito exige, portanto, a distinção explícita de
+dois níveis de descrição: o microscópico, dos componentes, e o macroscópico, do
+comportamento observável.
+
+Na presente dissertação essa distinção é operacional, e não apenas conceitual.
+O nível microscópico é o dos valores individuais dos pesos; o macroscópico é o
+da capacidade de generalização do modelo, aferida em dados não vistos. A
+hipótese central pode então ser reformulada nesses termos: pretende-se
+verificar se uma estatística calculada sobre o nível microscópico --- a
+distribuição e a organização dos pesos --- acompanha, e eventualmente antecipa,
+a transição de regime observada no nível macroscópico.
+
+\subsection{Auto-organização}
+
+Chama-se \emph{auto-organização} ao processo pelo qual um sistema desenvolve
+estrutura macroscópica sem que essa estrutura seja imposta por um controle
+externo ou por um plano centralizado \cite{sayama2015}. Emergência e
+auto-organização são conceitos distintos, ainda que frequentemente tratados como
+sinônimos: a primeira descreve uma relação entre níveis de descrição em um
+instante, e a segunda descreve a evolução temporal do sistema.
+
+O treinamento por descida de gradiente é, nessa acepção, um processo de
+auto-organização. Nenhum agente externo especifica o valor que cada peso deve
+assumir; os valores resultam da aplicação iterada de uma regra local de
+atualização, e a estrutura que se observa ao final --- filtros que respondem a
+padrões visuais, camadas que se especializam --- não foi projetada peso a peso.
+
+Interessa particularmente a este trabalho a observação de que sistemas em
+auto-organização não evoluem de modo homogêneo: eles frequentemente apresentam
+\emph{transições de regime}, nas quais o comportamento qualitativo muda em
+intervalos relativamente curtos \cite{sayama2015}. É exatamente essa a estrutura
+que a hipótese desta dissertação pressupõe. Se o treinamento consistisse em um
+processo homogêneo de melhoria gradual, não haveria transição a ser detectada, e
+a busca por um marcador do início do sobreajuste careceria de objeto. A
+existência de dois regimes sucessivos no aprendizado --- um em que a rede extrai
+regularidades generalizáveis e outro em que passa a memorizar exemplos
+inconsistentes --- é documentada empiricamente por
+\citeonline{arpit2017} e constitui o pressuposto factual da proposta.
+
+\subsection{Delimitação: o que não se pretende afirmar}
+
+Convém delimitar o alcance do enquadramento para evitar leitura excessiva. O
+aparato de sistemas complexos é empregado aqui em sentido \emph{descritivo}, e
+não como apelo a um mecanismo explicativo. Não se afirma que o treinamento de
+uma rede neural seja formalmente equivalente a algum dos modelos canônicos da
+área --- autômatos celulares, sistemas de reação-difusão ou redes dinâmicas
+\cite{sayama2015} ---, nem se pretende derivar as medidas empregadas a partir de
+primeiros princípios da teoria de sistemas complexos.
+
+O que o enquadramento fornece é mais modesto e suficiente: a legitimidade de
+tratar a configuração dos pesos como estado de um sistema cuja organização
+macroscópica varia no tempo, e cujas transições podem, em princípio, ser
+detectadas por estatísticas calculadas sobre esse estado. As medidas
+específicas utilizadas provêm da teoria da informação e da análise de séries,
+apresentadas nas seções seguintes, e sua validade é estabelecida empiricamente
+no Capítulo~\ref{ch:resultados}, não por filiação teórica.
+
 \section{Entropia de Shannon e teoria da informação}
 \label{sec:teoria-informacao}
 
@@ -379,56 +468,175 @@ detalhe no \autoref{ch:metodologia}.
 \end{claudedraft}
 
 % ===========================================================================
-\section{Trabalhos relacionados: análise de pesos e generalização}
+\section{Estado da arte: leitura do estado interno de redes profundas}
 \label{sec:trabalhos-relacionados}
 
-\begin{claudedraft}
-A questão de \emph{por que} redes neurais profundas generalizam --- e de como
-\emph{antecipar} o sobreajuste (\emph{overfitting}) a partir do estado interno
-do modelo --- motivou uma extensa literatura de medidas calculadas sobre os
-próprios pesos da rede. Esta seção situa a presente dissertação frente a essas
-abordagens e explicita em que ela difere.
+Esta seção discute os trabalhos que se aproximam do problema desta dissertação.
+O critério de seleção adotado foi a existência de alguma tentativa de
+caracterizar o estado de generalização de uma rede a partir de seu
+\emph{interior} --- pesos, representações ou dinâmica de treinamento --- em
+lugar de aferi-lo exclusivamente pelo desempenho em dados rotulados. A
+Seção~\ref{sec:ea-memorizacao} revisa o que se sabe sobre memorização. A
+Seção~\ref{sec:ea-normas} discute a família de limites baseados em normas e
+margens. A Seção~\ref{sec:ea-espectral} trata das abordagens espectrais. A
+Seção~\ref{sec:ea-info} apresenta a família informação-teórica e a controvérsia
+que a acompanha. A Seção~\ref{sec:ea-sintese} sintetiza e posiciona a proposta.
 
-Uma primeira família estabelece \emph{limites de generalização} baseados em
-normas e margens. \citeonline{bartlett2017} derivam um limite cuja magnitude
-escala com a complexidade espectral da rede --- o produto das normas espectrais
-das matrizes de peso, normalizado pela margem ---, mostrando empiricamente que
-essa quantidade acompanha o risco em excesso ao longo do treinamento. Numa
-linha probabilística, \citeonline{dziugaite2017} obtêm limites PAC-Bayes
-\emph{não vacuosos} para redes estocásticas com muito mais parâmetros do que
-dados, otimizando diretamente o limite sobre perturbações dos pesos. A
-diversidade dessas propostas levou \citeonline{jiang2020} a um estudo empírico
-de larga escala: avaliando mais de quarenta medidas de complexidade sobre mais
-de dez mil redes convolucionais, os autores constatam que algumas medidas
-baseadas em norma falham em prever a generalização, enquanto medidas ligadas a
-nitidez (\emph{sharpness}) e a fundamentos PAC-Bayes se mostram mais
-promissoras.
+\subsection{Memorização e os dois regimes do aprendizado}
+\label{sec:ea-memorizacao}
 
-Uma segunda família analisa o \emph{espectro} das matrizes de peso. A Teoria da
-Auto-Regularização de Cauda Pesada (\emph{Heavy-Tailed Self-Regularization}) de
-\citeonline{martin2021} ajusta leis de potência às densidades espectrais
-empíricas dos pesos e mostra que o expoente da lei de potência correlaciona-se
-com a qualidade do modelo, discriminando redes bem e mal treinadas \emph{sem
-acesso a dados de treino ou teste}. Essa abordagem --- materializada na
-ferramenta \texttt{WeightWatcher} --- evidencia que a distribuição dos pesos
-carrega, por si só, informação sobre generalização, ainda que por um ângulo
-puramente espectral. Em paralelo, estudos sobre a dinâmica de alta dimensão do
-erro de generalização \cite{advani2020} e sobre os próprios fundamentos das
-medidas de complexidade estatística \cite{feldman1998} reforçam que a forma das
-distribuições internas, e não apenas sua norma, é informativa.
+\citeonline{zhang2017} demonstraram que redes convolucionais de grande porte
+ajustam perfeitamente rótulos atribuídos ao acaso, e que esse comportamento
+persiste sob regularização explícita. O resultado é duplamente relevante para
+esta dissertação: estabelece que a capacidade de memorização não é acidente, mas
+propriedade das arquiteturas usuais, e fornece o protocolo de indução por
+corrupção controlada de rótulos adotado no Capítulo~\ref{ch:metodologia}. A
+limitação, do ponto de vista aqui assumido, é que o diagnóstico permanece
+ancorado na comparação entre desempenho de treino e de teste.
 
-Frente a esse panorama, a contribuição desta dissertação distingue-se em três
-aspectos. Primeiro, em vez de normas escalares ou de espectros de valores
-singulares, adota-se uma leitura \emph{informação-teórica} da
-\emph{distribuição dos valores} dos pesos, via complexidade estatística LMC e
-entropia de amostra. Segundo, o foco é \emph{temporal}: as medidas são
-acompanhadas \emph{ao longo das épocas} e por grupo de camadas, buscando a
-inflexão que antecede o sobreajuste --- ao passo que a maioria das abordagens
-acima é avaliada em um único estado treinado. Terceiro, o domínio de aplicação
-é a imagem médica, em que detectar sobreajuste é particularmente crítico
-\cite{zhang2025}. Até onde se pôde verificar, o uso de complexidade estatística
-e de entropia de amostra dos pesos como \emph{marcador temporal de sobreajuste}
-não havia sido explorado, o que delimita a lacuna que este trabalho busca
-preencher.
-\end{claudedraft}
-% WRITER:END:fundamentacao/conteudo
+\citeonline{arpit2017} refinam o quadro ao mostrar que memorização e aprendizado
+de padrões não são simultâneos: redes tendem a aprender primeiro as
+regularidades simples e só depois memorizar os exemplos ruidosos. A existência
+de dois regimes sucessivos, e não de um processo homogêneo, é o pressuposto que
+torna plausível a hipótese desta dissertação --- se há transição, pode haver
+assinatura da transição. Os autores, contudo, caracterizam os regimes por
+métricas que dependem dos dados, não da estrutura dos pesos.
+
+\citeonline{power2022} descrevem o fenômeno de \emph{grokking}, em que a
+generalização emerge muito depois do ajuste completo do treino, às vezes após
+longo período de estagnação da validação. O fenômeno constitui contraexemplo aos
+critérios ingênuos de parada antecipada: uma interrupção baseada apenas na
+estagnação eliminaria justamente o regime em que a generalização acabaria por
+surgir. Um indicador que leia o estado interno, e não apenas o desempenho
+externo, é potencialmente capaz de distinguir estagnação de reorganização ---
+questão registrada aqui como hipótese derivada, não testada neste trabalho.
+
+\subsection{Limites de generalização por normas e margens}
+\label{sec:ea-normas}
+
+\citeonline{bartlett2017} propõem limites de generalização baseados em normas
+espectrais e margens, estabelecendo que propriedades geométricas dos pesos se
+relacionam com a capacidade de generalizar. \citeonline{dziugaite2017} obtêm,
+por via PAC-Bayesiana, limites não vacuosos para redes sobreparametrizadas ---
+resultado notável, dado que limites clássicos tornam-se vazios nesse regime.
+Ambos representam avanços substantivos, mas produzem limites válidos para
+\emph{um} estado da rede, tipicamente o final do treinamento, e não uma leitura
+acompanhável ao longo das épocas.
+
+\citeonline{jiang2020} conduzem o estudo empírico mais sistemático dessa
+família, avaliando um grande conjunto de medidas candidatas quanto à sua relação
+causal com a lacuna de generalização. A conclusão é cautelar e impõe exigência
+metodológica a qualquer trabalho subsequente: muitas medidas teoricamente
+motivadas correlacionam-se mal com a generalização observada, e medidas baseadas
+em otimização desempenham-se melhor do que as baseadas em norma. A consequência
+adotada nesta dissertação é que não basta exibir correlação entre indicador e
+sobreajuste em uma execução; é preciso demonstrar \emph{discriminação} entre
+execuções com e sem memorização, com controles pareados e teste de
+significância.
+
+\subsection{Abordagens espectrais}
+\label{sec:ea-espectral}
+
+\citeonline{martin2021} mostram que propriedades de cauda pesada do espectro das
+matrizes de pesos permitem prever tendências de qualidade de modelos sem acesso
+aos dados de treino ou de teste. Este é o trabalho mais próximo do objetivo aqui
+perseguido, e convém explicitar as diferenças. A abordagem é \emph{espectral},
+apoiando-se nos autovalores das matrizes, ao passo que a desta dissertação é
+\emph{informação-teórica}, apoiando-se na distribuição de valores e na
+organização espacial dos pesos. Além disso, o alvo em \citeonline{martin2021} é
+comparar modelos já treinados, enquanto aqui o alvo é acompanhar a trajetória
+temporal de um único treinamento.
+
+\subsection{Abordagens informação-teóricas e a controvérsia do gargalo de informação}
+\label{sec:ea-info}
+
+A família mais próxima em espírito a esta dissertação é a que aplica teoria da
+informação ao interior de redes profundas. \citeonline{tishby2015} propõem
+analisar redes no \emph{plano de informação}, quantificando cada camada pela
+informação mútua que preserva a respeito da entrada e da saída, e interpretam o
+treinamento como otimização de um compromisso entre compressão e predição.
+\citeonline{shwartzziv2017} desenvolvem empiricamente essa leitura e relatam
+que a maior parte das épocas de treinamento é consumida não no ajuste dos
+rótulos, mas na \emph{compressão} da representação, identificando duas fases
+distintas na otimização --- uma de deriva rápida e outra de relaxação
+estocástica.
+
+A pertinência para o presente trabalho é evidente: trata-se de literatura que
+afirma existirem transições de regime detectáveis por quantidades
+informação-teóricas calculadas sobre o interior da rede, o que é precisamente a
+estrutura da hipótese aqui investigada.
+
+É imprescindível, porém, registrar que essas conclusões foram contestadas.
+\citeonline{saxe2019} examinam os três principais postulados da teoria e
+concluem que nenhum deles se sustenta no caso geral: a existência de duas fases
+distintas, a relação causal entre compressão e boa generalização, e a atribuição
+da compressão ao comportamento difusivo do gradiente estocástico. Demonstram, em
+particular, que a trajetória observada no plano de informação depende
+predominantemente da não linearidade empregada --- funções de saturação bilateral
+produzem fase de compressão, enquanto ativações lineares ou de saturação
+unilateral não a produzem --- e que parte do efeito reflete decisões de estimação
+da informação mútua em redes determinísticas.
+
+Essa controvérsia recomenda cautela e delimita o escopo do presente trabalho de
+modo produtivo. As medidas aqui empregadas \emph{não} são estimativas de
+informação mútua entre camadas e dados, e portanto não herdam as dificuldades de
+estimação que Saxe e colaboradores identificam: LMC, SampEn e SampEn2D são
+estatísticas calculadas sobre os \emph{valores dos pesos}, sem referência a
+qualquer distribuição conjunta com os dados. A escolha evita o problema
+metodológico central da controvérsia, ao custo de abdicar da interpretação
+formal em termos de compressão de informação.
+
+\subsection{Síntese e posicionamento da proposta}
+\label{sec:ea-sintese}
+
+\begin{table}[H]
+\centering
+\caption{Comparação dos trabalhos discutidos quanto à dependência de dados
+rotulados, à natureza temporal da leitura e ao objeto medido.}
+\label{tab:estado-arte}
+\footnotesize
+\begin{tabular}{llccc}
+\toprule
+\textbf{Trabalho} & \textbf{Objeto da medida} & \textbf{Exige rótulo} &
+\textbf{Leitura temporal} & \textbf{Avisa antes} \\
+\midrule
+\citeonline{prechelt1998}   & Erro de validação          & Sim & Sim & Não \\
+\citeonline{zhang2017}      & Desempenho                 & Sim & Não & Não \\
+\citeonline{arpit2017}      & Desempenho                 & Sim & Sim & Não \\
+\citeonline{bartlett2017}   & Norma espectral            & Não & Não & Não \\
+\citeonline{dziugaite2017}  & Limite PAC-Bayes           & Sim & Não & Não \\
+\citeonline{jiang2020}      & Diversas                   & Sim & Não & Não \\
+\citeonline{martin2021}     & Espectro dos pesos         & Não & Não & Não \\
+\citeonline{tishby2015}     & Informação mútua           & Sim & Não & Não \\
+\citeonline{shwartzziv2017} & Informação mútua           & Sim & Sim & Não \\
+\textbf{Esta dissertação}   & Complexidade dos pesos     & Não & Sim & Sim \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
+
+A Tabela~\ref{tab:estado-arte} organiza os trabalhos segundo três eixos. Quanto
+à dependência de rótulos, apenas \citeonline{bartlett2017} e
+\citeonline{martin2021} dispensam-nos, e ambos por via espectral. Quanto à
+natureza temporal, \citeonline{arpit2017} e \citeonline{shwartzziv2017}
+acompanham a trajetória do treinamento, mas ambos requerem acesso aos dados ---
+o primeiro ao desempenho, o segundo à distribuição conjunta necessária para
+estimar informação mútua. A intersecção entre \emph{dispensar rótulos} e
+\emph{acompanhar a trajetória} permanece, até onde a revisão alcançou, não
+ocupada.
+
+A proposta desta dissertação situa-se nessa intersecção e diferencia-se da
+literatura em quatro aspectos: (i) a medida é informação-teórica, mas incide
+sobre a distribuição de valores e a organização espacial dos pesos, não sobre o
+espectro das matrizes nem sobre informação mútua com os dados; (ii) a leitura é
+temporal, produzindo uma trajetória por época em lugar de um escalar ao final do
+treino; (iii) nenhum rótulo é consumido, o que a torna aplicável em cenários de
+anotação escassa; e (iv) a validação é feita por controles estritamente pareados
+com indução explícita de memorização, em resposta direta à advertência de
+\citeonline{jiang2020} quanto a correlações espúrias.
+
+Registre-se, por fim, uma limitação da própria revisão. A literatura de medidas
+de generalização é extensa e cresce rapidamente; a seleção aqui apresentada
+privilegiou trabalhos fundacionais de alta citação e os mais diretamente
+relacionados ao problema, não constituindo revisão sistemática no sentido
+metodológico do termo.

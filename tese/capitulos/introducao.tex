@@ -104,6 +104,86 @@ e o estado treinado. A combinação entre SampEn (sensível à estrutura
 sequencial e espacial dos pesos) e LMC (sensível à forma da distribuição
 marginal) constitui o eixo metodológico desta investigação.
 
+\subsection{Justificativa prática: o ponto de vista de quem treina a rede}
+\label{sec:intro-just-dev}
+
+A justificativa apresentada até aqui é de natureza metodológica: as medidas de
+complexidade oferecem uma leitura dos pesos que as métricas de desempenho não
+oferecem. Há, porém, uma segunda justificativa, de natureza prática, que motiva
+este trabalho de modo mais imediato e é formulada deliberadamente do ponto de
+vista de quem desenvolve e treina a rede.
+
+\subsubsection*{A dependência atual dos dados rotulados}
+
+Para saber se uma rede aprendeu ou apenas memorizou, o desenvolvedor depende
+hoje, integralmente, dos dados. É preciso construir conjuntos de treino,
+validação e teste bem particionados, corretamente rotulados e representativos da
+população de interesse. Cada um desses requisitos custa tempo e recursos, e em
+imagens médicas frequentemente esbarra na indisponibilidade de especialistas
+para a anotação. O diagnóstico do treinamento é, portanto, função do orçamento
+de anotação disponível --- e não uma propriedade que se possa ler diretamente do
+modelo.
+
+O procedimento padrão para decidir quando interromper o ajuste, a parada
+antecipada, monitora o erro em um conjunto de validação separado
+\cite{prechelt1998}. O procedimento é sólido, mas transfere ao conjunto de
+validação toda a responsabilidade pelo diagnóstico: se ele é pequeno,
+desbalanceado ou pouco representativo, a estimativa do momento de parada
+torna-se ruidosa, e o desenvolvedor não dispõe de sinal alternativo com que
+confrontá-la. Em outras palavras, justamente no regime de poucos dados ---
+aquele em que o sobreajuste é mais provável --- o instrumento de medida é o
+menos confiável.
+
+\subsubsection*{O que muda com um indicador calculado sobre os pesos}
+
+As medidas investigadas nesta dissertação são calculadas exclusivamente a partir
+dos pesos. Não consomem imagem, não consomem rótulo e não dependem de nenhuma
+partição. Caso sejam capazes de sinalizar a transição para o regime de
+memorização, o desenvolvedor passa a dispor de uma segunda leitura do
+treinamento, obtida por caminho independente daquele do conjunto de validação.
+As duas leituras podem então ser confrontadas: quando concordam, a decisão de
+parada ganha confiança; quando discordam, há indício de que a validação não é
+representativa.
+
+Note-se que a proposta não é substituir a parada antecipada clássica, cuja
+fundamentação é sólida, mas acrescentar-lhe uma fonte de evidência independente.
+
+\subsubsection*{Casos de uso}
+
+\begin{enumerate}
+    \item \textbf{Decidir quando interromper o treinamento.} Um aviso emitido
+    antes da degradação observável na validação amplia a janela de decisão, em
+    lugar de constatar a perda depois de consumada.
+
+    \item \textbf{Economizar recursos computacionais.} Detectar que a rede
+    deixou de aprender evita épocas de treinamento que não trarão ganho, com
+    impacto direto no custo de processamento.
+
+    \item \textbf{Comparar arquiteturas sem ampliar a anotação.} Como a medida
+    não consome dados rotulados, a comparação entre arquiteturas candidatas não
+    exige a ampliação do conjunto de validação.
+
+    \item \textbf{Diagnosticar quando a validação é pequena.} Em cenários nos
+    quais o conjunto de validação é pequeno demais para ser confiável, um
+    indicador independente fornece evidência adicional --- precisamente o cenário
+    típico em imagens médicas.
+\end{enumerate}
+
+\subsubsection*{Entrega prática e delimitação}
+
+A contribuição não se esgota na constatação empírica. Entrega-se um monitor
+implementado em PyTorch, acoplável ao laço de treinamento de terceiros, que
+calcula os indicadores a cada época e devolve um estado do aprendizado, conforme
+descrito na Seção~\ref{sec:monitor}. O custo computacional é baixo quando a
+medida incide sobre a camada densa.
+
+Registre-se, por honestidade, que a utilidade prática aqui descrita é
+\emph{condicional} ao sucesso empírico dos indicadores, e que os resultados do
+Capítulo~\ref{ch:resultados} mostram que esse sucesso não é uniforme: depende da
+medida empregada, do grupo de pesos observado e do mecanismo que origina a perda
+de generalização. As implicações dessa delimitação para o uso prático são
+discutidas no Capítulo~\ref{ch:conclusao}.
+
 \section{Hipótese, objetivos e escopo}
 \label{sec:intro-objetivos}
 

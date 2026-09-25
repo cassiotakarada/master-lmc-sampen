@@ -128,14 +128,121 @@ nos parâmetros de escala $\gamma$ da \emph{batch normalization}, contrariando
 a expectativa inicial de que as camadas convolucionais --- que detêm
 99{,}7\% dos parâmetros --- seriam o substrato natural do marcador.
 
+\section{Achados do segundo desenho experimental}
+\label{sec:conc-desenho2}
+
+Os achados enumerados acima decorrem do desenho em que o sobreajuste é induzido
+por subamostragem do treino. O segundo desenho, descrito na
+Seção~\ref{sec:desenho2} e reportado na Seção~\ref{sec:res-desenho2}, induz
+memorização por corrupção controlada de rótulos e mede a camada densa
+integralmente. Seus resultados acrescentam três achados e obrigam a reformular a
+hipótese central.
+
+\begin{enumerate}
+  \item \textbf{A SampEn2D da camada densa antecipa a degradação da
+  validação.} Em oito execuções com controles estritamente pareados, a inflexão
+  precede a queda sustentada da acurácia de validação em
+  $7{,}50 \pm 0{,}93$ épocas, com intervalo de confiança de
+  \SI{95}{\percent} entre $6{,}73$ e $8{,}27$. A razão de amplitude entre
+  execuções com e sem memorização é de $5{,}65$ vezes
+  ($p = \num{0,00016}$, o menor valor alcançável pelo teste com oito
+  observações por grupo). O achado replica-se na DenseNet-121, com razão de
+  $4{,}35$ vezes ($p = \num{0,00155}$) e antecedência de
+  $21{,}1 \pm 2{,}4$ épocas.
+
+  \item \textbf{A complexidade LMC não discrimina memorização na camada
+  densa.} A razão de amplitude é de $1{,}07$ na ResNet-18
+  ($p = \num{0,195}$) e $1{,}06$ na DenseNet-121 ($p = \num{0,435}$). Trata-se
+  de resultado negativo, e não de insuficiência de potência estatística: a
+  amplitude média das execuções com corrupção situa-se dentro de um
+  desvio-padrão da amplitude média dos controles. A leitura proposta remete à
+  invariância da LMC a permutações --- se a memorização reorganiza os pesos sem
+  alterar substancialmente a distribuição de seus valores, a medida é cega a ela
+  por construção.
+
+  \item \textbf{A época do alerta é invariante ao nível de corrupção.} Com
+  \SI{12,5}{\percent}, \SI{25}{\percent} e \SI{41,7}{\percent} de rótulos
+  efetivamente errados, a época em que o indicador inflete permanece
+  estatisticamente indistinguível ($F = \num{1,00}$; $p = \num{0,42}$),
+  enquanto a época em que a degradação se torna visível na validação antecipa-se
+  de modo significativo ($F = \num{30,2}$; $p = \num{0,0007}$). A leitura
+  compatível com os dados é que o indicador marca o \emph{início} da
+  memorização, cujo momento depende pouco da quantidade de rótulos errados,
+  enquanto a validação mede o \emph{sintoma}.
+\end{enumerate}
+
+\section{Reformulação da hipótese central}
+\label{sec:conc-reformulacao}
+
+A hipótese enunciada na Seção~\ref{sec:intro-objetivos} afirmava que a
+complexidade estatística dos pesos constitui marcador objetivo do início do
+sobreajuste. Os dois conjuntos de resultados obrigam a qualificá-la, e a
+qualificação é o principal aporte conceitual desta dissertação.
+
+Tomados isoladamente, os achados parecem incompatíveis: a LMC antecipa a
+degradação no primeiro desenho e não discrimina no segundo. A incompatibilidade
+é aparente, e sua dissolução depende de reconhecer que os dois desenhos diferem
+em três dimensões simultâneas --- o grupo de pesos observado, o mecanismo que
+origina a perda de generalização e o conjunto de dados. Nenhum dos experimentos
+realizados permite isolar qual dessas dimensões responde pela divergência, e
+essa é uma limitação que deve ser declarada sem atenuação.
+
+O que os resultados autorizam afirmar, em caráter conclusivo, é mais modesto e
+mais preciso do que a hipótese original: \textbf{a capacidade de marcar o
+sobreajuste não é propriedade de uma medida isolada, mas da combinação entre a
+medida empregada, o grupo de pesos observado e o mecanismo que origina a perda de
+generalização}. Nenhuma das medidas investigadas funciona universalmente; cada
+uma funciona em condições identificáveis.
+
+Essa reformulação tem consequência prática direta para quem pretenda empregar os
+indicadores. Não é possível recomendar uma medida única como marcador de
+sobreajuste. É possível, com base nos resultados obtidos, recomendar a SampEn2D
+sobre a camada densa quando a preocupação for memorização de associações
+inconsistentes, e registrar que a LMC sobre os parâmetros de normalização em lote
+respondeu à escassez de dados no primeiro desenho. A generalidade de cada
+recomendação, porém, permanece limitada pelas condições em que foi estabelecida.
+
+Registre-se ainda uma delimitação que restringe a transposição prática dos
+achados: na DenseNet-121, embora a amplitude discrimine, a época do sinal
+\emph{não} separa os grupos. Um monitor que emitisse alerta pelo simples
+cruzamento de um limiar temporal produziria falsos positivos nessa arquitetura.
+O critério de alerta precisa incorporar a magnitude da variação, e não apenas o
+momento em que ela se inicia.
+
 \section{Trabalhos Futuros}
 \label{sec:futuros}
 
-A partir das limitações identificadas e das extensões já implementadas
-mas ainda não plenamente exercidas, perfilam-se os seguintes
-desdobramentos:
+A partir das limitações identificadas, perfilam-se os desdobramentos
+abaixo. Registre-se que três itens originalmente previstos como trabalho futuro
+foram realizados no curso desta pesquisa e constam do
+Capítulo~\ref{ch:resultados}: a extensão para SampEn2D, a análise multiescala e
+a comparação com uma segunda arquitetura (DenseNet-121). Eles permanecem
+listados apenas nos aspectos que seguem em aberto.
 
 \begin{enumerate}
+  \item \textbf{Delineamento cruzado das duas condições.} É a extensão mais
+  imediata e mais informativa, e decorre diretamente da
+  Seção~\ref{sec:conc-reformulacao}. Trata-se de calcular a LMC sobre os
+  parâmetros $\gamma$ nas execuções com corrupção de rótulos, e a SampEn2D
+  sobre a camada densa nas execuções com subamostragem, completando as quatro
+  células da combinação medida $\times$ mecanismo. Só esse delineamento
+  permite distinguir se a divergência observada decorre do grupo de pesos ou do
+  mecanismo de indução. Parte das execuções necessárias já existe, o que torna o
+  custo computacional moderado.
+
+  \item \textbf{Sobreajuste espontâneo.} Toda a evidência do segundo desenho
+  provém de memorização induzida por corrupção de rótulos. Resta demonstrar que
+  os indicadores se comportam do mesmo modo diante de sobreajuste surgido por
+  escassez de dados sem corrupção --- situação mais próxima da prática. O
+  experimento exige cautela com o falso positivo de normalização em lote
+  descrito na Seção~\ref{sec:desenho2}.
+
+  \item \textbf{Reconsideração da ordem de achatamento.} A ablação da
+  Seção~\ref{sec:res-d2-ablacao} mostra que a leitura por entrada supera a
+  convenção adotada nos dois critérios avaliados. Convém reavaliar a convenção,
+  ainda que o efeito prático seja limitado pela superioridade da SampEn2D, que
+  não achata a matriz.
+
   \item \textbf{Refinamento do detector de inflexão}: o presente
   trabalho adotou suavização por Savitzky-Golay sobre o grupo
   \texttt{bn\_gamma}. Estratégias alternativas --- regressão linear
