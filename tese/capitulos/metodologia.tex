@@ -15,9 +15,9 @@ Seção~\ref{sec:extracao} --- núcleo metodológico deste trabalho --- discute 
 detalhe a ordem de extração dos pesos, separando o que é herdado da
 arquitetura/biblioteca daquilo que constitui escolha analítica deste estudo;
 a Seção~\ref{sec:grupos} define os quatro grupos de pesos sobre os quais as
-medidas serão calculadas; a Seção~\ref{sec:medidas} apresenta as medidas de
-complexidade adotadas; e a Seção~\ref{sec:robustez} antecipa as análises de
-robustez planejadas.
+medidas são calculadas; a Seção~\ref{sec:medidas} apresenta as medidas de
+complexidade adotadas; e a Seção~\ref{sec:robustez} reporta as análises de
+robustez das decisões metodológicas.
 
 % ===========================================================================
 \section{Conjuntos de dados}
@@ -284,8 +284,8 @@ $[C_{in}, C_{out}, H, W]$ antes do \emph{flatten} --- agruparia por
 canal de entrada (resposta de fan-out por unidade da camada anterior).
 Esta segunda leitura é semanticamente válida, mas não casa com a hipótese
 central, que trata cada filtro como ``uma unidade aprendida''.
-A Seção~\ref{sec:robustez} descreve o experimento de controle que
-quantifica empiricamente o impacto desta decisão.
+A Seção~\ref{sec:robustez} reporta o experimento de controle que
+quantificou empiricamente o impacto desta decisão.
 
 \paragraph*{D3. Subamostragem sistemática.} Cada grupo de camadas
 acumula da ordem de $10^5$ a $10^6$ pesos. Para tornar o cálculo da
@@ -301,16 +301,47 @@ distribuição marginal dos pesos, descartando a estrutura sequencial.
 A SampEn 2D, ao operar diretamente sobre a matriz dos filtros, é
 independente desta decisão.
 
-\paragraph*{D4. Cálculo por tensor com agregação posterior.} As medidas
-LMC e SampEn são calculadas \emph{para cada tensor} separadamente; em
-seguida agregadas (média e desvio-padrão) entre os tensores do mesmo
-grupo. A alternativa --- concatenar todos os pesos do grupo em uma única
-série de comprimento $\sim 10^6$ e calcular uma única medida --- mistura
-artificialmente populações de pesos com função arquitetural distinta
-(ex.: convs $3 \times 3$ principais e convs $1 \times 1$ de
-\emph{downsample}). A agregação posterior preserva a unidade
-arquitetural (cada tensor representa uma operação) e permite reportar
-incerteza entre tensores.
+\paragraph*{D4. Cálculo único por grupo, sobre o vetor concatenado.} As
+medidas LMC e SampEn são calculadas \emph{uma única vez por grupo}, sobre o
+vetor obtido pela concatenação de todos os tensores daquele grupo na ordem
+arquitetural, após a subamostragem sistemática descrita em D3. Não se calcula
+uma medida por tensor com agregação posterior.
+
+A decisão contraria a alternativa aparentemente mais natural --- calcular a
+medida para cada tensor e agregar média e desvio-padrão entre os tensores do
+mesmo grupo --- e a razão é a comparabilidade das estimativas.
+
+O argumento decisivo diz respeito à LMC. A complexidade LMC adotada neste
+trabalho não é normalizada, e sua escala depende do número de intervalos
+($N_{bins}$) empregado na construção do histograma, o que impõe que qualquer
+comparação entre camadas ou entre execuções seja feita com o mesmo número de
+intervalos. O número de intervalos é determinado adaptativamente pelo tamanho
+da amostra, segundo $N_{bins} = \min(100, \max(10, n/5))$. Calculada sobre o
+vetor concatenado, essa regra produz $N_{bins} = 100$ de modo invariável, pois
+o menor dos quatro grupos --- o da camada densa, com $4{.}096$ a $5{.}632$
+pesos, conforme o número de classes do conjunto analisado --- já excede
+folgadamente o limiar de $500$ elementos a partir do qual o teto de $100$
+intervalos passa a valer. Calculada por tensor, ao contrário, a mesma regra
+produziria contagens heterogêneas: um tensor de normalização com $64$ canais
+receberia apenas $12$ intervalos, enquanto outro com $512$ canais receberia
+$100$. As complexidades resultantes não seriam comparáveis entre si, e a média
+entre elas não teria significado bem definido.
+
+Um segundo argumento diz respeito à SampEn. A estimativa da entropia amostral
+requer contagens de pares similares suficientemente numerosas para ser estável;
+tensores individuais pequenos, como os de normalização das primeiras camadas,
+produziriam estimativas ruidosas cuja média seria dominada por variância de
+estimação, e não por variação do objeto medido.
+
+Reconhece-se o custo desta decisão, que é real: o vetor concatenado reúne
+populações de pesos com função arquitetural distinta --- por exemplo,
+convoluções $3 \times 3$ principais e convoluções $1 \times 1$ de
+\emph{downsample} --- e a medida resultante não distingue a contribuição de
+cada uma. A decisão D1, de particionar os pesos em quatro grupos, mitiga
+parcialmente esse efeito ao separar populações cuja inicialização e cuja
+dinâmica são qualitativamente diferentes, mas não o elimina dentro de cada
+grupo. A consequência é que as medidas reportadas descrevem o grupo como um
+todo, e não permitem atribuir variação a tensores individuais.
 
 \paragraph*{D5. Inclusão dos pesos de \emph{bias} apenas para
 \texttt{BatchNorm2d}.} Para \texttt{Conv2d} e \texttt{Linear}, apenas o
@@ -338,7 +369,7 @@ Flatten \emph{row-major} & PyTorch (C-contig.) & Não \\
 D1. Quatro grupos (\texttt{conv}/\texttt{dense}/\texttt{bn\_$\gamma$}/\texttt{bn\_$\beta$}) & Este trabalho & Sim \\
 D2. Não transpor Conv2d antes do flatten          & Este trabalho   & Sim \\
 D3. Subamostragem sistemática (passo fixo, 10\,000 elementos) & Este trabalho   & Sim \\
-D4. Cálculo por tensor com agregação posterior    & Este trabalho   & Sim \\
+D4. Cálculo único por grupo (vetor concatenado)   & Este trabalho   & Sim \\
 D5. Inclusão de $\gamma$ e $\beta$; exclusão de \emph{bias} de Conv/Linear & Este trabalho   & Sim \\
 \bottomrule
 \end{tabular}
@@ -455,51 +486,127 @@ não é uma medida de complexidade no sentido estrito, mas serve como
 referência para interpretar tendências observadas em $C_{\mathrm{LMC}}$
 e SampEn.
 
-\subsection{Extensões previstas: SampEn 2D e multiescala}
+\subsection{SampEn 2D e análise multiescala}
 \label{sec:medidas-extensoes}
 
-A SampEn 2D \cite{silva2016} e versões multiescala (MSE)
-\cite{costa2002,costa2005} estão implementadas no \emph{pipeline} e
-serão aplicadas em trabalho subsequente. A SampEn 2D opera diretamente
-sobre a matriz dos filtros sem \emph{flatten}, capturando estrutura
-espacial preservada e contornando a discussão sobre a ordem do
-\emph{flatten} apresentada em D2.
+A SampEn 2D \cite{silva2016} opera diretamente sobre a matriz dos filtros, sem
+\emph{flatten}, preservando a estrutura espacial nas duas direções e
+contornando por completo a discussão sobre a ordem de achatamento apresentada em
+D2. A análise multiescala (MSE) \cite{costa2002,costa2005} aplica a entropia
+amostral a versões do objeto granuladas em escalas crescentes.
+
+Ambas foram aplicadas neste trabalho e seus resultados constam do
+Capítulo~\ref{ch:resultados}: a SampEn 2D sobre o mosaico dos filtros da
+camada \texttt{conv1} na Seção~\ref{sec:sampen2d-conv1}, a análise multiescala
+na Seção~\ref{sec:mse2d-conv1}, e a SampEn 2D sobre a camada densa no segundo
+desenho experimental, na Seção~\ref{sec:res-desenho2}.
 
 % ===========================================================================
-\section{Análise de robustez planejada}
+\section{Análise de robustez}
 \label{sec:robustez}
 
-Para dar lastro empírico às decisões D1--D5, três análises de robustez
-estão previstas e serão reportadas em conjunto com os resultados
-principais:
+Para dar lastro empírico às decisões D1--D5, três análises de robustez foram
+conduzidas sobre os \emph{snapshots} de três sementes de PathMNIST com
+horizonte de $100$ épocas. Os resultados são apresentados nesta seção, e não no
+capítulo de resultados, por constituírem verificação das decisões metodológicas
+e não achados sobre o objeto de estudo.
 
-\begin{enumerate}
-  \item \textbf{Sensibilidade ao agrupamento da Conv2d (D2).} Para uma
-  camada convolucional representativa de cada \texttt{layerN}
-  (\texttt{layer1.0.conv1}, \texttt{layer2.0.conv1},
-  \texttt{layer3.0.conv1}, \texttt{layer4.0.conv1}), recalcula-se a
-  SampEn 1D nos \emph{snapshots} do mesmo \emph{run} com o tensor
-  transposto para $[C_{in}, C_{out}, H, W]$ antes do \emph{flatten}, e
-  reporta-se o desvio absoluto resultante. Se o impacto for inferior à
-  variabilidade entre sementes, a escolha por não transpor é estabelecida
-  como secundária; caso contrário, ambas as leituras serão reportadas
-  lado a lado como achados independentes.
+\subsection{Sensibilidade à ordem de subamostragem (D3)}
+\label{sec:robustez-d3}
 
-  \item \textbf{Sensibilidade à subamostragem (D3).} Compara-se a
-  trajetória obtida com amostragem sistemática (adotada) contra
-  amostragem aleatória em uma \emph{seed} representativa de
-  PathMNIST 50 épocas; o objetivo é confirmar que a subamostragem
-  sistemática preserva sinais que a aleatória descarta, dado o
-  argumento conceitual apresentado em D3.
+A decisão D3 adota subamostragem sistemática, com passo fixo, preservando a
+ordem original do \emph{flatten}. A alternativa --- subamostragem aleatória ---
+embaralha o vetor e, em princípio, reduz a SampEn$_{1D}$ a uma estatística da
+distribuição marginal dos pesos. A Tabela~\ref{tab:robustez-d3} quantifica o
+efeito sobre o grupo \texttt{conv}, único em que a subamostragem chega a ser
+acionada.
 
-  \item \textbf{Sensibilidade ao número de \emph{bins} da LMC.} O
-  cálculo de $H(p)$ é, no limite, sensível à discretização. Reporta-se o
-  comportamento de $C_{\mathrm{LMC}}$ ao variar o número de \emph{bins}
-  entre $\{20, 50, 100, 200\}$ em uma \emph{seed} representativa, para
-  documentar a estabilidade qualitativa das trajetórias.
-\end{enumerate}
+\begin{table}[H]
+\centering
+\caption{SampEn$_{1D}$ do grupo \texttt{conv} sob diferentes esquemas de
+subamostragem e ordenação, em três sementes de PathMNIST com $100$ épocas.}
+\label{tab:robustez-d3}
+\small
+\begin{tabular}{lc}
+\toprule
+\textbf{Esquema} & \textbf{SampEn$_{1D}$} \\
+\midrule
+Sistemático, ordem nativa (adotado)            & $2{,}0081 \pm 0{,}0077$ \\
+Aleatório (semente 42)                         & $2{,}0876 \pm 0{,}0087$ \\
+Aleatório (semente 7)                          & $2{,}0827 \pm 0{,}0103$ \\
+Sistemático, tensor transposto (alternativa a D2) & $2{,}0343 \pm 0{,}0045$ \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
 
-% ===========================================================================
+A subamostragem aleatória eleva a SampEn$_{1D}$ em aproximadamente
+$0{,}0795$ em relação à sistemática, enquanto o espalhamento entre sementes do
+esquema adotado é de $0{,}0077$ --- isto é, o efeito da ordem é cerca de
+\num{10} vezes maior que a variabilidade entre inicializações. A interpretação é
+direta: ao embaralhar o vetor, a medida aproxima-se do valor esperado para uma
+sequência sem estrutura sequencial, o que confirma que a ordem preservada pela
+amostragem sistemática carrega informação real, e não artefato.
+
+O mesmo experimento oferece lastro à decisão D2. Transpor o tensor antes do
+\emph{flatten}, agrupando por canal de entrada em lugar de por neurônio de
+saída, desloca a SampEn$_{1D}$ em $0{,}0262$ --- efeito menor que o da
+subamostragem aleatória, mas ainda superior ao espalhamento entre sementes. A
+escolha de não transpor é, portanto, consequente, embora de magnitude modesta, e
+a leitura alternativa permanece registrada aqui.
+
+\subsection{Sensibilidade ao número de intervalos da LMC}
+\label{sec:robustez-bins}
+
+Como a complexidade LMC empregada não é normalizada, sua escala depende da
+discretização do histograma. A Tabela~\ref{tab:robustez-bins} documenta o
+comportamento sobre o grupo \texttt{bn\_$\gamma$}.
+
+\begin{table}[H]
+\centering
+\caption{Complexidade LMC do grupo \texttt{bn\_$\gamma$} em função do número de
+intervalos do histograma, em três sementes de PathMNIST com $100$ épocas.}
+\label{tab:robustez-bins}
+\small
+\begin{tabular}{cc}
+\toprule
+\textbf{$N_{bins}$} & \textbf{$C_{\mathrm{LMC}}$} \\
+\midrule
+$20$  & $0{,}6467 \pm 0{,}0299$ \\
+$50$  & $0{,}5161 \pm 0{,}0189$ \\
+$100$ & $0{,}3610 \pm 0{,}0195$ \\
+$200$ & $0{,}2307 \pm 0{,}0138$ \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
+
+O valor absoluto da complexidade varia por um fator de $2{,}80$ entre os
+extremos examinados, decrescendo monotonicamente com o refinamento do
+histograma. Duas consequências decorrem disso.
+
+A primeira é que \emph{o valor absoluto de $C_{\mathrm{LMC}}$ não é
+interpretável isoladamente}, e nenhuma comparação entre camadas, grupos ou
+execuções é legítima sem que o número de intervalos seja idêntico. Toda a
+análise deste trabalho emprega $N_{bins} = 100$.
+
+A segunda é que este resultado fornece o lastro empírico da decisão D4. Como
+argumentado na Seção~\ref{sec:extracao-decisoes}, calcular a medida por tensor
+produziria contagens de intervalos heterogêneas, dado que a regra adaptativa
+$N_{bins} = \min(100, \max(10, n/5))$ depende do tamanho de cada tensor. A
+Tabela~\ref{tab:robustez-bins} mostra que essa heterogeneidade não seria um
+detalhe de segunda ordem: complexidades calculadas com $20$ e com $100$
+intervalos diferem por quase um fator de dois, de modo que a média entre tensores
+de tamanhos distintos misturaria quantidades em escalas incompatíveis. O cálculo
+único sobre o vetor concatenado do grupo garante $N_{bins} = 100$ em todos os
+casos, o que torna as trajetórias comparáveis.
+
+Registre-se que a \emph{posição temporal} do pico da LMC, que é a quantidade de
+interesse no Capítulo~\ref{ch:resultados}, não foi avaliada quanto à
+sensibilidade ao número de intervalos --- fazê-lo exigiria recalcular as
+trajetórias completas em cada configuração. A verificação aqui reportada
+abrange o valor absoluto da medida, e não a época em que ela atinge o máximo.
+
 \section{Grid experimental}
 \label{sec:grid}
 
