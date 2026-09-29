@@ -150,24 +150,27 @@ a obtenção do título de Mestre em Ciências.}
 \pretextual
 
 \imprimircapa                              % 1. Capa
-\imprimirfolhaderosto                      % 2. Folha de rosto (contracapa)
+\imprimirfolhaderosto*                     % 2. Folha de rosto (o * reserva o verso
+                                           %    para a ficha catalografica)
 
-\include{pre-textuais/agradecimentos}      % 3. Agradecimentos
-\include{pre-textuais/epigrafe}            % 4. Epígrafe
-\include{pre-textuais/resumo}              % 5. Resumo
-\include{pre-textuais/abstract}            % 6. Abstract
+\include{pre-textuais/ficha-catalografica} % 3. Ficha catalográfica
+\include{pre-textuais/folha-aprovacao}     % 4. Folha de aprovação
+\include{pre-textuais/agradecimentos}      % 5. Agradecimentos
+\include{pre-textuais/epigrafe}            % 6. Epígrafe
+\include{pre-textuais/resumo}              % 7. Resumo
+\include{pre-textuais/abstract}            % 8. Abstract
 
 %% Listas ANTES do sumário — ordem da NBR 14724
 \pdfbookmark[0]{\listfigurename}{lof}
-\listoffigures*                            % 7. Lista de figuras
+\listoffigures*                            % 9. Lista de figuras
 \cleardoublepage
 
 \pdfbookmark[0]{\listtablename}{lot}
-\listoftables*                             % 8. Lista de tabelas
+\listoftables*                             % 10. Lista de tabelas
 \cleardoublepage
 
 \pdfbookmark[0]{\contentsname}{toc}
-\tableofcontents*                          % 9. Sumário
+\tableofcontents*                          % 11. Sumário
 \cleardoublepage
 
 %% ═══ ELEMENTOS TEXTUAIS ════════════════════════════════════════════════════
