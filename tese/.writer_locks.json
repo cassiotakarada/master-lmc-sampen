@@ -1,1 +1,22 @@
-{}
+{
+  "introducao/full": {
+    "locked_at": "2026-09-29T17:19:15.282384+00:00",
+    "locked_by": "user"
+  },
+  "fundamentacao/full": {
+    "locked_at": "2026-09-29T17:19:15.326569+00:00",
+    "locked_by": "user"
+  },
+  "results/overview": {
+    "locked_at": "2026-09-29T17:19:15.374272+00:00",
+    "locked_by": "user"
+  },
+  "results/lmc_analysis": {
+    "locked_at": "2026-09-29T17:19:15.427051+00:00",
+    "locked_by": "user"
+  },
+  "results/sampen_analysis": {
+    "locked_at": "2026-09-29T17:19:15.478175+00:00",
+    "locked_by": "user"
+  }
+}

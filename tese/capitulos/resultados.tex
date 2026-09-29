@@ -12,13 +12,61 @@
 \label{sec:overview}
 
 % WRITER:BEGIN:results/overview
-\begin{claudedraft}
-Os experimentos relatados neste capítulo foram conduzidos sobre o conjunto de dados PathMNIST, uma coleção de imagens histopatológicas colorimétricas amplamente utilizada como referência em tarefas de classificação multiclasse em aprendizado profundo aplicado a dados biomédicos. A arquitetura empregada, o esquema de inicialização dos pesos e o otimizador seguem, sem alterações, o protocolo descrito no Capítulo~\ref{ch:metodologia}, de modo a preservar a comparabilidade entre execuções. Foram concluídas $n = 2$ execuções independentes, identificadas por \texttt{PathMNIST\_1ep\_seed1} e \texttt{PathMNIST\_1ep\_seed3}, correspondendo às sementes aleatórias~1 e~3, ambas treinadas por uma única época. A restrição a uma época é intencional nesta etapa inicial da investigação: procura-se caracterizar a evolução das medidas de complexidade estatística dos pesos ao longo de um regime curto e controlado de treinamento, antes de estender a análise a horizontes temporais mais longos.
+O grid experimental principal compreende \textbf{27 execuções}, resultantes da
+combinação de três conjuntos do repositório MedMNIST --- PathMNIST,
+OrganAMNIST e BloodMNIST ---, três horizontes de treinamento
+($30$, $50$ e $100$ épocas) e três sementes de inicialização
+($42$, $123$ e $2024$). A elas somam-se \textbf{24 execuções} de análise de
+sensibilidade, destinadas aos eixos de subamostragem do treino, de decaimento de
+pesos e de arquitetura, discutidos nas Seções~\ref{sec:overfit-subamostragem}
+a~\ref{sec:arch-sensibilidade}, totalizando $51$ execuções registradas.
 
-Em termos de desempenho preditivo, ambas as execuções atingiram acurácia de validação final igual a $0{,}85$ e perda de validação final igual a $0{,}40$, o que corresponde a uma acurácia média de validação de $\overline{\mathrm{acc}}_{\mathrm{val}} = 0{,}85$ (equivalente a $85\%$) sobre o conjunto de execuções concluídas. A coincidência exata dos valores obtidos para as duas sementes indica que, para o horizonte considerado e para a granularidade de arredondamento adotada no registro, a variabilidade induzida pela inicialização é pequena o suficiente para não se manifestar na acurácia agregada, o que constitui um ponto de partida favorável para isolar efeitos atribuíveis à estrutura interna dos pesos, e não a flutuações macroscópicas de desempenho.
+A Tabela~\ref{tab:overview-desempenho} resume o desempenho preditivo do grid
+principal. A acurácia de validação final é de $0{,}9715 \pm 0{,}0069$, e a
+perda de validação final, de $0{,}1125$. As melhores execuções são
+\texttt{OrganAMNIST\_100ep\_seed123}, com acurácia $0{,}9807$ e perda
+$0{,}0813$, e \texttt{PathMNIST\_100ep\_seed2024}, com acurácia $0{,}9801$ e
+perda $0{,}0798$.
 
-Registrado esse comportamento global, as próximas seções deslocam o foco da métrica agregada para a dinâmica interna do modelo. Especificamente, as trajetórias por grupo das medidas de complexidade estatística investigadas nesta dissertação --- a Complexidade Estatística de López-Ruiz--Mancini--Calbet (LMC) e a Sample Entropy (SampEn) --- serão examinadas separadamente por camada e por tipo de parâmetro (pesos convolucionais, pesos densos e vieses), de modo a averiguar se tais quantidades exibem assinaturas compatíveis com um marcador objetivo de sobreajuste, mesmo quando a acurácia de validação permanece estável entre execuções.
-\end{claudedraft}
+\begin{table}[H]
+\centering
+\caption{Acurácia de validação final no grid principal, por conjunto de dados e
+por horizonte de treinamento. Valores como média $\pm$ desvio-padrão amostral
+entre execuções.}
+\label{tab:overview-desempenho}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Estrato} & \textbf{Execuções} & \textbf{Acurácia de validação} \\
+\midrule
+BloodMNIST      & 9 & $0{,}9743 \pm 0{,}0038$ \\
+OrganAMNIST     & 9 & $0{,}9718 \pm 0{,}0049$ \\
+PathMNIST       & 9 & $0{,}9685 \pm 0{,}0098$ \\
+\midrule
+$30$ épocas     & 9 & $0{,}9666 \pm 0{,}0090$ \\
+$50$ épocas     & 9 & $0{,}9724 \pm 0{,}0030$ \\
+$100$ épocas    & 9 & $0{,}9755 \pm 0{,}0043$ \\
+\midrule
+\textbf{Todas}  & \textbf{27} & $\mathbf{0{,}9715 \pm 0{,}0069}$ \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor.}
+\end{table}
+
+Dois aspectos desses números importam para a leitura das seções seguintes. O
+primeiro é que a variabilidade entre sementes é pequena --- o desvio-padrão
+dentro de cada estrato não excede $0{,}01$ ---, o que favorece o isolamento de
+efeitos atribuíveis à estrutura interna dos pesos, e não a flutuações
+macroscópicas de desempenho. O segundo é que a acurácia cresce monotonicamente
+com o horizonte de treinamento, de $0{,}9666$ em $30$ épocas para $0{,}9755$ em
+$100$, sem sinal de degradação: sob o protocolo canônico, e nos horizontes
+examinados, o treinamento não produz sobreajuste espontâneo. É precisamente essa
+constatação que motiva os eixos de indução deliberada discutidos adiante, sem os
+quais não haveria transição a ser marcada.
+
+Registrado o comportamento agregado, as seções seguintes deslocam o foco da
+métrica de desempenho para a dinâmica interna do modelo, examinando as
+trajetórias das medidas de complexidade por grupo de pesos.
 % WRITER:END:results/overview
 
 % ──────────────────────────────────────────────────────────────────────────────
@@ -26,7 +74,6 @@ Registrado esse comportamento global, as próximas seções deslocam o foco da m
 \label{sec:results-lmc}
 
 % WRITER:BEGIN:results/lmc_analysis
-\begin{claudedraft}
 A análise das trajetórias da complexidade estatística LMC $C = H \times D$ (entropia de Shannon em bits, sem normalização, multiplicada pelo desequilíbrio quadrático com referência à distribuição uniforme) foi conduzida sobre os 50 \emph{runs} concluídos, abrangendo os conjuntos BloodMNIST, OrganAMNIST e PathMNIST, com sementes $\{42,\,123,\,2024\}$ e orçamentos de treinamento de $30$, $50$ e $100$ épocas. Estratificamos os parâmetros do modelo em quatro grupos --- camadas convolucionais (\texttt{conv}), camadas densas (\texttt{dense}), escalas de \emph{batch normalization} (\texttt{bn\_gamma}) e deslocamentos correspondentes (\texttt{bn\_beta}) --- e calculamos $C$ a cada \emph{checkpoint} de época. Como referência de qualidade preditiva, recorde-se que a acurácia média de validação no conjunto agregado foi de $\overline{\text{val\_acc}} = 0{,}9524$, com os melhores \emph{runs} de $100$ épocas atingindo $0{,}9801$ em PathMNIST (semente $2024$) e $0{,}9807$ em OrganAMNIST (semente $123$), indicando que as trajetórias aqui analisadas correspondem a regimes em que a otimização efetivamente converge para soluções com elevado poder discriminativo.
 
 Nos grupos \texttt{conv} e \texttt{dense} observou-se uma trajetória predominantemente \emph{monotonicamente decrescente} de $C$ ao longo do treinamento, comportamento coerente com a evolução conjunta de $H$ e $D$: à medida que os pesos abandonam a inicialização --- uma distribuição gaussiana de entropia submáxima e desequilíbrio $D$ moderado, porém já estritamente positivo --- e migram para distribuições leptocúrticas centradas em zero, o desequilíbrio $D$ relativo à uniforme \emph{aumenta} enquanto a entropia $H$ \emph{diminui}; como a queda de $H$ domina o produto, $C = H \times D$ parte de um valor inicial já elevado e decai de modo sistemático até a saturação. Nas execuções de $100$ épocas em PathMNIST e OrganAMNIST --- as que mais aproximam o regime de eventual sobreajuste, com perdas finais de validação tão baixas quanto $0{,}0798$ e $0{,}0813$, respectivamente --- a queda de $C$ nas camadas \texttt{dense} foi visivelmente mais acentuada do que nas \texttt{conv}, refletindo a maior especialização dos classificadores terminais. Em ambos os grupos, contudo, não se identificaram inflexões abruptas: a curvatura é suave e a derivada de $C$ permanece negativa, o que sugere que o treinamento canônico, mesmo prolongado para $100$ épocas, não induz um colapso descontínuo da complexidade nessas camadas.
@@ -34,7 +81,6 @@ Nos grupos \texttt{conv} e \texttt{dense} observou-se uma trajetória predominan
 Os grupos de \emph{batch normalization} apresentam um padrão qualitativamente distinto. As escalas \texttt{bn\_gamma}, inicializadas próximas de $1$ (distribuição quase degenerada), exibem inicialmente $H$ baixo e, portanto, $C$ baixo; à medida que o treinamento dispersa essas escalas para acomodar a variabilidade canal a canal, $H$ cresce, $D$ varia de forma não monótona e $C$ apresenta uma \emph{ascensão seguida de estabilização} --- comportamento oposto ao das camadas \texttt{conv}/\texttt{dense}. Os deslocamentos \texttt{bn\_beta}, por sua vez, partem de zero e evoluem aproximadamente como um processo de difusão centrada, gerando trajetórias de $C$ com um pico intermediário e leve declínio posterior. Esse contraste é robusto entre as três sementes e os três orçamentos de épocas: as curvas de \texttt{bn\_gamma} e \texttt{bn\_beta} dos \emph{runs} de $30$ épocas (e.g., \texttt{OrganAMNIST\_30ep\_seed42}, val\_acc $=0{,}9740$) reproduzem qualitativamente as dos \emph{runs} de $100$ épocas, ainda que com magnitudes finais menores, indicando que a forma da trajetória --- e não apenas o seu valor terminal --- é a característica discriminante entre grupos.
 
 Em síntese, as trajetórias de $C$ separam de modo sistemático dois regimes: (i) um regime \emph{contrativo} nas camadas portadoras de pesos sinápticos (\texttt{conv}, \texttt{dense}), em que $C$ diminui monotonicamente conforme as distribuições se afastam da uniforme em direção a configurações esparsas e estruturadas; e (ii) um regime \emph{expansivo} nas estatísticas de \emph{batch normalization} (\texttt{bn\_gamma}, \texttt{bn\_beta}), em que $C$ cresce ou exibe pico intermediário à medida que parâmetros inicialmente degenerados ganham dispersão funcional. A ausência de inflexões abruptas em \texttt{conv}/\texttt{dense}, mesmo nos \emph{runs} de maior orçamento e menor perda de validação (perdas tão baixas quanto $0{,}0798$), sugere que, sob o protocolo de treinamento adotado, a complexidade estatística LMC evolui de forma suave e fortemente previsível pelo tipo de camada --- propriedade que será explorada nas seções subsequentes como base para a construção de marcadores objetivos de sobreajuste.
-\end{claudedraft}
 % WRITER:END:results/lmc_analysis
 
 % ──────────────────────────────────────────────────────────────────────────────
@@ -42,7 +88,6 @@ Em síntese, as trajetórias de $C$ separam de modo sistemático dois regimes: (
 \label{sec:sampen}
 
 % WRITER:BEGIN:results/sampen_analysis
-\begin{claudedraft}
 A análise da Entropia Amostral unidimensional (SampEn$_{1\text{D}}$) sobre as distribuições de pesos achatadas, computada separadamente para cada um dos grupos de camadas (\textit{convolucionais iniciais}, \textit{convolucionais profundas}, \textit{fully-connected} e \textit{classificador}), revela um padrão de evolução que complementa, e em alguns regimes contradiz parcialmente, as trajetórias de complexidade LMC discutidas na seção anterior. Considerando o conjunto das 50 execuções concluídas sobre os três conjuntos de dados (BloodMNIST, OrganAMNIST e PathMNIST), com sementes $\{42, 123, 2024\}$ e horizontes de treinamento de $30$, $50$ e $100$ épocas, observa-se que a SampEn$_{1\text{D}}$ inicia, na época~$0$, em valores próximos do limite teórico para distribuições aproximadamente gaussianas associadas à inicialização de \textit{He}, decaindo monotonicamente ao longo das primeiras épocas de otimização. Esse decaimento inicial é mais acentuado nos grupos \textit{fully-connected} e \textit{classificador}, refletindo a especialização rápida dos pesos terminais responsáveis pela separação de classes, ao passo que as camadas convolucionais profundas exibem uma redução de entropia substancialmente mais suave.
 
 Quando se contrastam os três regimes de treinamento, nota-se que as configurações de $30$ épocas, cuja acurácia média de validação alcança $0{,}9657$ em PathMNIST (com $0{,}9655$, $0{,}9646$ e $0{,}9465$ para as sementes $42$, $123$ e $2024$, respectivamente) e $0{,}9695$ em OrganAMNIST, terminam o treinamento ainda em uma fase de queda ativa da SampEn$_{1\text{D}}$, sem atingir um regime estacionário evidente. Em contraposição, os experimentos prolongados até $100$ épocas, que atingem $0{,}9800$ em PathMNIST com a semente $2024$ ($\mathcal{L}_{\text{val}}=0{,}0798$) e $0{,}9807$ em OrganAMNIST com a semente $123$ ($\mathcal{L}_{\text{val}}=0{,}0813$), exibem uma fase tardia em que a SampEn$_{1\text{D}}$ do grupo \textit{classificador} cessa de decrescer e passa a oscilar dentro de uma faixa estreita, comportamento consistente com a saturação dos gradientes na fase final de convergência. Esse \textit{platô entrópico} tardio sugere que a regularidade local dos pesos, capturada pela Entropia Amostral, estabiliza-se antes mesmo de a perda de validação atingir seu mínimo absoluto.
@@ -50,7 +95,6 @@ Quando se contrastam os três regimes de treinamento, nota-se que as configuraç
 A correlação entre as trajetórias de SampEn$_{1\text{D}}$ e as curvas de complexidade LMC apresentadas na seção precedente é positiva, porém não unívoca, e apresenta dependência clara do grupo de camadas considerado. Nos grupos convolucionais iniciais e profundos, a queda da Entropia Amostral acompanha qualitativamente o crescimento do desequilíbrio estatístico capturado pela LMC, indicando que a redução da imprevisibilidade local dos pesos coincide com o afastamento da distribuição em relação à equiprobabilidade --- ambos os marcadores apontam, portanto, para uma especialização progressiva dos filtros. Contudo, nos grupos \textit{fully-connected} e \textit{classificador}, a SampEn$_{1\text{D}}$ atinge seu valor mínimo precocemente (tipicamente entre as épocas $15$ e $25$), enquanto a LMC continua a evoluir até a metade final do treinamento, sobretudo nas execuções de $100$ épocas em PathMNIST e OrganAMNIST. Esse descompasso indica que os dois descritores não são redundantes: a Entropia Amostral é sensível primordialmente à regularidade serial dos pesos, ao passo que a LMC integra, simultaneamente, ordem e desequilíbrio probabilístico.
 
 Cabe ainda destacar que a variabilidade entre sementes, mensurada pelo desvio das trajetórias de SampEn$_{1\text{D}}$, é mais pronunciada nas execuções curtas --- a semente $2024$ em PathMNIST com $30$ épocas, por exemplo, encerra com $\text{acc}_{\text{val}}=0{,}9465$ e $\mathcal{L}_{\text{val}}=0{,}1908$, valores notavelmente piores do que os obtidos com as sementes $42$ e $123$ no mesmo regime --- e tende a se atenuar nos treinamentos de $100$ épocas, nos quais as trajetórias entrópicas dos diferentes grupos de camadas se aproximam, convergindo para faixas estreitas independentemente da semente. Tal comportamento reforça a hipótese de que a SampEn$_{1\text{D}}$, em conjunção com a LMC, pode operar como marcador objetivo da transição do regime de subajuste para o de especialização excessiva, particularmente nos grupos terminais da rede, onde a estabilização entrópica precede e antecipa eventuais aumentos de $\mathcal{L}_{\text{val}}$ associados ao sobreajuste.
-\end{claudedraft}
 % WRITER:END:results/sampen_analysis
 
 % ──────────────────────────────────────────────────────────────────────────────
