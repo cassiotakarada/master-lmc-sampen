@@ -46,9 +46,13 @@ REGIMES = {
     "frac10":    ("f6_frac10_seed*",  "Subamostragem 10%"),
     "frac02":    ("f6_frac02_seed*",  "Subamostragem 2%"),
     "frac01":    ("f6_frac01_seed*",  "Subamostragem 1%"),
+    # passos igualados ao controle (~22.140): scripts/subamostragem_passos_igualados.sh
+    "frac10eq":  ("f6_frac10eq_seed*", "Subamostragem 10% (passos igualados)"),
+    "frac02eq":  ("f6_frac02eq_seed*", "Subamostragem 2% (passos igualados)"),
+    "frac01eq":  ("f6_frac01eq_seed*", "Subamostragem 1% (passos igualados)"),
 }
 # figura principal: um representante de cada familia, cores fixas por entidade
-PRINCIPAIS = [("controle", "#2a78d6"), ("ruido30", "#eb6834"), ("frac02", "#1baf7a")]
+PRINCIPAIS = [("controle", "#2a78d6"), ("ruido30", "#eb6834"), ("frac02eq", "#1baf7a")]
 
 ESTATISTICAS = [("lmc", "LMC"), ("sampen", "SampEn 1D"), ("sampen2d", "SampEn2D")]
 
