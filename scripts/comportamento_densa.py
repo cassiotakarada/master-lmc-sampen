@@ -41,7 +41,8 @@ SURFACE, TEXT_1, TEXT_2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e3e2de"
 REGIMES = {
     "controle":  ("f6_ctrlpar_seed*", "Controle (100% dos dados)"),
     "ruido15":   ("f6_ruido15_seed*", "Ruído 15%"),
-    "ruido30":   ("f6_ruido30_seed*", "Ruído 30%"),
+    # f6_ruido30 = semente 42 (rodada antes de o nome levar a semente; noise_seed=None)
+    "ruido30":   ("f6_ruido30*",      "Ruído 30%"),
     "ruido50":   ("f6_ruido50_seed*", "Ruído 50%"),
     "frac10":    ("f6_frac10_seed*",  "Subamostragem 10%"),
     "frac02":    ("f6_frac02_seed*",  "Subamostragem 2%"),
