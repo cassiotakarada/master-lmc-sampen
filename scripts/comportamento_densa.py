@@ -51,7 +51,12 @@ REGIMES = {
     "frac10eq":  ("f6_frac10eq_seed*", "Subamostragem 10% (passos igualados)"),
     "frac02eq":  ("f6_frac02eq_seed*", "Subamostragem 2% (passos igualados)"),
     "frac01eq":  ("f6_frac01eq_seed*", "Subamostragem 1% (passos igualados)"),
+    # DenseNet-121: camada densa classifier.weight (6 x 1.024); comparada com o controle DELA
+    "dn_controle": ("dn121_ctrlpar_seed*", "DenseNet-121 · controle"),
+    "dn_ruido30":  ("dn121_ruido30_seed*", "DenseNet-121 · ruído 30%"),
 }
+# cada regime e comparado com o controle da propria arquitetura
+CONTROLE_DE = {r: ("dn_controle" if r.startswith("dn_") else "controle") for r in REGIMES}
 # figura principal: um representante de cada familia, cores fixas por entidade
 PRINCIPAIS = [("controle", "#2a78d6"), ("ruido30", "#eb6834"), ("frac02eq", "#1baf7a")]
 
@@ -109,16 +114,17 @@ def resumo(dados: dict) -> pd.DataFrame:
 
 def comparacoes(tab: pd.DataFrame) -> pd.DataFrame:
     """Cada regime contra o controle (Mann-Whitney bilateral). Descritivo, nao detector."""
-    ctrl = tab[tab.regime == "controle"]
     linhas = []
-    for reg in [r for r in REGIMES if r != "controle"]:
+    for reg in [r for r in REGIMES if r not in CONTROLE_DE.values()]:
+        ctrl = tab[tab.regime == CONTROLE_DE[reg]]
         g = tab[tab.regime == reg]
         for k, rot in ESTATISTICAS:
             for medida in ("final", "amplitude"):
                 col = f"{k}_{medida}"
                 a, b = g[col].to_numpy(), ctrl[col].to_numpy()
                 p = mannwhitneyu(a, b, alternative="two-sided").pvalue
-                linhas.append({"regime": reg, "estatistica": rot, "medida": medida,
+                linhas.append({"regime": reg, "controle": CONTROLE_DE[reg],
+                               "estatistica": rot, "medida": medida,
                                "n": len(a), "media_regime": a.mean(), "dp_regime": a.std(ddof=1),
                                "media_controle": b.mean(), "dp_controle": b.std(ddof=1),
                                "razao": a.mean() / b.mean(), "p_mann_whitney": p})
@@ -171,6 +177,51 @@ def figura_trajetorias(dados, k, rotulo, out):
     plt.close(fig)
 
 
+def _painel_trajetorias(ax, dados, series, k, rotulo, eixo):
+    for chave, cor, nome in series:
+        x, m, s = _media_banda(dados[chave], k, eixo)
+        ax.fill_between(x, m - s, m + s, color=cor, alpha=0.15, linewidth=0)
+        ax.plot(x, m, color=cor, linewidth=2, label=nome)
+    if eixo == "passos":
+        ax.set_xscale("log")
+    xl = "Passos de otimização (log)" if eixo == "passos" else "Época"
+    _eixo(ax, xl, rotulo, rotulo)
+
+
+def figura_niveis_ruido(dados, out):
+    """Controle + ruido 15/30/50 %: o nivel de ruido e magnitude -> uma so matiz, clara a escura."""
+    series = [("controle", "#7c7b76", "Controle (0%)"), ("ruido15", "#f4a37f", "Ruído 15%"),
+              ("ruido30", "#eb6834", "Ruído 30%"), ("ruido50", "#a83a12", "Ruído 50%")]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
+    for ax, (k, rot) in zip(axes, ESTATISTICAS):
+        _painel_trajetorias(ax, dados, series, k, rot, "epoch")
+    axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
+    fig.suptitle("Níveis de ruído nos rótulos — ResNet-18, camada densa, média ± 1 DP entre sementes",
+                 color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
+    fig.text(0.006, 0.91, "Controle n = 8 · ruído 15% n = 3 · ruído 30% n = 8 · ruído 50% n = 3. "
+             "A queda da SampEn não cresce com o nível de ruído.", color=TEXT_2, fontsize=9, ha="left")
+    fig.tight_layout(rect=[0, 0, 1, 0.88])
+    fig.savefig(out, dpi=160, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def figura_densenet(dados, out):
+    """DenseNet-121: controle x ruido 30 %, as tres estatisticas por epoca."""
+    series = [("dn_controle", "#2a78d6", "Controle"), ("dn_ruido30", "#eb6834", "Ruído 30%")]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
+    for ax, (k, rot) in zip(axes, ESTATISTICAS):
+        _painel_trajetorias(ax, dados, series, k, rot, "epoch")
+    axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
+    n_c, n_r = len(dados["dn_controle"]), len(dados["dn_ruido30"])
+    fig.suptitle("DenseNet-121 — camada densa (classifier.weight, 6.144 pesos), média ± 1 DP entre sementes",
+                 color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
+    fig.text(0.006, 0.91, f"Controle n = {n_c} · ruído 30% n = {n_r}. 60 épocas, 369 passos por época.",
+             color=TEXT_2, fontsize=9, ha="left")
+    fig.tight_layout(rect=[0, 0, 1, 0.88])
+    fig.savefig(out, dpi=160, facecolor=SURFACE)
+    plt.close(fig)
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Comportamento de LMC/SampEn na camada densa")
     p.add_argument("--root", default="monai_weights")
@@ -196,6 +247,8 @@ def main() -> int:
 
     for k, rot in ESTATISTICAS:
         figura_trajetorias(dados, k, rot, os.path.join(a.output_dir, f"trajetoria_{k}.png"))
+    figura_niveis_ruido(dados, os.path.join(a.output_dir, "niveis_de_ruido.png"))
+    figura_densenet(dados, os.path.join(a.output_dir, "densenet121_controle_vs_ruido.png"))
 
     pd.set_option("display.width", 200)
     print(tab.groupby("regime")[["n_treino", "passos_totais", "acc_treino_final", "acc_val_final",
