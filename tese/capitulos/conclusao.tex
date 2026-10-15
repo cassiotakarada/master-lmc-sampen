@@ -6,137 +6,21 @@
 Este trabalho investigou a hipótese de que a complexidade estatística dos
 pesos de redes neurais profundas constitui um marcador objetivo do início
 do \emph{overfitting}, instanciando-a no contexto de classificação de
-imagens médicas com a arquitetura ResNet-18 e o \emph{benchmark} MedMNIST.
+imagens médicas com a arquitetura ResNet-18 e o conjunto MedNIST.
 A abordagem articulou duas medidas complementares ---
 a complexidade LMC \cite{lmc1995} e a entropia amostral SampEn
-\cite{richman2000} --- aplicadas a snapshots densamente amostrados do
-estado dos pesos ao longo de 36 execuções de treinamento, distribuídas
-em dois eixos experimentais: um \textbf{eixo de cobertura}, com 27 runs
-sobre três conjuntos (PathMNIST, OrganAMNIST, BloodMNIST) $\times$ três
-horizontes de épocas $\times$ três sementes; e um \textbf{eixo de indução
-de sobreajuste}, com nove runs adicionais sob subamostragem do
-conjunto de treinamento (5\%, 10\%, 25\%) que produziram, deliberadamente,
-o regime de generalização degradada no qual a hipótese pode ser testada.
+\cite{richman2000}, esta nas variantes unidimensional e bidimensional ---
+calculadas a cada época sobre a camada densa, em execuções nas quais a perda
+de generalização foi induzida por corrupção controlada de rótulos e em
+controles estritamente pareados, com replicação parcial na DenseNet-121.
 
-Três achados sustentam a hipótese central:
-
-\begin{enumerate}
-  \item As trajetórias de LMC e SampEn ao longo do treinamento são
-  \textbf{sistemáticas, reprodutíveis entre sementes} e diferenciadas por
-  grupo de camadas. A separação dos parâmetros de \emph{batch
-  normalization} em $\gamma$ e $\beta$ revelou-se crítica: $\gamma$
-  exibe a dinâmica mais informativa, enquanto a junção dos dois grupos
-  diluiria o sinal antecipador.
-
-  \item Sob subamostragem do treino, a LMC apresenta um pico que
-  \textbf{precede} o mínimo de \emph{loss} de validação em
-  \textbf{todas} as três frações estudadas, com \emph{lead time}
-  estimado em $+11{,}6$, $+16{,}6$ e $+12{,}6$ épocas para $5\%$, $10\%$
-  e $25\%$ de treino, respectivamente (intervalos de confiança
-  \emph{bootstrap} de $95\%$ que excluem zero em $5\%$ e $25\%$).
-  Este resultado é a evidência operacional mais direta de que a métrica
-  capta a transição entre fase de ajuste e fase de especialização
-  \emph{antes} que a perda de validação reverta sua tendência.
-
-  \item A detecção robusta do pico exigiu três escolhas metodológicas
-  combinadas: restrição da análise ao grupo \texttt{bn\_gamma} ---
-  identificado como portador do sinal mais discriminativo ---, exclusão
-  da janela de \emph{warm-up} ($\mathrm{epoch} < 0{,}5$) e suavização
-  por filtro de Savitzky-Golay. Sob detector ingênuo (\emph{argmax}
-  sobre a trajetória bruta agregada entre grupos), o caso $5\%$ produz
-  um pico espúrio próximo da inicialização: este achado documenta
-  explicitamente o domínio de validade do estimador.
-
-  \item Sob variação do \emph{weight decay} (Seção~\ref{sec:wd-sensibilidade}),
-  o pico da LMC localiza-se em
-  $e^{\mathrm{peak}}_\mathrm{LMC} \approx 7$ épocas \textbf{independentemente}
-  do coeficiente de regularização $\in \{0,\,10^{-5},\,10^{-4},\,10^{-3}\}$,
-  enquanto o instante do mínimo de \emph{loss} de validação varia entre
-  $\approx 42$ e $\approx 93$ épocas. Esta invariância levou a uma
-  reformulação da interpretação inicial: a LMC não captura o instante
-  de início do sobreajuste \emph{per se}, mas sim uma transição
-  estrutural intrínseca à arquitetura --- a passagem do regime de
-  pesos quase-gaussianos da inicialização para o regime de pesos
-  estruturados pelo treinamento ---, transição esta que precede o
-  estabelecimento da generalização ótima por uma quantidade que depende
-  da escala temporal imposta pelo regime de regularização.
-
-  \item Sob variação da arquitetura (Seção~\ref{sec:arch-sensibilidade}),
-  o pico da LMC mantém-se na janela $[4{,}4;\,9{,}1]$ épocas para
-  ResNet-18, ResNet-34 e DenseNet-121 --- três modelos que abrangem
-  duas famílias arquiteturais distintas (residual e densa) e uma faixa
-  de capacidade de $\sim 7$ a $\sim 21$ milhões de parâmetros. Esta
-  segunda invariância --- agora cruzando famílias arquiteturais --- reforça
-  a leitura de que a LMC sobre \texttt{bn\_gamma} mede uma propriedade
-  temporal robusta da maturação dos pesos em CNNs convolucionais
-  treinadas em imagens médicas, dentro de um mesmo dataset.
-
-  \item A SampEn 2D aplicada ao mosaico dos filtros 7$\times$7 da
-  \texttt{conv1} (Seção~\ref{sec:sampen2d-conv1}) \textbf{discrimina os
-  três datasets} com intervalos de confiança não-sobrepostos:
-  $3{,}98$ para PathMNIST, $5{,}77$ para OrganAMNIST e $6{,}18$ para
-  BloodMNIST. Esta sensibilidade adicional --- inalcançável pela SampEn
-  1D, cujos valores no checkpoint final são quase idênticos entre os
-  três datasets ($\approx 2{,}07$--$2{,}10$) --- justifica empiricamente
-  a inclusão de extensões 2D no protocolo de análise: ao preservar a
-  geometria do kernel, a SampEn 2D evidencia diferenças que o
-  \emph{flatten} sequencial encobre.
-
-  \item A extensão multiescala (MSE 2D, Seção~\ref{sec:mse2d-conv1})
-  revela que a discriminação inter-dataset é \textbf{dependente da
-  escala espacial}: as três curvas MSE 2D cruzam em $\tau \in [2, 3]$,
-  invertendo a ordenação entre PathMNIST e os dois datasets RGB-textuais
-  (OrganAMNIST, BloodMNIST). Em escala fina ($\tau = 1$), PathMNIST tem
-  a SampEn 2D mais baixa; em escala intermediária ($\tau = 4$--$7$),
-  tem a mais alta. Operacionalmente, esta dependência de escala
-  significa que a escolha de $\tau$ é um \emph{parâmetro de modelagem
-  crítico} para comparações entre datasets, e que a assinatura
-  espectral multiescala é mais robusta como descritor do que um único
-  valor de SampEn 2D.
-
-  \item Entre datasets (Seção~\ref{sec:crossds-generalizacao}), no
-  entanto, \textbf{a invariância não se mantém}: o pico da LMC localiza-se
-  em $6{,}4$ épocas para PathMNIST e $5{,}6$ épocas para BloodMNIST
-  (ambos RGB, classificação textural), mas em $23{,}9$ épocas para
-  OrganAMNIST (CT em escala de cinza, classificação anatômica). A
-  análise por grupo de camadas
-  (Seção~\ref{sec:crossds-bygroup}) localizou o anomalismo: o
-  deslocamento de $\sim 4 \times$ no instante do pico de OrganAMNIST
-  manifesta-se de forma sincrônica em \texttt{bn\_gamma} e em
-  \texttt{bn\_beta}, enquanto os grupos \texttt{conv} e \texttt{dense}
-  comportam-se de modo similar entre os três datasets. Esta
-  sincronia $\gamma$/$\beta$ é consistente com a interpretação de que a
-  diferença não é qualitativa (não há um mecanismo distinto), mas
-  \emph{temporal}: a adaptação das estatísticas internas que governam
-  $\gamma$ e $\beta$ é globalmente mais lenta em OrganAMNIST. Esta
-  sensibilidade ao dataset levou a uma reformulação final da hipótese
-  H1: a LMC sobre \texttt{bn\_gamma} atinge seu extremo \emph{antes}
-  do mínimo de \emph{loss} de validação --- propriedade que se mantém
-  em todos os datasets testados ---, mas o instante e a forma da
-  trajetória dependem do dataset, em particular do regime de
-  adaptação das estatísticas internas da rede.
-\end{enumerate}
-
-A análise contribui ainda com dois resultados secundários: (i) a
-evidência empírica de que a transposição do tensor de pesos antes do
-\emph{flatten} produz séries semanticamente distintas mas estatisticamente
-permutadas, justificando \emph{a posteriori} a escolha do agrupamento por
-neurônio de saída adotada na metodologia (Seção~\ref{sec:extracao-decisoes});
-e (ii) a constatação, na decomposição por grupos
-(Figura~\ref{fig:overfit-grupos}), de que o sinal antecipador concentra-se
-nos parâmetros de escala $\gamma$ da \emph{batch normalization}, contrariando
-a expectativa inicial de que as camadas convolucionais --- que detêm
-99{,}7\% dos parâmetros --- seriam o substrato natural do marcador.
-
-\section{Achados do segundo desenho experimental}
+\section{Principais achados}
 \label{sec:conc-desenho2}
 
-Os achados enumerados acima decorrem do desenho em que o sobreajuste é induzido
-por subamostragem do treino. O segundo desenho, descrito na
-Seção~\ref{sec:desenho2} e reportado na Seção~\ref{sec:res-desenho2}, induz
-memorização por corrupção controlada de rótulos e mede a camada densa
-integralmente. Seus resultados acrescentam três achados e obrigam a reformular a
-hipótese central.
+O desenho descrito na Seção~\ref{sec:desenho2} e reportado na
+Seção~\ref{sec:res-desenho2} induz memorização por corrupção controlada de
+rótulos e mede a camada densa integralmente. Seus resultados sustentam três
+achados e obrigam a reformular a hipótese central.
 
 \begin{enumerate}
   \item \textbf{A SampEn2D da camada densa antecipa a degradação da
@@ -176,50 +60,21 @@ hipótese central.
 
 A hipótese enunciada na Seção~\ref{sec:intro-objetivos} afirmava que a
 complexidade estatística dos pesos constitui marcador objetivo do início do
-sobreajuste. Os dois conjuntos de resultados obrigam a qualificá-la, e a
-qualificação é o principal aporte conceitual desta dissertação.
-
-Tomados isoladamente, os achados parecem incompatíveis: a LMC antecipa a
-degradação no primeiro desenho e não discrimina no segundo. A incompatibilidade
-é aparente, e sua dissolução depende de reconhecer que os dois desenhos diferem
-em três dimensões simultâneas --- o grupo de pesos observado, o mecanismo que
-origina a perda de generalização e o conjunto de dados.
-
-O delineamento cruzado reportado na Seção~\ref{sec:res-cruzado} foi conduzido
-precisamente para isolar essas dimensões, e produziu resultado parcial. A
-célula que mede a LMC sobre os parâmetros $\gamma$ sob corrupção de rótulos
-\textbf{enfraquece a hipótese do grupo de pesos}: a medida não discrimina
-memorização nem nesse grupo (razão de $1{,}30$; $p = \num{0,065}$), justamente
-aquele em que se mostrara informativa sob subamostragem. A célula recíproca, que
-mediria a SampEn2D sob subamostragem, revelou-se \textbf{inviável no MedNIST}:
-nenhuma das frações examinadas --- \SI{10}{\percent}, \SI{2}{\percent} e
-\SI{1}{\percent} do conjunto de treino --- produz degradação mensurável da
-validação, com queda máxima de $0{,}22$ ponto percentual contra
-$15{,}80$ sob corrupção de rótulos, razão de aproximadamente \num{74} vezes.
-
-A explicação mais compatível com os dados é, portanto, que o fator determinante
-seja o \textbf{mecanismo} e não o grupo de pesos: a LMC responde à alteração da
-distribuição dos pesos provocada pela escassez de dados, não à reorganização
-provocada pela memorização de rótulos inconsistentes. Duas ressalvas impedem
-afirmação mais forte --- a célula recíproca permanece vazia, e a comparação entre
-os desenhos ainda atravessa conjuntos de dados distintos. Trata-se da explicação
-mais econômica entre as compatíveis com a evidência, não de conclusão
-demonstrada, e essa limitação deve ser declarada sem atenuação.
+sobreajuste. Os resultados obrigam a qualificá-la, e a qualificação é o
+principal aporte conceitual desta dissertação.
 
 O que os resultados autorizam afirmar, em caráter conclusivo, é mais modesto e
 mais preciso do que a hipótese original: \textbf{a capacidade de marcar o
-sobreajuste não é propriedade de uma medida isolada, mas da combinação entre a
-medida empregada, o grupo de pesos observado e o mecanismo que origina a perda de
-generalização}. Nenhuma das medidas investigadas funciona universalmente; cada
-uma funciona em condições identificáveis.
+sobreajuste não é propriedade das medidas de complexidade em geral, mas de
+medidas específicas}. Na camada densa, sob memorização induzida, a SampEn2D
+discrimina as execuções com e sem memorização, e a LMC não.
 
 Essa reformulação tem consequência prática direta para quem pretenda empregar os
 indicadores. Não é possível recomendar uma medida única como marcador de
 sobreajuste. É possível, com base nos resultados obtidos, recomendar a SampEn2D
 sobre a camada densa quando a preocupação for memorização de associações
-inconsistentes, e registrar que a LMC sobre os parâmetros de normalização em lote
-respondeu à escassez de dados no primeiro desenho. A generalidade de cada
-recomendação, porém, permanece limitada pelas condições em que foi estabelecida.
+inconsistentes. A generalidade dessa recomendação, porém, permanece limitada
+pelas condições em que foi estabelecida.
 
 Registre-se ainda uma delimitação que restringe a transposição prática dos
 achados: na DenseNet-121, embora a amplitude discrimine, a época do sinal
@@ -232,25 +87,19 @@ momento em que ela se inicia.
 \label{sec:futuros}
 
 A partir das limitações identificadas, perfilam-se os desdobramentos
-abaixo. Registre-se que três itens originalmente previstos como trabalho futuro
+abaixo. Registre-se que dois itens originalmente previstos como trabalho futuro
 foram realizados no curso desta pesquisa e constam do
-Capítulo~\ref{ch:resultados}: a extensão para SampEn2D, a análise multiescala e
-a comparação com uma segunda arquitetura (DenseNet-121). Eles permanecem
-listados apenas nos aspectos que seguem em aberto.
+Capítulo~\ref{ch:resultados}: a extensão para SampEn2D e a comparação com uma
+segunda arquitetura (DenseNet-121).
 
 \begin{enumerate}
-  \item \textbf{Conclusão do delineamento cruzado em repositório mais
-  difícil.} Três das quatro células foram preenchidas na
-  Seção~\ref{sec:res-cruzado}. A célula restante --- SampEn2D sob
-  subamostragem --- não pôde ser obtida porque o MedNIST não sofre perda de
-  generalização por escassez de dados, nem com \SI{1}{\percent} do conjunto de
-  treino. Completá-la exige repositório de maior dificuldade intrínseca, como o
-  PathMNIST empregado no primeiro desenho, ao custo de reintroduzir a variável
-  \emph{conjunto de dados}. A alternativa metodologicamente superior é repetir
-  \emph{ambos} os mecanismos de indução no mesmo repositório difícil,
-  eliminando essa variável de uma vez.
+  \item \textbf{Repositório de maior dificuldade.} Repetir os experimentos em
+  um conjunto no qual a escassez de dados produza perda de generalização,
+  permitindo comparar, sobre a camada densa e no mesmo repositório, a
+  memorização induzida por corrupção de rótulos e o sobreajuste por
+  subamostragem do treino.
 
-  \item \textbf{Sobreajuste espontâneo.} Toda a evidência do segundo desenho
+  \item \textbf{Sobreajuste espontâneo.} Toda a evidência deste trabalho
   provém de memorização induzida por corrupção de rótulos. Resta demonstrar que
   os indicadores se comportam do mesmo modo diante de sobreajuste surgido por
   escassez de dados sem corrupção --- situação mais próxima da prática. O
@@ -263,33 +112,18 @@ listados apenas nos aspectos que seguem em aberto.
   ainda que o efeito prático seja limitado pela superioridade da SampEn2D, que
   não achata a matriz.
 
-  \item \textbf{Refinamento do detector de inflexão}: o presente
-  trabalho adotou suavização por Savitzky-Golay sobre o grupo
-  \texttt{bn\_gamma}. Estratégias alternativas --- regressão linear
-  segmentada (\emph{piecewise linear fit}), detecção de pontos de
-  mudança bayesiana, ou ajuste paramétrico de pico assimétrico ---
-  podem produzir estimativas com intervalos de confiança mais estreitos
-  no regime intermediário de $10\%$.
-
-  \item \textbf{Extensão para SampEn 2D} \cite{silva2016} aplicada
-  diretamente às matrizes dos filtros convolucionais, contornando a
-  discussão sobre a ordem do \emph{flatten} e capturando estrutura
-  espacial preservada.
-
   \item \textbf{Análise multiescala} (MSE) \cite{costa2002,costa2005}
-  para investigar dependências em diferentes resoluções temporais do
-  treinamento, particularmente relevante após a observação do pico
-  agudo da LMC em torno das épocas $5$--$15$.
+  da matriz de pesos da camada densa, para investigar dependências em
+  diferentes escalas.
 
-  \item \textbf{Comparação inter-arquitetura} (DenseNet, EfficientNet,
-  Wide ResNet) para verificar a invariância do \emph{lead time}
-  observado.
+  \item \textbf{Comparação com outras arquiteturas} (EfficientNet,
+  Wide ResNet) para verificar se o comportamento observado na ResNet-18
+  e na DenseNet-121 se mantém.
 
   \item \textbf{Análise de sensibilidade à regularização explícita}
   (\emph{weight decay}, \emph{dropout}, \emph{label smoothing}) para
-  testar se a manipulação dirigida da propensão ao sobreajuste preserva
-  a relação observada entre o pico da LMC e o mínimo de \emph{loss} de
-  validação.
+  testar se a manipulação dirigida da propensão ao sobreajuste altera o
+  comportamento das medidas na camada densa.
 
   \item \textbf{Dados substitutos (\emph{surrogate data})} como teste de
   hipótese nula sobre a trajetória de complexidade, permitindo

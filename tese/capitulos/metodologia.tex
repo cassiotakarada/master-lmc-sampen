@@ -5,83 +5,46 @@
 \label{ch:metodologia}
 
 Este capítulo descreve o protocolo experimental adotado para investigar a
-evolução da complexidade estatística dos pesos de uma rede neural profunda
-durante o treinamento. A exposição é organizada do dado bruto às medidas
-finais: primeiro os conjuntos de dados (Seção~\ref{sec:dados}), em seguida a
-arquitetura empregada (Seção~\ref{sec:arquitetura}) e o protocolo de
-treinamento (Seção~\ref{sec:treinamento}); a Seção~\ref{sec:checkpointing}
-formaliza o esquema de \emph{snapshots} ao longo do treino; a
-Seção~\ref{sec:extracao} --- núcleo metodológico deste trabalho --- discute em
-detalhe a ordem de extração dos pesos, separando o que é herdado da
-arquitetura/biblioteca daquilo que constitui escolha analítica deste estudo;
-a Seção~\ref{sec:grupos} define os quatro grupos de pesos sobre os quais as
-medidas são calculadas; a Seção~\ref{sec:medidas} apresenta as medidas de
-complexidade adotadas; e a Seção~\ref{sec:robustez} reporta as análises de
-robustez das decisões metodológicas.
+evolução da complexidade estatística dos pesos da camada densa de redes
+neurais profundas durante o treinamento. A exposição segue do dado bruto às
+medidas: o conjunto de dados (Seção~\ref{sec:dados}), as arquiteturas
+(Seção~\ref{sec:arquitetura}) e o protocolo de treinamento
+(Seção~\ref{sec:treinamento}); a indução de memorização por corrupção de
+rótulos (Seção~\ref{sec:desenho2}); a camada densa como objeto de medida e a
+ordem de achatamento dos seus pesos (Seção~\ref{sec:camada-densa}); as
+medidas de complexidade (Seção~\ref{sec:medidas}); o monitoramento durante o
+treinamento (Seção~\ref{sec:monitor}); e a referência temporal empregada na
+análise (Seção~\ref{sec:referencia-temporal}).
 
 % ===========================================================================
-\section{Conjuntos de dados}
+\section{Conjunto de dados}
 \label{sec:dados}
 
-Utilizam-se três subconjuntos do \emph{benchmark} MedMNIST~v2
-\cite{medmnist2023}, selecionados por cobrirem modalidades clínicas
-distintas e apresentarem dificuldade não-saturada para a arquitetura adotada
-(Tabela~\ref{tab:datasets}). Todas as imagens são redimensionadas de
-$28 \times 28$ para $64 \times 64$ antes do treinamento, mantendo a
-representatividade clínica sem inflar excessivamente o custo computacional.
-
-\begin{table}[H]
-\centering
-\caption{Datasets MedMNIST utilizados nos experimentos.}
-\label{tab:datasets}
-\small
-\begin{tabular}{lrrl}
-\toprule
-\textbf{Dataset} & \textbf{Treino} & \textbf{Classes (K)} & \textbf{Modalidade} \\
-\midrule
-PathMNIST    & 89.996 & 9  & Histopatologia colorretal (RGB) \\
-OrganAMNIST  & 34.581 & 11 & \emph{Slices} axiais de tomografia abdominal (cinza) \\
-BloodMNIST   & 11.959 & 8  & Microscopia de células sanguíneas (RGB) \\
-\bottomrule
-\end{tabular}
-\end{table}
+Utiliza-se o MedNIST, conjunto de imagens médicas em escala de cinza,
+$64 \times 64$ pixels, distribuídas em seis classes: tomografia abdominal
+(\emph{AbdomenCT}), ressonância de mama (\emph{BreastMRI}), tomografia de
+tórax (\emph{ChestCT}), radiografia de tórax (\emph{CXR}), radiografia de mão
+(\emph{Hand}) e tomografia de crânio (\emph{HeadCT}). Emprega-se a partição
+oficial do conjunto em treinamento, validação e teste, com
+\num{47164}, \num{5895} e \num{5895} imagens, respectivamente. A semente que
+define a partição é fixa em todas as execuções e distinta da semente de
+inicialização dos pesos, de modo que todas as execuções compartilham
+exatamente os mesmos conjuntos de validação e de teste. O conjunto de teste é
+avaliado uma única vez por execução, ao final do treinamento.
 
 % ===========================================================================
-\section{Arquitetura ResNet-18}
+\section{Arquiteturas}
 \label{sec:arquitetura}
 
 Adota-se a ResNet-18 \cite{he2016} (implementação \texttt{torchvision},
 sem pré-treinamento), com a camada totalmente conectada final substituída
-para o número de classes $K$ de cada conjunto. Esta arquitetura totaliza
+para as seis classes do MedNIST. Esta arquitetura totaliza
 aproximadamente $11{,}2$ milhões de parâmetros distribuídos em
 \textbf{41 tensores com parâmetros aprendíveis}: 20 camadas convolucionais
 (\texttt{Conv2d}), 20 camadas de \emph{batch normalization}
-(\texttt{BatchNorm2d}) e 1 camada totalmente conectada (\texttt{Linear}).
-
-\subsection{Estrutura em três níveis hierárquicos}
-\label{sec:arquitetura-niveis}
-
-A organização interna da ResNet-18 possui três níveis aninhados, ilustrados
-na Figura~\ref{fig:resnet-overview}:
-
-\begin{enumerate}
-  \item \textbf{Nível superior (oito módulos nomeados):}
-  \texttt{conv1} (Conv2d $7\times 7$, com \emph{stride} 2),
-  \texttt{bn1} (BatchNorm2d),
-  \texttt{relu}, \texttt{maxpool},
-  \texttt{layer1}--\texttt{layer4} (contêineres \texttt{Sequential}),
-  \texttt{avgpool} (\emph{global average pooling}) e
-  \texttt{fc} (Linear $512 \to K$).
-  \item \textbf{Nível intermediário (BasicBlocks):} cada \texttt{layerN}
-  contém dois blocos residuais (\texttt{BasicBlock}). Em \texttt{layer2},
-  \texttt{layer3} e \texttt{layer4}, o primeiro \texttt{BasicBlock} contém
-  ainda um sub-módulo \texttt{downsample} responsável por ajustar
-  resolução e número de canais no caminho residual.
-  \item \textbf{Nível folha (operações elementares):} dentro de cada
-  \texttt{BasicBlock} encontram-se duas \texttt{Conv2d} ($3\times 3$) e
-  duas \texttt{BatchNorm2d}; o \texttt{downsample}, quando presente, contém
-  uma \texttt{Conv2d} ($1\times 1$) e uma \texttt{BatchNorm2d} adicionais.
-\end{enumerate}
+(\texttt{BatchNorm2d}) e 1 camada totalmente conectada (\texttt{Linear}),
+que é o objeto das medidas deste trabalho
+(Figura~\ref{fig:resnet-overview}).
 
 \begin{figure}[H]
   \centering
@@ -90,547 +53,35 @@ na Figura~\ref{fig:resnet-overview}:
   nomeados em sequência. As caixas indicam o tipo de camada
   (azul: Conv2d; verde: BatchNorm2d; cinza: sem parâmetros; laranja: Linear).
   As caixas \texttt{layer1}--\texttt{layer4} são contêineres
-  \texttt{Sequential} que ocultam sub-blocos detalhados na
-  Figura~\ref{fig:layer2-internal}.}
+  \texttt{Sequential} de blocos residuais.}
   \label{fig:resnet-overview}
 \end{figure}
 
-\subsection{Composição interna de layer2 a layer4}
-\label{sec:arquitetura-layer2}
-
-Como exemplo representativo do nível intermediário, a
-Figura~\ref{fig:layer2-internal} expõe a estrutura de \texttt{layer2}, que
-contém os dez módulos com parâmetros característicos das três últimas
-\texttt{layerN}. Em particular, o primeiro \texttt{BasicBlock} contém um
-\texttt{downsample} composto por uma convolução $1\times 1$ e uma
-\texttt{BatchNorm2d} adicionais, totalizando seis módulos com parâmetros no
-primeiro bloco e quatro no segundo. A \texttt{layer1} segue o mesmo padrão
-mas sem \texttt{downsample}, pois não há mudança de número de canais
-(somando portanto oito módulos com parâmetros).
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{figures/fig_layer2_internal.png}
-  \caption{Expansão interna de \texttt{layer2}: dois \texttt{BasicBlock}s,
-  o primeiro com \texttt{downsample} adicional. Cada folha colorida é um
-  tensor com parâmetros aprendíveis, indicado pelo seu tipo e número de
-  parâmetros. \texttt{layer3} e \texttt{layer4} têm estrutura idêntica
-  (com canais maiores); \texttt{layer1} é mais simples (sem
-  \texttt{downsample}).}
-  \label{fig:layer2-internal}
-\end{figure}
-
-\subsection{Contagem agregada de tensores}
-\label{sec:arquitetura-contagem}
-
-A Tabela~\ref{tab:contagem-tensores} sintetiza, por tipo de camada, a
-quantidade de tensores e de parâmetros disponíveis para a análise de
-complexidade.
-
-\begin{table}[H]
-\centering
-\caption{Tensores com parâmetros aprendíveis na ResNet-18 utilizada
-neste trabalho.}
-\label{tab:contagem-tensores}
-\small
-\begin{tabular}{lrrl}
-\toprule
-\textbf{Tipo} & \textbf{Tensores} & \textbf{Parâmetros (\%)} & \textbf{Localização} \\
-\midrule
-\texttt{Conv2d}      & 20 & $\sim 11{,}15$ M ($99{,}7\%$) & 1 em conv1 + 4 em layer1 + 5 em layer2/3/4 \\
-\texttt{BatchNorm2d} & 20 & $\sim 10$ k ($<0{,}1\%$)      & sempre pareada 1:1 com cada Conv2d \\
-\texttt{Linear}      & 1  & $\sim 4{,}6$ k                & fc \\
-\midrule
-\textbf{Total}       & \textbf{41} & $\sim 11{,}18$ M & ResNet-18 inteira \\
-\bottomrule
-\end{tabular}
-\end{table}
+Para verificar se o comportamento observado depende da arquitetura,
+repete-se parte dos experimentos com a DenseNet-121 (implementação
+\texttt{torchvision}, sem pré-treinamento), com a camada classificadora
+igualmente substituída para seis classes.
 
 % ===========================================================================
 \section{Protocolo de treinamento}
 \label{sec:treinamento}
 
-O treinamento emprega o otimizador SGD com \emph{momentum} $0{,}9$, taxa de
-aprendizado $10^{-3}$ e \emph{weight decay} $10^{-4}$ ---
-hiperparâmetros validados pelo grupo de pesquisa em experimentos
-preliminares. A função objetivo é a entropia cruzada com pesos uniformes
-de classe. O \emph{batch size} é 64 e cada \emph{run} dura entre 30 e 100
-épocas, conforme o ponto experimental do grid (Seção~\ref{sec:grid}).
-Todos os experimentos são executados em CPU
-(\emph{torch} $2{,}4{,}1$ e \emph{torchvision} $0{,}19{,}1$).
+O treinamento emprega o otimizador AdamW com taxa de aprendizado $10^{-3}$ e
+\emph{weight decay} nulo, entropia cruzada como função objetivo, lotes de 128
+imagens e 60 épocas, sem aumento de dados. O \emph{weight decay} e o aumento de
+dados são desligados deliberadamente: ambos combatem a memorização, que é
+justamente o fenômeno que o protocolo da Seção~\ref{sec:desenho2} provoca.
+Os experimentos foram executados em GPU (\emph{torch} $2{,}4{,}1$ e
+\emph{torchvision} $0{,}19{,}1$).
 
 % ===========================================================================
-\section{Checkpointing log-espaçado em memória}
-\label{sec:checkpointing}
-
-A cada \emph{run}, $K \approx 88$ pontos de medição são distribuídos nos
-passos de treinamento com espaçamento logarítmico, concentrando maior
-densidade nas primeiras épocas, onde a distribuição dos pesos muda mais
-rapidamente. Em cada ponto, um \texttt{WeightSnapshot} é construído a
-partir do estado atual do modelo em memória, sem escrita de arquivo por
-passo --- evitando inflar o uso de disco em ordens de magnitude quando
-comparado a salvar todos os \texttt{state\_dict}s. Cada \emph{snapshot}
-contém referências para os tensores de \texttt{Conv2d}, \texttt{Linear} e
-\texttt{BatchNorm2d}, já agrupados conforme descrito na
-Seção~\ref{sec:grupos}.
-
-A escolha pelo espaçamento logarítmico, em contraste com um espaçamento
-uniforme, é deliberada: a literatura de dinâmica de generalização
-\cite{advani2020} indica que as fases qualitativamente distintas do
-treinamento ocorrem em escalas de tempo logarítmicas. Um espaçamento
-uniforme superamostraria a fase de saturação tardia e subamostraria a fase
-inicial de rápida reorganização das distribuições de pesos.
-
-% ===========================================================================
-\section{Extração ordenada dos pesos}
-\label{sec:extracao}
-
-A extração dos pesos é o procedimento que converte o estado da rede em uma
-sequência linear de números sobre os quais as medidas de complexidade são
-calculadas. Este procedimento opera em \emph{duas camadas} encadeadas
-(Seção~\ref{sec:extracao-pyramide}): uma \textbf{inferior}, totalmente
-determinada pela arquitetura ResNet-18 e pela convenção de armazenamento do
-PyTorch; e uma \textbf{superior}, composta por escolhas analíticas deste
-trabalho. A presente seção descreve cada uma e justifica explicitamente
-toda decisão da camada superior.
-
-\subsection{Camada inferior: o que se herda da arquitetura e do PyTorch}
-\label{sec:extracao-pyramide}
-
-Dois fatos são externos a este trabalho e simplesmente descritos:
-
-\paragraph*{Ordem entre módulos.} O método
-\texttt{model.state\_dict()} do PyTorch devolve um
-\texttt{OrderedDict} cuja ordem de iteração é exatamente a sequência em
-que os módulos foram registrados no \texttt{\_\_init\_\_} da
-\texttt{torchvision.models.resnet18}. Esta sequência é determinística e
-reprodutível entre \emph{runs}, e corresponde à travessia em
-profundidade da árvore de módulos exibida nas
-Figuras~\ref{fig:resnet-overview}--\ref{fig:layer2-internal}:
-\begin{equation*}
-  \texttt{conv1} \to \texttt{bn1} \to \texttt{layer1.0.conv1} \to
-  \texttt{layer1.0.bn1} \to \cdots \to
-  \texttt{layer2.0.downsample.0} \to \cdots \to \texttt{fc}.
-\end{equation*}
-
-\paragraph*{Ordem dentro de cada tensor.} O PyTorch armazena tensores em
-memória contígua (C-contiguous, \emph{row-major}). Isto significa que,
-ao aplicar \texttt{tensor.flatten()} ou ao iterar elementos via
-\texttt{numpy().flat}, o índice mais à esquerda do tensor é o de
-variação mais lenta, e o índice mais à direita é o de variação mais
-rápida (Figura~\ref{fig:conv-extraction}). Em particular:
-
-\begin{itemize}
-  \item \texttt{Conv2d}: tensor de shape $[C_{out}, C_{in}, H, W]$;
-  ordem de varredura é $C_{out} \to C_{in} \to H \to W$.
-  Cada bloco contíguo de $C_{in} \cdot H \cdot W$ elementos corresponde
-  a um \textbf{filtro de saída completo}.
-  \item \texttt{Linear}: tensor de shape $[\mathrm{Out}, \mathrm{In}]$;
-  ordem de varredura é $\mathrm{Out} \to \mathrm{In}$. Cada linha
-  contígua de $\mathrm{In}$ elementos corresponde aos
-  \textbf{pesos de entrada de um único neurônio de saída}.
-  \item \texttt{BatchNorm2d}: dois vetores 1D de comprimento $C$
-  (canais), na ordem $\gamma_0, \gamma_1, \dots$ seguido por
-  $\beta_0, \beta_1, \dots$ (ver Seção~\ref{sec:grupos-bn} para a
-  semântica de $\gamma$ e $\beta$).
-\end{itemize}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.95\linewidth]{figures/fig_conv_extraction.png}
-  \caption{Ordem de varredura dentro de uma \texttt{Conv2d}, ilustrada
-  com um tensor mínimo $[C_{out}=2, C_{in}=2, H=2, W=2]$. A leitura
-  segue quatro \emph{loops} aninhados, com $C_{out}$ no nível externo
-  e $W$ no interno. Cada bloco contíguo de 4 elementos corresponde a um
-  canal de entrada de um filtro de saída.}
-  \label{fig:conv-extraction}
-\end{figure}
-
-A Figura~\ref{fig:extraction-summary} resume as três regras lado a lado
-para os três tipos de camada que possuem parâmetros aprendíveis na
-ResNet-18.
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.85\linewidth]{figures/fig_extraction_summary.png}
-  \caption{Resumo das regras de ordenação dentro de cada tipo de tensor:
-  todas seguem ordem \emph{row-major}, com o índice mais à esquerda
-  variando mais lentamente.}
-  \label{fig:extraction-summary}
-\end{figure}
-
-\subsection{Camada superior: decisões analíticas deste trabalho}
-\label{sec:extracao-decisoes}
-
-Definida a camada inferior, restam cinco decisões analíticas, cada uma
-defendida abaixo em relação à hipótese central deste trabalho ---
-\emph{que medidas de complexidade aplicadas aos pesos servem como
-marcadores objetivos da maturação do treinamento}.
-
-\paragraph*{D1. Agrupamento em quatro categorias.} Os 41 tensores são
-particionados em quatro grupos (\texttt{conv}, \texttt{dense},
-\texttt{bn\_gamma}, \texttt{bn\_beta}; ver Seção~\ref{sec:grupos}). A
-justificativa é que esses grupos têm \emph{inicializações distintas} e
-\emph{dinâmicas estatísticas qualitativamente diferentes}, e juntar todos
-em uma única série temporal misturaria fontes incomparáveis.
-
-\paragraph*{D2. Conv2d: agrupamento por neurônio de saída, sem
-transposição.} O tensor \texttt{Conv2d} é processado na ordem nativa
-$[C_{out}, C_{in}, H, W]$. Como consequência, blocos contíguos de
-$C_{in} \cdot H \cdot W$ elementos correspondem a filtros de saída
-completos --- a unidade interpretável natural quando se discute o que o
-treinamento estruturou. A alternativa --- transpor para
-$[C_{in}, C_{out}, H, W]$ antes do \emph{flatten} --- agruparia por
-canal de entrada (resposta de fan-out por unidade da camada anterior).
-Esta segunda leitura é semanticamente válida, mas não casa com a hipótese
-central, que trata cada filtro como ``uma unidade aprendida''.
-A Seção~\ref{sec:robustez} reporta o experimento de controle que
-quantificou empiricamente o impacto desta decisão.
-
-\paragraph*{D3. Subamostragem sistemática.} Cada grupo de camadas
-acumula da ordem de $10^5$ a $10^6$ pesos. Para tornar o cálculo da
-SampEn computacionalmente viável (custo $O(N^2)$ na construção das
-distâncias par a par) e para uniformizar a contagem de elementos entre
-\emph{snapshots} de tensores de tamanhos distintos, aplicamos
-subamostragem para no máximo $10\,000$ elementos por grupo. Adotamos
-amostragem \emph{sistemática} (passo fixo no vetor concatenado),
-preservando a ordem original do \emph{flatten} --- e portanto a
-semântica de agrupamento decidida em D2. A alternativa de subamostragem
-aleatória embaralharia o vetor e reduziria a SampEn 1D a uma medida da
-distribuição marginal dos pesos, descartando a estrutura sequencial.
-A SampEn 2D, ao operar diretamente sobre a matriz dos filtros, é
-independente desta decisão.
-
-\paragraph*{D4. Cálculo único por grupo, sobre o vetor concatenado.} As
-medidas LMC e SampEn são calculadas \emph{uma única vez por grupo}, sobre o
-vetor obtido pela concatenação de todos os tensores daquele grupo na ordem
-arquitetural, após a subamostragem sistemática descrita em D3. Não se calcula
-uma medida por tensor com agregação posterior.
-
-A decisão contraria a alternativa aparentemente mais natural --- calcular a
-medida para cada tensor e agregar média e desvio-padrão entre os tensores do
-mesmo grupo --- e a razão é a comparabilidade das estimativas.
-
-O argumento decisivo diz respeito à LMC. A complexidade LMC adotada neste
-trabalho não é normalizada, e sua escala depende do número de intervalos
-($N_{bins}$) empregado na construção do histograma, o que impõe que qualquer
-comparação entre camadas ou entre execuções seja feita com o mesmo número de
-intervalos. O número de intervalos é determinado adaptativamente pelo tamanho
-da amostra, segundo $N_{bins} = \min(100, \max(10, n/5))$. Calculada sobre o
-vetor concatenado, essa regra produz $N_{bins} = 100$ de modo invariável, pois
-o menor dos quatro grupos --- o da camada densa, com $4{.}096$ a $5{.}632$
-pesos, conforme o número de classes do conjunto analisado --- já excede
-folgadamente o limiar de $500$ elementos a partir do qual o teto de $100$
-intervalos passa a valer. Calculada por tensor, ao contrário, a mesma regra
-produziria contagens heterogêneas: um tensor de normalização com $64$ canais
-receberia apenas $12$ intervalos, enquanto outro com $512$ canais receberia
-$100$. As complexidades resultantes não seriam comparáveis entre si, e a média
-entre elas não teria significado bem definido.
-
-Um segundo argumento diz respeito à SampEn. A estimativa da entropia amostral
-requer contagens de pares similares suficientemente numerosas para ser estável;
-tensores individuais pequenos, como os de normalização das primeiras camadas,
-produziriam estimativas ruidosas cuja média seria dominada por variância de
-estimação, e não por variação do objeto medido.
-
-Reconhece-se o custo desta decisão, que é real: o vetor concatenado reúne
-populações de pesos com função arquitetural distinta --- por exemplo,
-convoluções $3 \times 3$ principais e convoluções $1 \times 1$ de
-\emph{downsample} --- e a medida resultante não distingue a contribuição de
-cada uma. A decisão D1, de particionar os pesos em quatro grupos, mitiga
-parcialmente esse efeito ao separar populações cuja inicialização e cuja
-dinâmica são qualitativamente diferentes, mas não o elimina dentro de cada
-grupo. A consequência é que as medidas reportadas descrevem o grupo como um
-todo, e não permitem atribuir variação a tensores individuais.
-
-\paragraph*{D5. Inclusão dos pesos de \emph{bias} apenas para
-\texttt{BatchNorm2d}.} Para \texttt{Conv2d} e \texttt{Linear}, apenas o
-tensor \texttt{weight} é incluído na análise; o \emph{bias}, quando
-existente, é excluído. Para \texttt{BatchNorm2d}, ambos $\gamma$
-(\texttt{weight}) e $\beta$ (\texttt{bias}) são incluídos por serem
-parâmetros funcionalmente centrais à operação de normalização afim
-(Seção~\ref{sec:grupos-bn}).
-
-A Tabela~\ref{tab:divisao-decisoes} sintetiza, por decisão, quem é
-responsável e o que precisa de defesa.
-
-\begin{table}[H]
-\centering
-\caption{Pirâmide de decisões da extração de pesos.}
-\label{tab:divisao-decisoes}
-\small
-\begin{tabular}{p{0.42\linewidth}ll}
-\toprule
-\textbf{Decisão} & \textbf{Origem} & \textbf{Mutável?} \\
-\midrule
-Ordem entre módulos (\texttt{conv1} $\to$ \dots $\to$ \texttt{fc}) & Arquitetura ResNet & Não \\
-Shape \texttt{Conv2d} $[C_{out}, C_{in}, H, W]$               & PyTorch         & Não \\
-Flatten \emph{row-major} & PyTorch (C-contig.) & Não \\
-D1. Quatro grupos (\texttt{conv}/\texttt{dense}/\texttt{bn\_$\gamma$}/\texttt{bn\_$\beta$}) & Este trabalho & Sim \\
-D2. Não transpor Conv2d antes do flatten          & Este trabalho   & Sim \\
-D3. Subamostragem sistemática (passo fixo, 10\,000 elementos) & Este trabalho   & Sim \\
-D4. Cálculo único por grupo (vetor concatenado)   & Este trabalho   & Sim \\
-D5. Inclusão de $\gamma$ e $\beta$; exclusão de \emph{bias} de Conv/Linear & Este trabalho   & Sim \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-% ===========================================================================
-\section{Agrupamento dos pesos em quatro categorias}
-\label{sec:grupos}
-
-Os 41 tensores são particionados em quatro grupos disjuntos. A
-Tabela~\ref{tab:grupos} sumariza suas características.
-
-\begin{table}[H]
-\centering
-\caption{Grupos de pesos sobre os quais as medidas de complexidade são
-calculadas.}
-\label{tab:grupos}
-\small
-\begin{tabular}{lrll}
-\toprule
-\textbf{Grupo} & \textbf{Tensores} & \textbf{Origem} & \textbf{Função arquitetural} \\
-\midrule
-\texttt{conv}     & 20 & \texttt{Conv2d.weight}      & Detectores de \emph{features} \\
-\texttt{dense}    & 1  & \texttt{Linear.weight}      & Cabeça classificadora \\
-\texttt{bn\_gamma} & 20 & \texttt{BatchNorm2d.weight} & Escala $\gamma$ por canal \\
-\texttt{bn\_beta}  & 20 & \texttt{BatchNorm2d.bias}   & Deslocamento $\beta$ por canal \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Por que separar \texorpdfstring{$\gamma$}{gamma} e
-\texorpdfstring{$\beta$}{beta} da BatchNorm}
-\label{sec:grupos-bn}
-
-Uma camada \texttt{BatchNorm2d} aplica uma transformação afim em duas
-etapas, por canal $c$:
-\begin{align}
-  \hat{x}_c &= \frac{x_c - \mu_c}{\sqrt{\sigma_c^2 + \varepsilon}}
-  & \text{(normalização, sem parâmetros)}, \\
-  y_c &= \gamma_c \cdot \hat{x}_c + \beta_c
-  & \text{(reescala afim, com parâmetros)}.
-\end{align}
-
-Os parâmetros aprendíveis $\gamma_c$ e $\beta_c$ têm papéis funcionalmente
-distintos --- $\gamma$ controla a variância de saída de cada canal e
-$\beta$ controla o seu centro --- e inicializações distintas
-($\gamma_c = 1$, $\beta_c = 0$). Como consequência, suas distribuições
-empíricas têm formas iniciais e dinâmicas diferentes:
-\begin{itemize}
-  \item $\gamma$ inicia como uma massa de Dirac em 1 e tende a se
-  alargar de forma assimétrica, com alguns valores tendendo a zero
-  (sinal de canais ``suprimidos'' pela rede);
-  \item $\beta$ inicia como uma massa de Dirac em 0 e se alarga de
-  forma aproximadamente simétrica em torno de zero, acumulando o
-  \emph{bias} aprendido por canal.
-\end{itemize}
-
-Tratar $\gamma$ e $\beta$ como um único grupo \texttt{bn} apagaria esse
-contraste, que se mostra particularmente informativo nas
-trajetórias de LMC e SampEn ao longo do treinamento
-(Capítulo~\ref{ch:resultados}).
-
-% ===========================================================================
-\section{Medidas de complexidade}
-\label{sec:medidas}
-
-Sobre cada tensor de cada \emph{snapshot}, e antes da agregação por grupo,
-são calculadas as medidas descritas a seguir. Todos os parâmetros
-seguem convenções validadas pelo grupo de pesquisa ou pela literatura
-citada.
-
-\subsection{Complexidade LMC}
-\label{sec:medidas-lmc}
-
-A complexidade estatística LMC \cite{lmc1995} é definida como o produto
-da entropia de Shannon \cite{shannon1948} pelo desequilíbrio em relação
-à distribuição uniforme:
-\begin{equation}
-  C_{\mathrm{LMC}}(p) \;=\; H(p) \cdot D(p),
-\end{equation}
-onde, para um histograma normalizado $p$ com $N$ \emph{bins},
-\begin{equation}
-  H(p) = -\sum_{i=1}^{N} p_i \log_2 p_i, \qquad
-  D(p) = \sum_{i=1}^{N} \left(p_i - \tfrac{1}{N}\right)^2.
-\end{equation}
-O número de \emph{bins} é determinado pela regra
-$N = \min(100, \max(10, n/5))$, onde $n$ é o número de pesos amostrados
-após D3 (Seção~\ref{sec:extracao-decisoes}). A entropia é computada em
-bits ($\log_2$) e o produto $H \cdot D$ é reportado sem normalização
-adicional.
-
-\subsection{Entropia amostral SampEn$_{1D}$}
-\label{sec:medidas-sampen}
-
-A entropia amostral \cite{richman2000,pincus1991} é definida como
-\begin{equation}
-  \mathrm{SampEn}(U, m, r) \;=\;
-  -\log \frac{A^{m+1}(r)}{B^{m}(r)},
-\end{equation}
-onde $U$ é o vetor de pesos amostrado, $m$ é o comprimento das
-sub-sequências comparadas e $r$ é a tolerância de similaridade. As
-quantidades $A^{m+1}$ e $B^{m}$ contam pares de sub-sequências cuja
-distância de Chebyshev é menor ou igual a $r$. Adotam-se os parâmetros
-$m = 2$ e $r = 0{,}2\,\sigma(U)$ \cite{yentes2013}, validados pelo
-grupo de pesquisa em estudos prévios.
-
-\subsection{Norma \texorpdfstring{$\ell_2$}{L2} por filtro}
-\label{sec:medidas-l2}
-
-Como medida de magnitude complementar, registra-se a norma $\ell_2$ por
-filtro de saída (ou por neurônio, no caso da \texttt{Linear}); reportam-se
-a média e o desvio-padrão dessa norma dentro de cada tensor. Esta medida
-não é uma medida de complexidade no sentido estrito, mas serve como
-referência para interpretar tendências observadas em $C_{\mathrm{LMC}}$
-e SampEn.
-
-\subsection{SampEn 2D e análise multiescala}
-\label{sec:medidas-extensoes}
-
-A SampEn 2D \cite{silva2016} opera diretamente sobre a matriz dos filtros, sem
-\emph{flatten}, preservando a estrutura espacial nas duas direções e
-contornando por completo a discussão sobre a ordem de achatamento apresentada em
-D2. A análise multiescala (MSE) \cite{costa2002,costa2005} aplica a entropia
-amostral a versões do objeto granuladas em escalas crescentes.
-
-Ambas foram aplicadas neste trabalho e seus resultados constam do
-Capítulo~\ref{ch:resultados}: a SampEn 2D sobre o mosaico dos filtros da
-camada \texttt{conv1} na Seção~\ref{sec:sampen2d-conv1}, a análise multiescala
-na Seção~\ref{sec:mse2d-conv1}, e a SampEn 2D sobre a camada densa no segundo
-desenho experimental, na Seção~\ref{sec:res-desenho2}.
-
-% ===========================================================================
-\section{Análise de robustez}
-\label{sec:robustez}
-
-Para dar lastro empírico às decisões D1--D5, três análises de robustez foram
-conduzidas sobre os \emph{snapshots} de três sementes de PathMNIST com
-horizonte de $100$ épocas. Os resultados são apresentados nesta seção, e não no
-capítulo de resultados, por constituírem verificação das decisões metodológicas
-e não achados sobre o objeto de estudo.
-
-\subsection{Sensibilidade à ordem de subamostragem (D3)}
-\label{sec:robustez-d3}
-
-A decisão D3 adota subamostragem sistemática, com passo fixo, preservando a
-ordem original do \emph{flatten}. A alternativa --- subamostragem aleatória ---
-embaralha o vetor e, em princípio, reduz a SampEn$_{1D}$ a uma estatística da
-distribuição marginal dos pesos. A Tabela~\ref{tab:robustez-d3} quantifica o
-efeito sobre o grupo \texttt{conv}, único em que a subamostragem chega a ser
-acionada.
-
-\begin{table}[H]
-\centering
-\caption{SampEn$_{1D}$ do grupo \texttt{conv} sob diferentes esquemas de
-subamostragem e ordenação, em três sementes de PathMNIST com $100$ épocas.}
-\label{tab:robustez-d3}
-\small
-\begin{tabular}{lc}
-\toprule
-\textbf{Esquema} & \textbf{SampEn$_{1D}$} \\
-\midrule
-Sistemático, ordem nativa (adotado)            & $2{,}0081 \pm 0{,}0077$ \\
-Aleatório (semente 42)                         & $2{,}0876 \pm 0{,}0087$ \\
-Aleatório (semente 7)                          & $2{,}0827 \pm 0{,}0103$ \\
-Sistemático, tensor transposto (alternativa a D2) & $2{,}0343 \pm 0{,}0045$ \\
-\bottomrule
-\end{tabular}
-\fonte{Elaborado pelo autor.}
-\end{table}
-
-A subamostragem aleatória eleva a SampEn$_{1D}$ em aproximadamente
-$0{,}0795$ em relação à sistemática, enquanto o espalhamento entre sementes do
-esquema adotado é de $0{,}0077$ --- isto é, o efeito da ordem é cerca de
-\num{10} vezes maior que a variabilidade entre inicializações. A interpretação é
-direta: ao embaralhar o vetor, a medida aproxima-se do valor esperado para uma
-sequência sem estrutura sequencial, o que confirma que a ordem preservada pela
-amostragem sistemática carrega informação real, e não artefato.
-
-O mesmo experimento oferece lastro à decisão D2. Transpor o tensor antes do
-\emph{flatten}, agrupando por canal de entrada em lugar de por neurônio de
-saída, desloca a SampEn$_{1D}$ em $0{,}0262$ --- efeito menor que o da
-subamostragem aleatória, mas ainda superior ao espalhamento entre sementes. A
-escolha de não transpor é, portanto, consequente, embora de magnitude modesta, e
-a leitura alternativa permanece registrada aqui.
-
-\subsection{Sensibilidade ao número de intervalos da LMC}
-\label{sec:robustez-bins}
-
-Como a complexidade LMC empregada não é normalizada, sua escala depende da
-discretização do histograma. A Tabela~\ref{tab:robustez-bins} documenta o
-comportamento sobre o grupo \texttt{bn\_$\gamma$}.
-
-\begin{table}[H]
-\centering
-\caption{Complexidade LMC do grupo \texttt{bn\_$\gamma$} em função do número de
-intervalos do histograma, em três sementes de PathMNIST com $100$ épocas.}
-\label{tab:robustez-bins}
-\small
-\begin{tabular}{cc}
-\toprule
-\textbf{$N_{bins}$} & \textbf{$C_{\mathrm{LMC}}$} \\
-\midrule
-$20$  & $0{,}6467 \pm 0{,}0299$ \\
-$50$  & $0{,}5161 \pm 0{,}0189$ \\
-$100$ & $0{,}3610 \pm 0{,}0195$ \\
-$200$ & $0{,}2307 \pm 0{,}0138$ \\
-\bottomrule
-\end{tabular}
-\fonte{Elaborado pelo autor.}
-\end{table}
-
-O valor absoluto da complexidade varia por um fator de $2{,}80$ entre os
-extremos examinados, decrescendo monotonicamente com o refinamento do
-histograma. Duas consequências decorrem disso.
-
-A primeira é que \emph{o valor absoluto de $C_{\mathrm{LMC}}$ não é
-interpretável isoladamente}, e nenhuma comparação entre camadas, grupos ou
-execuções é legítima sem que o número de intervalos seja idêntico. Toda a
-análise deste trabalho emprega $N_{bins} = 100$.
-
-A segunda é que este resultado fornece o lastro empírico da decisão D4. Como
-argumentado na Seção~\ref{sec:extracao-decisoes}, calcular a medida por tensor
-produziria contagens de intervalos heterogêneas, dado que a regra adaptativa
-$N_{bins} = \min(100, \max(10, n/5))$ depende do tamanho de cada tensor. A
-Tabela~\ref{tab:robustez-bins} mostra que essa heterogeneidade não seria um
-detalhe de segunda ordem: complexidades calculadas com $20$ e com $100$
-intervalos diferem por quase um fator de dois, de modo que a média entre tensores
-de tamanhos distintos misturaria quantidades em escalas incompatíveis. O cálculo
-único sobre o vetor concatenado do grupo garante $N_{bins} = 100$ em todos os
-casos, o que torna as trajetórias comparáveis.
-
-Registre-se que a \emph{posição temporal} do pico da LMC, que é a quantidade de
-interesse no Capítulo~\ref{ch:resultados}, não foi avaliada quanto à
-sensibilidade ao número de intervalos --- fazê-lo exigiria recalcular as
-trajetórias completas em cada configuração. A verificação aqui reportada
-abrange o valor absoluto da medida, e não a época em que ela atinge o máximo.
-
-\section{Grid experimental}
-\label{sec:grid}
-
-O grid primário consiste em três \emph{datasets}
-$\times$ três horizontes de épocas $\{30, 50, 100\}$
-$\times$ três sementes $\{42, 123, 2024\}$, totalizando
-\textbf{27 \emph{runs}}. A finalidade do horizonte variável é avaliar a
-estabilidade das trajetórias para além do tempo de convergência típico
-($\sim 50$ épocas observadas em experimentos preliminares), enquanto as
-três sementes quantificam a variabilidade entre inicializações e
-ordenações de \emph{mini-batches}.
-
-\section{Segundo desenho experimental: memorização induzida e a camada densa}
+\section{Indução de memorização por corrupção de rótulos}
 \label{sec:desenho2}
 
-As seções anteriores descrevem o desenho que sustenta os resultados do
-Capítulo~\ref{ch:resultados}, no qual o sobreajuste é induzido por
-\emph{subamostragem} do conjunto de treinamento e as medidas incidem
-principalmente sobre os grupos convolucional e de \emph{batch
-normalization}. Esta seção descreve um segundo desenho, complementar ao
-primeiro, construído para responder a uma questão que o primeiro não
-isola: se as medidas de complexidade detectam \emph{memorização} ---
-isto é, o ajuste a associações que não generalizam --- e não apenas a
-escassez de dados.
+Para examinar se as medidas de complexidade respondem à \emph{memorização}
+--- isto é, ao ajuste a associações que não generalizam --- e não apenas à
+escassez de dados, a perda de generalização é induzida por corrupção de
+rótulos.
 
 A distinção importa porque subamostrar o treino reduz simultaneamente a
 quantidade de informação disponível e a diversidade dos exemplos, de modo
@@ -639,41 +90,8 @@ em contrapartida, mantém o volume de dados e introduz exclusivamente
 associações inconsistentes, forçando a rede a memorizá-las
 \cite{zhang2017}.
 
-\subsection{Diferenças em relação ao primeiro desenho}
-
-A Tabela~\ref{tab:dois-desenhos} explicita as diferenças, que não se
-restringem ao mecanismo de indução. Elas devem ser consideradas ao
-comparar os resultados dos dois estudos, pois qualquer divergência entre
-eles pode, em princípio, decorrer de qualquer uma dessas dimensões.
-
-\begin{table}[H]
-\centering
-\caption{Comparação entre os dois desenhos experimentais.}
-\label{tab:dois-desenhos}
-\small
-\begin{tabular}{lll}
-\toprule
- & \textbf{Primeiro desenho} & \textbf{Segundo desenho} \\
-\midrule
-Conjuntos        & PathMNIST, OrganAMNIST, BloodMNIST & MedNIST \\
-Indução          & subamostragem (5, 10, 25\%)        & corrupção de rótulos (15, 30, 50\%) \\
-Pesos analisados & \texttt{conv}, \texttt{bn\_gamma}, \texttt{bn\_beta} & \texttt{dense} \\
-Otimizador       & SGD com \emph{momentum}            & AdamW \\
-Arquiteturas     & ResNet-18, ResNet-34               & ResNet-18, DenseNet-121 \\
-Amostragem       & sistemática, até $10^4$ por grupo  & integral (3.072 pesos) \\
-Medição          & \emph{snapshots} log-espaçados     & a cada época, durante o treino \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Registre-se em particular que o segundo desenho \textbf{não subamostra}:
-a camada densa da ResNet-18 aplicada a seis classes possui
-$6 \times 512 = 3.072$ pesos, quantidade que torna o cálculo integral
-viável a cada época. Elimina-se assim a decisão D3 da
-Seção~\ref{sec:extracao-decisoes} e a discussão de viés de amostragem que
-a acompanha.
-
 \subsection{Protocolo de corrupção de rótulos}
+\label{sec:corrupcao}
 
 Uma fração $\rho \in \{0{,}15;\ 0{,}30;\ 0{,}50\}$ dos exemplos do
 conjunto de treinamento tem seu rótulo substituído por um valor sorteado
@@ -692,8 +110,8 @@ A corrupção incide \emph{apenas} sobre o treino; validação e teste permanece
 generalização induzida --- corromper a régua junto com o objeto medido não
 mediria nada.
 
-Convém registrar por que a indução por corrupção de rótulos substituiu, neste
-segundo desenho, a alternativa de simplesmente reduzir o conjunto de treino.
+Convém registrar por que a indução por corrupção de rótulos foi preferida à
+alternativa de simplesmente reduzir o conjunto de treino.
 Experimentos preliminares mostraram que a redução produz um falso positivo
 convincente: com poucos passos de otimização, as estatísticas móveis das camadas
 de normalização em lote não convergem, e o modelo colapsa em modo de avaliação
@@ -724,7 +142,9 @@ A confirmação de que houve memorização, e não apenas degradação, é feita
 avaliação sobe até ajustar os rótulos corrompidos, enquanto a acurácia de
 validação cai.
 
-\subsection{A camada densa como objeto de medida}
+% ===========================================================================
+
+\section{A camada densa como objeto de medida}
 \label{sec:camada-densa}
 
 Seja a camada densa com $M$ entradas $x_1, \dots, x_M$ e $N$ neurônios
@@ -758,9 +178,10 @@ equivalente a transpor $W$ antes do achatamento. A
 Equação~\ref{eq:ordem-neuronio} mede a regularidade \emph{dentro do campo
 receptivo de cada neurônio}; a Equação~\ref{eq:ordem-entrada} mede a
 regularidade \emph{da distribuição de uma mesma entrada entre os
-neurônios}. Adota-se a primeira como convenção padrão, por coerência com
-a decisão D2 da Seção~\ref{sec:extracao-decisoes}, e a comparação entre
-as duas é reportada como ablação. Para a complexidade LMC a distinção é
+neurônios}. Adota-se a primeira como convenção padrão, por corresponder ao
+achatamento nativo do PyTorch, e a comparação entre as duas é reportada
+como ablação. O Apêndice~\ref{ap:exemplo-numerico} ilustra as duas ordens
+com um exemplo numérico. Para a complexidade LMC a distinção é
 irrelevante, pois a medida depende apenas do histograma dos valores e é
 invariante a permutações.
 
@@ -768,12 +189,71 @@ O vetor de viés é excluído da análise: o viés é um deslocamento aditivo
 do neurônio, não a ligação entre uma entrada e um neurônio, e portanto
 não é um caminho no sentido aqui adotado.
 
-\subsection{Monitoramento durante o treinamento}
+Na ResNet-18 aplicada a seis classes, a camada densa (\texttt{fc}) possui
+$6 \times 512 = 3.072$ pesos; na DenseNet-121 (\texttt{classifier}),
+$6 \times 1.024 = 6.144$. São quantidades que permitem calcular as medidas
+sobre a camada inteira, sem subamostragem.
+
+% ===========================================================================
+\section{Medidas de complexidade}
+\label{sec:medidas}
+
+Sobre a camada densa de cada época são calculadas as medidas descritas a
+seguir. Os parâmetros seguem convenções da literatura citada.
+
+\subsection{Complexidade LMC}
+\label{sec:medidas-lmc}
+
+A complexidade estatística LMC \cite{lmc1995} é definida como o produto
+da entropia de Shannon \cite{shannon1948} pelo desequilíbrio em relação
+à distribuição uniforme:
+\begin{equation}
+  C_{\mathrm{LMC}}(p) \;=\; H(p) \cdot D(p),
+\end{equation}
+onde, para um histograma normalizado $p$ com $N$ \emph{bins},
+\begin{equation}
+  H(p) = -\sum_{i=1}^{N} p_i \log_2 p_i, \qquad
+  D(p) = \sum_{i=1}^{N} \left(p_i - \tfrac{1}{N}\right)^2.
+\end{equation}
+Adota-se $N = 100$ \emph{bins}. A entropia é computada em bits ($\log_2$)
+e o produto $H \cdot D$ é reportado sem normalização adicional. Como a
+medida não é normalizada, sua escala depende de $N$, e nenhuma comparação
+entre execuções é legítima sem que o número de intervalos seja idêntico.
+
+
+\subsection{Entropia amostral SampEn$_{1D}$}
+\label{sec:medidas-sampen}
+
+A entropia amostral \cite{richman2000,pincus1991} é definida como
+\begin{equation}
+  \mathrm{SampEn}(U, m, r) \;=\;
+  -\log \frac{A^{m+1}(r)}{B^{m}(r)},
+\end{equation}
+onde $U$ é o vetor de pesos achatado, $m$ é o comprimento das
+sub-sequências comparadas e $r$ é a tolerância de similaridade. As
+quantidades $A^{m+1}$ e $B^{m}$ contam pares de sub-sequências cuja
+distância de Chebyshev é menor ou igual a $r$. Adotam-se os parâmetros
+$m = 2$ e $r = 0{,}2\,\sigma(U)$ \cite{yentes2013}, validados pelo
+grupo de pesquisa em estudos prévios.
+
+
+\subsection{SampEn 2D}
+\label{sec:medidas-extensoes}
+
+A SampEn 2D \cite{silva2016} opera diretamente sobre a matriz de pesos, sem
+\emph{flatten}, preservando a estrutura nas duas direções e contornando por
+completo a escolha da ordem de achatamento discutida na
+Seção~\ref{sec:camada-densa}. Os parâmetros adotados são descritos na
+Seção~\ref{sec:monitor}.
+
+
+% ===========================================================================
+
+\section{Monitoramento durante o treinamento}
 \label{sec:monitor}
 
-Diferentemente do primeiro desenho, que analisa \emph{snapshots}
-armazenados, o segundo calcula as medidas \textbf{a cada época, dentro do
-laço de treinamento}. A escolha decorre do objetivo: se o propósito é
+As medidas são calculadas \textbf{a cada época, dentro do laço de
+treinamento}, e não sobre \emph{snapshots} analisados posteriormente. A escolha decorre do objetivo: se o propósito é
 oferecer ao desenvolvedor um aviso utilizável, a medida precisa estar
 disponível enquanto o treinamento ocorre, e não apenas em análise
 posterior.
@@ -787,10 +267,13 @@ raramente encontram pares similares, produzindo contagens instáveis. Com
 $m = 1$, comparam-se janelas $1 \times 1$ contra $2 \times 2$, o que
 mantém as contagens em regime numericamente estável.
 
-O custo do monitoramento é baixo, pois incide sobre 3.072 pesos, e pode
+O custo do monitoramento é baixo, pois incide apenas sobre a camada densa, e pode
 ser desativado por opção de linha de comando.
 
-\subsection{Definição operacional da referência temporal}
+% ===========================================================================
+
+\section{Definição operacional da referência temporal}
+\label{sec:referencia-temporal}
 
 Para quantificar antecedência é preciso uma referência que produza um
 número de época. Adota-se como âncora a época em que a acurácia de
@@ -805,3 +288,4 @@ mesmo em treinamentos saudáveis. Reancorado na acurácia, o comportamento
 tornou-se o esperado. O episódio ilustra que a definição operacional de
 sobreajuste não é detalhe de implementação, mas condição de validade do
 resultado.
+

@@ -7,25 +7,17 @@ dissertação investiga se medidas de complexidade estatística calculadas
 exclusivamente sobre os pesos da rede, sem acesso a rótulo algum, constituem
 marcadores do início do sobreajuste. São consideradas a complexidade
 Lopez-Ruiz--Mancini--Calbet (LMC), produto da entropia de Shannon pela
-distância estatística ao equilíbrio, a entropia amostral (SampEn), sua variante
-bidimensional (SampEn2D) e a versão multiescala (MSE), acompanhadas ao longo
-das épocas de treinamento. Dois desenhos experimentais complementares são
-empregados. No primeiro, o sobreajuste é induzido por subamostragem do conjunto
-de treinamento sobre três subconjuntos do repositório MedMNIST, e as medidas
-incidem sobre os parâmetros convolucionais e de normalização em lote; nesse
-regime, a LMC apresenta pico que precede o mínimo da perda de validação, com
-antecedência da ordem de doze a dezessete épocas. No segundo, a memorização é
-induzida por corrupção controlada de rótulos, preservando o volume de dados, e
-as medidas incidem integralmente sobre os pesos da camada densa. Nesse regime,
-com oito execuções e controles estritamente pareados, a SampEn2D inflete
+distância estatística ao equilíbrio, a entropia amostral (SampEn) e sua variante
+bidimensional (SampEn2D), calculadas a cada época sobre os pesos da camada densa
+de redes treinadas no conjunto MedNIST. A memorização é induzida por corrupção
+controlada de rótulos, preservando o volume de dados. Com oito execuções e
+controles estritamente pareados, a SampEn2D inflete
 $7{,}5 \pm 0{,}9$ épocas antes da degradação da acurácia de validação, com
 razão de amplitude de $5{,}7$ vezes entre execuções com e sem memorização
 ($p = 0{,}00016$), resultado replicado na arquitetura DenseNet-121
 ($4{,}3$ vezes; $p = 0{,}0016$). A complexidade LMC, contudo, não discrimina
 memorização na camada densa ($1{,}1$ vez; $p = 0{,}19$). Conclui-se que a
-capacidade de marcar o sobreajuste depende conjuntamente da medida empregada,
-do grupo de pesos observado e do mecanismo que origina a perda de
-generalização.
+capacidade de marcar o sobreajuste depende da medida empregada.
 
 \textbf{Palavras-chave}: Complexidade estatística; Entropia amostral;
 Sobreajuste; Aprendizagem profunda; Imagens médicas; Memorização;

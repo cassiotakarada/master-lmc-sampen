@@ -249,12 +249,7 @@ desvio padrão da série, com $N \ge 200$ para evitar instabilidade
 estatística. Esta dissertação adota $m = 2$ e $r = 0{,}2 \times
 \sigma$, com $\sigma$ tomado como desvio padrão populacional
 (\texttt{ddof}=0), em consonância com a convenção do grupo de pesquisa
-e com o intervalo recomendado pela literatura. Ressalva-se que tensores
-pequenos --- em particular os parâmetros $\gamma$ e $\beta$ do
-\emph{batch normalization} das camadas iniciais --- podem ter
-comprimento inferior a $N = 200$, regime em que a estimativa de SampEn
-é menos estável; esse limite é levado em conta na interpretação desses
-grupos.
+e com o intervalo recomendado pela literatura.
 
 \section{Entropia de Amostra Bidimensional (SampEn2D)}
 \label{sec:sampen2d}
@@ -353,12 +348,6 @@ fisiológicos saudáveis apresentam padrão similar ao $1/f$,
 enquanto patologias frequentemente colapsam para perfis
 monotonicamente decrescentes \cite{costa2005}.
 
-Esta dissertação aplica MSE 1D ao vetor de pesos achatado e, na
-extensão proposta por \citeonline{silva2016} para SampEn2D, MSE 2D às
-matrizes via granulação por blocos $\tau \times \tau$. Em ambos os
-casos, $r$ é mantido fixo em $0{,}2 \times \sigma$ da matriz original,
-com $\sigma$ calculado em população.
-
 \section{Complexidade Estatística LMC}
 \label{sec:lmc}
 
@@ -425,7 +414,7 @@ explicitação:
 \begin{enumerate}
   \item \textbf{Comparação intra-modelo, não inter-sistema.} O objeto
         de análise são as trajetórias de complexidade dos pesos de
-        \emph{uma mesma rede} em \emph{um mesmo grupo de camadas} ao
+        \emph{uma mesma rede} na \emph{mesma camada} ao
         longo do treinamento. As comparações são pareadas por
         \emph{checkpoint}, \emph{seed} e dataset; o argumento de
         intensividade de \citeonline{anteneodo1996}, que diz respeito

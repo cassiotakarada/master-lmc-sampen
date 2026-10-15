@@ -178,8 +178,7 @@ medida incide sobre a camada densa.
 Registre-se, por honestidade, que a utilidade prática aqui descrita é
 \emph{condicional} ao sucesso empírico dos indicadores, e que os resultados do
 Capítulo~\ref{ch:resultados} mostram que esse sucesso não é uniforme: depende da
-medida empregada, do grupo de pesos observado e do mecanismo que origina a perda
-de generalização. As implicações dessa delimitação para o uso prático são
+medida empregada. As implicações dessa delimitação para o uso prático são
 discutidas no Capítulo~\ref{ch:conclusao}.
 
 \section{Hipótese, objetivos e escopo}
@@ -198,47 +197,41 @@ permitir o controle das variáveis de interesse e a reprodutibilidade
 plena dos experimentos:
 
 \begin{itemize}
-  \item \textbf{Arquitetura única:} ResNet-18 \cite{he2016}, escolhida
+  \item \textbf{Arquitetura:} ResNet-18 \cite{he2016}, escolhida
         por sua importância histórica, profundidade moderada e papel de
-        \emph{baseline} consagrado em classificação de imagens médicas.
-  \item \textbf{Conjuntos de dados:} três coleções 2D do \emph{benchmark}
-        MedMNIST v2 \cite{medmnist2023} --- PathMNIST (histopatologia
-        colorretal), OrganAMNIST (segmentação axial de órgãos abdominais
-        em tomografia computadorizada, reformulada para classificação) e
-        BloodMNIST (microscopia de células sanguíneas).
+        \emph{baseline} consagrado em classificação de imagens médicas;
+        parte dos experimentos é repetida com a DenseNet-121 para
+        verificar a dependência em relação à arquitetura.
+  \item \textbf{Conjunto de dados:} MedNIST, com seis classes de imagens
+        médicas de diferentes modalidades (Seção~\ref{sec:dados}).
+  \item \textbf{Pesos analisados:} apenas os da camada densa
+        (classificadora), calculando-se as medidas sobre a camada inteira.
   \item \textbf{Tarefa única:} classificação multiclasse, excluindo-se
         explicitamente segmentação semântica, detecção e tarefas
         ordinais.
 \end{itemize}
 
-Arquiteturas alternativas como U-Net e DenseNet, conjuntos de dados de
-maior escala como NIH ChestX-ray14 e TCIA, e tarefas adicionais como
-segmentação --- mencionados no projeto de qualificação --- ficam
-relegados a trabalhos futuros (\autoref{ch:conclusao}). Esse recorte
-permite que cada combinação de \emph{dataset} e número de épocas seja
-replicada em múltiplas sementes aleatórias (3 sementes $\times$ 3
-horizontes $\times$ 3 conjuntos $=$ 27 execuções completas), totalizando
-um grid suficiente para distinguir efeitos sistemáticos de ruído
-estocástico.
+Arquiteturas alternativas como U-Net, conjuntos de dados de maior escala
+como NIH ChestX-ray14 e TCIA, e tarefas adicionais como segmentação ---
+mencionados no projeto de qualificação --- ficam relegados a trabalhos
+futuros (\autoref{ch:conclusao}).
 
 Os objetivos específicos são:
 
 \begin{enumerate}
-  \item Implementar SampEn1D, SampEn2D, MSE e a complexidade LMC com
+  \item Implementar SampEn1D, SampEn2D e a complexidade LMC com
         validação numérica em casos analiticamente conhecidos
         (distribuições uniforme, gaussiana e séries periódicas), conforme
         o \autoref{ap:validacao-numerica}.
-  \item Extrair os pesos da ResNet-18 a cada \emph{checkpoint} log-espaçado
-        ao longo do treinamento (cerca de 100 pontos por execução),
-        agrupando-os por tipo de camada (convolucional, densa, parâmetros
-        $\gamma$ e $\beta$ do \emph{batch normalization}) e excluindo
-        os \emph{biases} da análise.
-  \item Calcular a trajetória das medidas de complexidade para cada
-        grupo e cada execução, e confrontá-la com a evolução da perda
-        e da acurácia de validação.
+  \item Extrair os pesos da camada densa a cada época, durante o
+        treinamento, excluindo o vetor de viés da análise.
+  \item Calcular a trajetória das medidas de complexidade em execuções
+        com corrupção de rótulos e em seus controles pareados, e
+        confrontá-la com a evolução da perda e da acurácia de validação.
   \item Avaliar se a inflexão das trajetórias LMC e SampEn coincide,
         antecipa ou sucede o início observável do sobreajuste, e
-        comparar os comportamentos entre os três conjuntos de dados.
+        comparar os comportamentos entre níveis de corrupção e entre
+        arquiteturas.
 \end{enumerate}
 
 \section{Organização do trabalho}
@@ -247,15 +240,15 @@ Os objetivos específicos são:
 O restante desta dissertação está organizado em quatro capítulos. O
 \autoref{ch:fundamentacao} apresenta a fundamentação teórica das
 medidas de complexidade utilizadas (Entropia de Shannon, ApEn, SampEn,
-SampEn2D, MSE, complexidade LMC) e situa-as no contexto da literatura
+SampEn2D, complexidade LMC) e situa-as no contexto da literatura
 de redes neurais profundas e análise de séries de pesos. O
-\autoref{ch:metodologia} descreve a arquitetura, os conjuntos de dados,
-o protocolo de treinamento e \emph{checkpointing}, o esquema de
-agrupamento de parâmetros e os parâmetros adotados para cada medida
-($m$, $r$, número de \emph{bins}, escalas de coarse-graining). O
-\autoref{ch:resultados} apresenta as trajetórias de complexidade
-observadas no grid de 27 execuções, a análise por grupo de camadas e a
-correlação com indicadores tradicionais de generalização. O
+\autoref{ch:metodologia} descreve o conjunto de dados, as arquiteturas,
+o protocolo de treinamento, a indução de memorização por corrupção de
+rótulos, a camada densa como objeto de medida e os parâmetros adotados
+para cada medida ($m$, $r$, número de \emph{bins}). O
+\autoref{ch:resultados} apresenta as trajetórias de complexidade da
+camada densa nas execuções com corrupção de rótulos e em seus controles
+pareados, e sua relação com a perda e a acurácia de validação. O
 \autoref{ch:conclusao} sintetiza as evidências obtidas em relação à
 hipótese central, discute as limitações do recorte adotado e indica
 direções para extensões futuras envolvendo arquiteturas, modalidades
