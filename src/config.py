@@ -37,24 +37,27 @@ class TrainConfig:
     # fracao do TREINO efetivamente usada; 1.0 = tudo. Valores pequenos (ex. 0.05)
     # servem para induzir overfitting inequivoco (run de controle da F6).
     train_fraction: float = float(_env("TRAIN_FRACTION", "1.0"))
-    # Ruido de rotulo: forma CORRETA de induzir overfitting (ver src/data/label_noise.py).
-    # Mantem o dataset inteiro, logo o BatchNorm continua saudavel. Só o TREINO e afetado.
-    label_noise: float = float(_env("LABEL_NOISE", "0.0"))
-    # Semente do SORTEIO do ruido. Fica SEPARADA das outras duas porque sao tres fontes
-    # de variacao distintas: `data_seed` decide a particao (FIXA), `seed` decide pesos
-    # iniciais e ordem dos lotes, e esta decide QUAIS rotulos sao corrompidos. Repetir o
-    # experimento de ruido trocando so `seed` manteria exatamente os mesmos rotulos
-    # errados -- mediria sensibilidade a inicializacao, nao replicacao do experimento.
-    # None = usa data_seed (comportamento anterior; mantem o run f6_ruido30 reproduzivel).
+    # Ruido colorido nas IMAGENS de treino (ver src/data/image_noise.py).
+    # "nenhum" | "branco" (beta 0) | "rosa" (beta 1) | "marrom" (beta 2). Fixo por imagem.
+    image_noise: str = _env("IMAGE_NOISE", "nenhum")
+    # Expoente do espectro de potencia (~1/f^beta). Se definido, substitui o da cor.
+    image_noise_beta: Optional[float] = (
+        float(_env("IMAGE_NOISE_BETA")) if _env("IMAGE_NOISE_BETA") is not None else None
+    )
+    # Intensidade: desvio padrao do ruido na escala do pixel (imagens em [0, 1]).
+    image_noise_sigma: float = float(_env("IMAGE_NOISE_SIGMA", "0.1"))
+    # Semente do ruido. Fica SEPARADA de `data_seed` (particao, FIXA) e de `seed` (pesos e
+    # ordem dos lotes): repetir o experimento trocando so `seed` manteria exatamente o mesmo
+    # ruido em cada imagem. None = usa `seed`.
     noise_seed: Optional[int] = (
         int(_env("NOISE_SEED")) if _env("NOISE_SEED") is not None else None
     )
     # Avalia o proprio TREINO em eval() a cada epoca. Custa uma passada extra, mas e a
     # unica forma de distinguir overfitting real (treino alto, val baixa) de artefato de
-    # BatchNorm (os dois baixos). Essencial no run de ruido de rotulo.
+    # BatchNorm (os dois baixos). Essencial nos runs de ruido.
     eval_train: bool = _env("EVAL_TRAIN", "0") == "1"
-    # Aumento de dados (espelhamento horizontal) no treino. Desligue no run de ruido de
-    # rotulo: aumento COMBATE memorizacao, que e justamente o que queremos provocar la.
+    # Aumento de dados (espelhamento horizontal) no treino. Desligue nos runs de ruido:
+    # aumento COMBATE memorizacao, que e justamente o que queremos provocar la.
     augment: bool = _env("AUGMENT", "1") == "1"
     # --- monitor de complexidade ao vivo (F4) ---
     live_complexity: bool = _env("LIVE_COMPLEXITY", "1") == "1"

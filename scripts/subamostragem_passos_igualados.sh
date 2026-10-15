@@ -25,7 +25,7 @@ for item in "$@"; do
     CUDA_VISIBLE_DEVICES="$GPU" SAVE_EVERY_EPOCH=0 "$PY" -m src.main_train \
       --results_dir monai_weights --run_id "$rid" --model_name resnet18 --image_size 64 \
       --seed "$s" --epochs "$ep" --batch_size 128 --lr 0.001 --weight_decay 0.0 \
-      --train_fraction "$frac" --label_noise 0.0 --num_workers 4 --no_augment --eval_train \
+      --train_fraction "$frac" --num_workers 4 --no_augment --eval_train \
       > "monai_weights/${rid}_train.log" 2>&1 || echo "[ERRO] $rid falhou (ver monai_weights/${rid}_train.log)"
   done
 done

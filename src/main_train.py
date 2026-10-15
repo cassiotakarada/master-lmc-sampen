@@ -14,7 +14,7 @@ from torch.utils.data import Subset
 from .config import TrainConfig
 from .data.transforms import build_transforms
 from .data.dataset import create_loaders
-from .data.label_noise import RuidoDeRotulo
+from .data.image_noise import RuidoNaImagem, resolver_beta
 from .data.mednist import MedNISTDataset, ParticaoMedNIST
 from .data.split import resumo_particao, stratified_subset_indices
 from .training.model import build_model
@@ -49,14 +49,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--test_frac", type=float, default=None)
     parser.add_argument("--train_fraction", type=float, default=None,
                         help="fracao do treino a usar (1.0 = tudo)")
+    parser.add_argument("--image_noise", type=str, default=None,
+                        choices=["nenhum", "branco", "rosa", "marrom"],
+                        help="ruido colorido somado as imagens de TREINO, fixo por imagem")
+    parser.add_argument("--image_noise_beta", type=float, default=None,
+                        help="expoente do espectro de potencia ~1/f^beta (substitui o da cor)")
+    parser.add_argument("--image_noise_sigma", type=float, default=None,
+                        help="desvio padrao do ruido na escala do pixel [0, 1] (padrao 0.1)")
     parser.add_argument("--noise_seed", type=int, default=None,
-                        help="semente do sorteio do ruido de rotulo; omitida = usa data_seed")
-    parser.add_argument("--label_noise", type=float, default=None,
-                        help="fracao dos rotulos de TREINO sorteados ao acaso (0.30 = 30%%)")
+                        help="semente do ruido nas imagens; omitida = usa seed")
     parser.add_argument("--eval_train", action="store_true", default=None,
                         help="avalia o treino em eval() a cada epoca (checagem anti-BatchNorm)")
     parser.add_argument("--no_augment", dest="augment", action="store_false", default=None,
-                        help="desliga o aumento de dados (use no run de ruido de rotulo)")
+                        help="desliga o aumento de dados (use nos runs de ruido)")
     parser.add_argument("--model_name", type=str, default=None)
     parser.add_argument("--image_size", type=int, default=None)
     parser.add_argument("--flatten_order", type=str, default=None,
@@ -121,23 +126,15 @@ def prepare_mednist_datasets(cfg: TrainConfig, transforms_treino, transforms_ava
     val_ds = MedNISTDataset("val", transform=transforms_aval, particao=particao)
     test_ds = MedNISTDataset("test", transform=transforms_aval, particao=particao)
 
-    if cfg.label_noise > 0:
-        semente_ruido = cfg.noise_seed if cfg.noise_seed is not None else cfg.data_seed
-        train_ds = RuidoDeRotulo(train_ds, cfg.label_noise, cfg.num_classes, seed=semente_ruido)
-        r = train_ds.relatorio
+    if cfg.image_noise != "nenhum" or cfg.image_noise_beta is not None:
+        beta = resolver_beta(cfg.image_noise, cfg.image_noise_beta)
+        semente_ruido = cfg.noise_seed if cfg.noise_seed is not None else cfg.seed
+        train_ds = RuidoNaImagem(train_ds, beta=beta, sigma=cfg.image_noise_sigma, seed=semente_ruido)
         logger.info(
-            "RUIDO DE ROTULO no treino: %.1f%% sorteados -> %d de %d rotulos efetivamente "
-            "ERRADOS (%.2f%%). Validacao e teste permanecem INTACTOS.",
-            r["fracao_sorteada"] * 100, r["n_efetivamente_errados"],
-            len(train_ds), r["fracao_efetiva"] * 100,
-        )
-        logger.info("Semente do SORTEIO do ruido noise_seed=%d (independente de seed=%d)",
-                    semente_ruido, cfg.seed)
-        logger.info(
-            "Se a rede IGNORAR o ruido: val_acc alta e train_eval_acc ~= %.0f%% (a fracao "
-            "de rotulos corretos). Se DECORAR: train_eval_acc sobe rumo a 100%% e val_acc CAI. "
-            "E essa separacao que caracteriza overfitting.",
-            (1 - r["fracao_efetiva"]) * 100
+            "RUIDO NAS IMAGENS de treino: %s (potencia ~ 1/f^%.2f), sigma=%.3f na escala [0, 1], "
+            "FIXO por imagem (semente noise_seed=%d, independente de seed=%d). "
+            "Validacao e teste permanecem INTACTOS.",
+            cfg.image_noise, beta, cfg.image_noise_sigma, semente_ruido, cfg.seed,
         )
 
     n_train_original = len(train_ds)
