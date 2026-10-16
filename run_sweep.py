@@ -85,8 +85,8 @@ EXPERIMENTS: List[Experiment] = [
 # noise_seed = seed, como nas demais replicacoes.
 #
 # SIGMA_RUIDO: intensidade na escala do pixel [0, 1]. Valores ainda a decidir com o
-# orientador; 0,1 e o padrao provisorio.
-SIGMA_RUIDO = (0.1,)
+# orientador em 2026-10-15: 0,05, 0,1 e 0,2 (rodado so o rosa).
+SIGMA_RUIDO = (0.05, 0.1, 0.2)
 for _cor in ("branco", "rosa"):
     for _sig in SIGMA_RUIDO:
         for _s in (42, 1, 7, 13, 23):
