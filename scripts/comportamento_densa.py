@@ -55,6 +55,9 @@ REGIMES = {
     "rosa005":   ("f9_rosa_s005_seed*", "Ruído rosa σ = 0,05"),
     "rosa010":   ("f9_rosa_s010_seed*", "Ruído rosa σ = 0,1"),
     "rosa020":   ("f9_rosa_s020_seed*", "Ruído rosa σ = 0,2"),
+    "branco005": ("f9_branco_s005_seed*", "Ruído branco σ = 0,05"),
+    "branco010": ("f9_branco_s010_seed*", "Ruído branco σ = 0,1"),
+    "branco020": ("f9_branco_s020_seed*", "Ruído branco σ = 0,2"),
     # DenseNet-121: camada densa classifier.weight (6 x 1.024); comparada com o controle DELA
     "dn_controle": ("dn121_ctrlpar_seed*", "DenseNet-121 · controle"),
     "dn_ruido30":  ("dn121_ruido30_seed*", "DenseNet-121 · ruído 30%"),
@@ -226,6 +229,23 @@ def figura_ruido_rosa(dados, out):
     plt.close(fig)
 
 
+def figura_ruido_branco(dados, out):
+    """Mesmo desenho de figura_ruido_rosa, para o ruido branco."""
+    series = [("controle", "#2a78d6", "Controle (sem ruído)"), ("branco005", "#c3c2b7", "Branco σ = 0,05"),
+              ("branco010", "#8a8980", "Branco σ = 0,1"), ("branco020", "#3d3c38", "Branco σ = 0,2")]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
+    for ax, (k, rot) in zip(axes, ESTATISTICAS):
+        _painel_trajetorias(ax, dados, series, k, rot, "epoch")
+    axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
+    fig.suptitle("Ruído branco nas imagens de treino — ResNet-18, camada densa, média ± 1 DP entre sementes",
+                 color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
+    fig.text(0.006, 0.91, "Controle n = 8 · cada intensidade n = 5. Ruído fixo por imagem, só no treino; "
+             "validação e teste limpos.", color=TEXT_2, fontsize=9, ha="left")
+    fig.tight_layout(rect=[0, 0, 1, 0.88])
+    fig.savefig(out, dpi=160, facecolor=SURFACE)
+    plt.close(fig)
+
+
 def figura_densenet(dados, out):
     """DenseNet-121: controle x ruido 30 %, as tres estatisticas por epoca."""
     series = [("dn_controle", "#2a78d6", "Controle"), ("dn_ruido30", "#eb6834", "Ruído 30%")]
@@ -271,6 +291,7 @@ def main() -> int:
     figura_niveis_ruido(dados, os.path.join(a.output_dir, "niveis_de_ruido.png"))
     figura_densenet(dados, os.path.join(a.output_dir, "densenet121_controle_vs_ruido.png"))
     figura_ruido_rosa(dados, os.path.join(a.output_dir, "ruido_rosa.png"))
+    figura_ruido_branco(dados, os.path.join(a.output_dir, "ruido_branco.png"))
 
     pd.set_option("display.width", 200)
     print(tab.groupby("regime")[["n_treino", "passos_totais", "acc_treino_final", "acc_val_final",

@@ -8,6 +8,8 @@ cada medida? O valor absoluto muda -- isso e esperado e nao e o ponto.
   LMC        n_bins  em {25, 50, 100, 200}        (100 = valor usado no trabalho)
   SampEn 1D  r_scale em {0,10; 0,15; 0,20; 0,25}  (m = 2, ordem por neuronio)
   SampEn2D   r_scale em {0,10; 0,15; 0,20; 0,25}  (m = 1, matriz 6 x 512 sem subamostragem)
+  SampEn 1D  m       em {1, 2, 3}                 (r = 0,20 DP; 2 = valor usado)
+             (a SampEn2D fica em m = 1: com 6 linhas, janelas 3 x 3 quase nunca coincidem)
 
 Runs: controle pareado (f6_ctrlpar_seed*, n = 8) x ruido 30 % (f6_ruido30*, n = 8), 60 epocas,
 pesos lidos dos checkpoints epoch_*.pth. Substitui monai_weights/sensibilidade/, feita em
@@ -43,7 +45,8 @@ BINS = [25, 50, 100, 200]
 RS = [0.10, 0.15, 0.20, 0.25]
 MEDIDAS = ([("lmc", b, f"LMC · {b} bins") for b in BINS]
            + [("sampen", r, f"SampEn 1D · r = {r:.2f}·DP") for r in RS]
-           + [("sampen2d", r, f"SampEn2D · r = {r:.2f}·DP") for r in RS])
+           + [("sampen2d", r, f"SampEn2D · r = {r:.2f}·DP") for r in RS]
+           + [("sampen_m", m, f"SampEn 1D · m = {m} (r = 0,20·DP)") for m in (1, 2, 3)])
 
 
 def peso_denso(caminho: str) -> np.ndarray:
@@ -67,6 +70,8 @@ def medir_run(args) -> pd.DataFrame:
                 val = lmc_complexity(v, n_bins=par)["complexity"]
             elif medida == "sampen":
                 val = sample_entropy_1d(v, m=2, r_scale=par)
+            elif medida == "sampen_m":
+                val = sample_entropy_1d(v, m=int(par), r_scale=0.2)
             else:
                 val = sample_entropy_2d(W, m=1, r_scale=par, max_dim=int(max(W.shape)))
             linhas.append({"grupo": grupo, "run": os.path.basename(run_dir), "epoch": ep,
@@ -96,7 +101,8 @@ def resumo(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def figura(df: pd.DataFrame, res: pd.DataFrame, out: str) -> None:
-    fig, axes = plt.subplots(3, 4, figsize=(17, 11), facecolor=SURFACE)
+    fig, axes = plt.subplots(4, 4, figsize=(17, 14.5), facecolor=SURFACE)
+    axes[3, 3].axis("off")
     for ax, (med, par, titulo) in zip(axes.ravel(), MEDIDAS):
         sub = df[(df.medida == med) & (df.parametro == par)]
         for grupo, nome in (("controle", "Controle"), ("ruido30", "Ruído 30%")):
@@ -105,7 +111,8 @@ def figura(df: pd.DataFrame, res: pd.DataFrame, out: str) -> None:
             ax.fill_between(m.index, m - s, m + s, color=COR[grupo], alpha=0.15, linewidth=0)
             ax.plot(m.index, m, color=COR[grupo], linewidth=1.8, label=nome)
         r = res[(res.medida == med) & (res.parametro == par) & (res.comparacao == "amplitude")].iloc[0]
-        padrao = " (usado)" if (med == "lmc" and par == 100) or (med != "lmc" and abs(par - 0.2) < 1e-9) else ""
+        padrao = " (usado)" if ((med == "lmc" and par == 100) or (med == "sampen_m" and par == 2)
+                                or (med in ("sampen", "sampen2d") and abs(par - 0.2) < 1e-9)) else ""
         ax.set_facecolor(SURFACE)
         ax.set_title(f"{titulo}{padrao}", color=TEXT_1, fontsize=10.5, loc="left")
         ax.text(0.02, 0.04, f"amplitude ruído/controle = {r.razao_ruido_controle:.2f}×  ·  p = {r.p_mann_whitney:.4f}",
@@ -118,9 +125,9 @@ def figura(df: pd.DataFrame, res: pd.DataFrame, out: str) -> None:
     axes[0, 0].legend(frameon=False, fontsize=9, labelcolor=TEXT_2)
     fig.suptitle("Sensibilidade aos parâmetros — ResNet-18, camada densa, controle (n = 8) × ruído 30% (n = 8)",
                  color=TEXT_1, fontsize=13, x=0.006, ha="left", weight="bold")
-    fig.text(0.006, 0.935, "Cada linha muda um parâmetro. O valor absoluto muda; a pergunta é se o desenho "
+    fig.text(0.006, 0.95, "Cada linha muda um parâmetro. O valor absoluto muda; a pergunta é se o desenho "
              "das curvas e a separação entre os grupos se mantêm.", color=TEXT_2, fontsize=9.5, ha="left")
-    fig.tight_layout(rect=[0, 0, 1, 0.92])
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)
 
