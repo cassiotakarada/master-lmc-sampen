@@ -3,122 +3,43 @@
 \chapter{Conclusão}
 \label{ch:conclusao}
 
-Este trabalho investigou a hipótese de que a complexidade estatística dos
-pesos de redes neurais profundas constitui um marcador objetivo do início
-do \emph{overfitting}, instanciando-a no contexto de classificação de
-imagens médicas com a arquitetura ResNet-18 e o conjunto MedNIST.
-A abordagem articulou duas medidas complementares ---
-a complexidade LMC \cite{lmc1995} e a entropia amostral SampEn
-\cite{richman2000}, esta nas variantes unidimensional e bidimensional ---
-calculadas a cada época sobre a camada densa, em execuções nas quais a perda
-de generalização foi induzida por corrupção controlada de rótulos e em
-controles estritamente pareados, com replicação parcial na DenseNet-121.
+Este trabalho descreveu como a complexidade estatística dos pesos da camada
+densa de redes neurais profundas se comporta durante o treinamento, no contexto
+de classificação de imagens médicas com a arquitetura ResNet-18 e o conjunto
+MedNIST. A abordagem articulou duas medidas complementares --- a complexidade
+LMC \cite{lmc1995} e a entropia amostral SampEn \cite{richman2000} ---
+calculadas a cada época sobre a camada densa, em execuções de controle, com
+subamostragem do conjunto de treino e com ruído branco e rosa nas imagens de
+treino.
 
 \section{Principais achados}
-\label{sec:conc-desenho2}
+\label{sec:conc-achados}
 
-O desenho descrito na Seção~\ref{sec:desenho2} e reportado na
-Seção~\ref{sec:res-desenho2} induz memorização por corrupção controlada de
-rótulos e mede a camada densa integralmente. Seus resultados sustentam três
-achados e obrigam a reformular a hipótese central.
-
-\begin{enumerate}
-  \item \textbf{A SampEn2D da camada densa antecipa a degradação da
-  validação.} Em oito execuções com controles estritamente pareados, a inflexão
-  precede a queda sustentada da acurácia de validação em
-  $7{,}50 \pm 0{,}93$ épocas, com intervalo de confiança de
-  \SI{95}{\percent} entre $6{,}73$ e $8{,}27$. A razão de amplitude entre
-  execuções com e sem memorização é de $5{,}65$ vezes
-  ($p = \num{0,00016}$, o menor valor alcançável pelo teste com oito
-  observações por grupo). O achado replica-se na DenseNet-121, com razão de
-  $4{,}35$ vezes ($p = \num{0,00155}$) e antecedência de
-  $21{,}1 \pm 2{,}4$ épocas.
-
-  \item \textbf{A complexidade LMC não discrimina memorização na camada
-  densa.} A razão de amplitude é de $1{,}07$ na ResNet-18
-  ($p = \num{0,195}$) e $1{,}06$ na DenseNet-121 ($p = \num{0,435}$). Trata-se
-  de resultado negativo, e não de insuficiência de potência estatística: a
-  amplitude média das execuções com corrupção situa-se dentro de um
-  desvio-padrão da amplitude média dos controles. A leitura proposta remete à
-  invariância da LMC a permutações --- se a memorização reorganiza os pesos sem
-  alterar substancialmente a distribuição de seus valores, a medida é cega a ela
-  por construção.
-
-  \item \textbf{A época do alerta é invariante ao nível de corrupção.} Com
-  \SI{12,5}{\percent}, \SI{25}{\percent} e \SI{41,7}{\percent} de rótulos
-  efetivamente errados, a época em que o indicador inflete permanece
-  estatisticamente indistinguível ($F = \num{1,00}$; $p = \num{0,42}$),
-  enquanto a época em que a degradação se torna visível na validação antecipa-se
-  de modo significativo ($F = \num{30,2}$; $p = \num{0,0007}$). A leitura
-  compatível com os dados é que o indicador marca o \emph{início} da
-  memorização, cujo momento depende pouco da quantidade de rótulos errados,
-  enquanto a validação mede o \emph{sintoma}.
-\end{enumerate}
-
-\section{Reformulação da hipótese central}
-\label{sec:conc-reformulacao}
-
-A hipótese enunciada na Seção~\ref{sec:intro-objetivos} afirmava que a
-complexidade estatística dos pesos constitui marcador objetivo do início do
-sobreajuste. Os resultados obrigam a qualificá-la, e a qualificação é o
-principal aporte conceitual desta dissertação.
-
-O que os resultados autorizam afirmar, em caráter conclusivo, é mais modesto e
-mais preciso do que a hipótese original: \textbf{a capacidade de marcar o
-sobreajuste não é propriedade das medidas de complexidade em geral, mas de
-medidas específicas}. Na camada densa, sob memorização induzida, a SampEn2D
-discrimina as execuções com e sem memorização, e a LMC não.
-
-Essa reformulação tem consequência prática direta para quem pretenda empregar os
-indicadores. Não é possível recomendar uma medida única como marcador de
-sobreajuste. É possível, com base nos resultados obtidos, recomendar a SampEn2D
-sobre a camada densa quando a preocupação for memorização de associações
-inconsistentes. A generalidade dessa recomendação, porém, permanece limitada
-pelas condições em que foi estabelecida.
-
-Registre-se ainda uma delimitação que restringe a transposição prática dos
-achados: na DenseNet-121, embora a amplitude discrimine, a época do sinal
-\emph{não} separa os grupos. Um monitor que emitisse alerta pelo simples
-cruzamento de um limiar temporal produziria falsos positivos nessa arquitetura.
-O critério de alerta precisa incorporar a magnitude da variação, e não apenas o
-momento em que ela se inicia.
+\pendente{síntese do comportamento da LMC e da SampEn em cada regime, a partir
+do Capítulo~\ref{ch:resultados}.}
 
 \section{Trabalhos Futuros}
 \label{sec:futuros}
 
-A partir das limitações identificadas, perfilam-se os desdobramentos
-abaixo. Registre-se que dois itens originalmente previstos como trabalho futuro
-foram realizados no curso desta pesquisa e constam do
-Capítulo~\ref{ch:resultados}: a extensão para SampEn2D e a comparação com uma
-segunda arquitetura (DenseNet-121).
+A partir das limitações identificadas, perfilam-se os desdobramentos abaixo.
 
 \begin{enumerate}
   \item \textbf{Repositório de maior dificuldade.} Repetir os experimentos em
-  um conjunto no qual a escassez de dados produza perda de generalização,
-  permitindo comparar, sobre a camada densa e no mesmo repositório, a
-  memorização induzida por corrupção de rótulos e o sobreajuste por
-  subamostragem do treino.
+  um conjunto de dados menos saturável que o MedNIST, no qual a perda de
+  generalização seja mais pronunciada, e comparar sobre a camada densa os mesmos
+  regimes de treinamento.
 
-  \item \textbf{Sobreajuste espontâneo.} Toda a evidência deste trabalho
-  provém de memorização induzida por corrupção de rótulos. Resta demonstrar que
-  os indicadores se comportam do mesmo modo diante de sobreajuste surgido por
-  escassez de dados sem corrupção --- situação mais próxima da prática. O
-  experimento exige cautela com o falso positivo de normalização em lote
-  descrito na Seção~\ref{sec:desenho2}.
-
-  \item \textbf{Reconsideração da ordem de achatamento.} A ablação da
-  Seção~\ref{sec:res-d2-ablacao} mostra que a leitura por entrada supera a
-  convenção adotada nos dois critérios avaliados. Convém reavaliar a convenção,
-  ainda que o efeito prático seja limitado pela superioridade da SampEn2D, que
-  não achata a matriz.
+  \item \textbf{Ordem de achatamento.} A SampEn$_{1D}$ depende da ordem em que
+  a matriz da camada densa é achatada (Seção~\ref{sec:camada-densa}). Convém
+  comparar a ordem por neurônio, adotada como padrão, com a ordem por entrada.
 
   \item \textbf{Análise multiescala} (MSE) \cite{costa2002,costa2005}
-  da matriz de pesos da camada densa, para investigar dependências em
-  diferentes escalas.
+  dos pesos da camada densa, para investigar dependências em diferentes
+  escalas.
 
   \item \textbf{Comparação com outras arquiteturas} (EfficientNet,
   Wide ResNet) para verificar se o comportamento observado na ResNet-18
-  e na DenseNet-121 se mantém.
+  se mantém.
 
   \item \textbf{Análise de sensibilidade à regularização explícita}
   (\emph{weight decay}, \emph{dropout}, \emph{label smoothing}) para
@@ -130,8 +51,8 @@ segunda arquitetura (DenseNet-121).
   caracterizar o quanto da estrutura observada se afasta do
   comportamento esperado sob inicialização aleatória mais ruído.
 
-  \item \textbf{Aplicação prática} do marcador proposto como critério de
-  parada precoce em pipelines de treinamento contínuo, comparando
-  custo computacional e desempenho com baselines tradicionais baseados
-  em \emph{loss} de validação.
+  \item \textbf{Uso prático.} Avaliar, a partir do comportamento descrito,
+  se as medidas podem compor um critério auxiliar de parada em pipelines de
+  treinamento, comparando custo computacional e desempenho com os critérios
+  tradicionais baseados na perda de validação.
 \end{enumerate}

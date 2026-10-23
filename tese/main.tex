@@ -75,13 +75,17 @@
 %% \usepackage{claudedraft}  % desativado em 2026-09-29: nao ha mais trechos marcados
 %% (o arquivo claudedraft.sty permanece no projeto; basta descomentar para reativar)
 
+%% Marca, em vermelho, o que ainda falta escrever (removido em 2026-10-22 junto com
+%% o ruido de rotulo e a SampEn2D; os regimes que ficaram ainda nao estao no texto).
+\newcommand{\pendente}[1]{\textcolor{red}{[\textbf{Pendente:} #1]}}
+
 %% ─── Ajustes de layout ABNT ─────────────────────────────────────────────────
 \setlength{\parindent}{1.3cm}
 \setlength{\parskip}{0.2cm}
 
 %% ─── Metadados ──────────────────────────────────────────────────────────────
-\titulo{Complexidade Estatística dos Pesos de Redes Neurais Profundas como
-Marcador de Overfitting}
+\titulo{Comportamento da Complexidade Estatística dos Pesos da Camada Densa
+durante o Treinamento de Redes Neurais Convolucionais em Imagens Médicas}
 \autor{Cássio Silva Takarada}
 \local{Ribeirão Preto--SP}
 \data{2026}

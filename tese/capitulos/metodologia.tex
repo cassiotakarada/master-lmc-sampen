@@ -9,12 +9,11 @@ evolução da complexidade estatística dos pesos da camada densa de redes
 neurais profundas durante o treinamento. A exposição segue do dado bruto às
 medidas: o conjunto de dados (Seção~\ref{sec:dados}), as arquiteturas
 (Seção~\ref{sec:arquitetura}) e o protocolo de treinamento
-(Seção~\ref{sec:treinamento}); a indução de memorização por corrupção de
-rótulos (Seção~\ref{sec:desenho2}); a camada densa como objeto de medida e a
+(Seção~\ref{sec:treinamento}); os regimes de treinamento comparados
+(Seção~\ref{sec:regimes}); a camada densa como objeto de medida e a
 ordem de achatamento dos seus pesos (Seção~\ref{sec:camada-densa}); as
-medidas de complexidade (Seção~\ref{sec:medidas}); o monitoramento durante o
-treinamento (Seção~\ref{sec:monitor}); e a referência temporal empregada na
-análise (Seção~\ref{sec:referencia-temporal}).
+medidas de complexidade (Seção~\ref{sec:medidas}); e o monitoramento durante o
+treinamento (Seção~\ref{sec:monitor}).
 
 % ===========================================================================
 \section{Conjunto de dados}
@@ -57,8 +56,8 @@ que é o objeto das medidas deste trabalho
   \label{fig:resnet-overview}
 \end{figure}
 
-Para verificar se o comportamento observado depende da arquitetura,
-repete-se parte dos experimentos com a DenseNet-121 (implementação
+Para descrever o comportamento das medidas em uma segunda arquitetura,
+repetem-se as execuções de controle com a DenseNet-121 (implementação
 \texttt{torchvision}, sem pré-treinamento), com a camada classificadora
 igualmente substituída para seis classes.
 
@@ -68,79 +67,81 @@ igualmente substituída para seis classes.
 
 O treinamento emprega o otimizador AdamW com taxa de aprendizado $10^{-3}$ e
 \emph{weight decay} nulo, entropia cruzada como função objetivo, lotes de 128
-imagens e 60 épocas, sem aumento de dados. O \emph{weight decay} e o aumento de
-dados são desligados deliberadamente: ambos combatem a memorização, que é
-justamente o fenômeno que o protocolo da Seção~\ref{sec:desenho2} provoca.
+imagens e 60 épocas, sem aumento de dados, salvo quando o regime exige outro
+número de épocas (Seção~\ref{sec:subamostragem}). O \emph{weight decay} e o
+aumento de dados são desligados deliberadamente: ambos são formas de
+regularização, e mantê-los atribuiria a diferença entre regimes a mais de uma
+causa. Todas as execuções compartilham essa configuração, de modo que cada
+regime difere do controle apenas pelo fator manipulado.
 Os experimentos foram executados em GPU (\emph{torch} $2{,}4{,}1$ e
 \emph{torchvision} $0{,}19{,}1$).
 
 % ===========================================================================
-\section{Indução de memorização por corrupção de rótulos}
-\label{sec:desenho2}
+\section{Regimes de treinamento}
+\label{sec:regimes}
 
-Para examinar se as medidas de complexidade respondem à \emph{memorização}
---- isto é, ao ajuste a associações que não generalizam --- e não apenas à
-escassez de dados, a perda de generalização é induzida por corrupção de
-rótulos.
+As trajetórias das medidas são comparadas entre três regimes, todos com a
+configuração da Seção~\ref{sec:treinamento}. Em cada regime, a semente que
+governa a inicialização dos pesos varia entre as execuções, enquanto a partição
+permanece fixa. Validação e teste nunca são alterados: o fator manipulado
+incide \emph{apenas} sobre o treino, de modo que a validação mede o efeito
+desse fator sobre a generalização.
 
-A distinção importa porque subamostrar o treino reduz simultaneamente a
-quantidade de informação disponível e a diversidade dos exemplos, de modo
-que a degradação observada pode ter mais de uma origem. Corromper rótulos,
-em contrapartida, mantém o volume de dados e introduz exclusivamente
-associações inconsistentes, forçando a rede a memorizá-las
-\cite{zhang2017}.
+\subsection{Controle}
+\label{sec:controle}
 
-\subsection{Protocolo de corrupção de rótulos}
-\label{sec:corrupcao}
+O controle usa o conjunto de treino completo (\num{47164} imagens), com rótulos e
+imagens intactos, por 60 épocas, o que corresponde a \num{22140} passos de
+otimização (369 lotes por época). Na ResNet-18 há oito execuções de controle;
+na DenseNet-121, cinco.
 
-Uma fração $\rho \in \{0{,}15;\ 0{,}30;\ 0{,}50\}$ dos exemplos do
-conjunto de treinamento tem seu rótulo substituído por um valor sorteado
-uniformemente entre \emph{todas} as classes, inclusive a verdadeira ---
-convenção adotada por \citeonline{zhang2017}. A consequência precisa ser
-declarada, para que a fração sorteada não seja confundida com a fração
-efetivamente errada: com $K$ classes, uma fração sorteada $\rho$ produz
-$\rho\,(K-1)/K$ de rótulos de fato incorretos. Nos experimentos com seis
-classes, portanto, $\rho = 0{,}30$ corresponde a \SI{25}{\percent} de
-rótulos errados, e $\rho = 0{,}15$ e $\rho = 0{,}50$ correspondem a
-\SI{12,5}{\percent} e \SI{41,7}{\percent}, respectivamente. O registro de
-cada execução reporta as duas quantidades.
+\subsection{Subamostragem do conjunto de treino}
+\label{sec:subamostragem}
 
-A corrupção incide \emph{apenas} sobre o treino; validação e teste permanecem
-íntegros, de modo que a degradação da validação mede exatamente a perda de
-generalização induzida --- corromper a régua junto com o objeto medido não
-mediria nada.
+Treina-se com uma fração $f \in \{\SI{10}{\percent};\ \SI{2}{\percent};\
+\SI{1}{\percent}\}$ do conjunto de treino, isto é, \num{4717}, \num{944} e
+\num{471} imagens, com cinco sementes por fração. Reduzir o treino diminui
+simultaneamente a quantidade de informação e a diversidade dos exemplos, e
+torna o sobreajuste mais provável.
 
-Convém registrar por que a indução por corrupção de rótulos foi preferida à
-alternativa de simplesmente reduzir o conjunto de treino.
-Experimentos preliminares mostraram que a redução produz um falso positivo
-convincente: com poucos passos de otimização, as estatísticas móveis das camadas
-de normalização em lote não convergem, e o modelo colapsa em modo de avaliação
---- inclusive sobre o próprio conjunto de treino. O quadro se parece com
-sobreajuste catastrófico, mas o mesmo modelo acerta cerca de
-\SI{94,5}{\percent} da validação quando a normalização usa as estatísticas do
-lote corrente. Mede-se, nesse caso, um artefato de normalização, e não perda de
-generalização. A corrupção de rótulos não tem esse problema, pois preserva as
-\num{47164} amostras de treino e mantém as estatísticas de normalização
-saudáveis.
+A subamostragem traz, porém, uma armadilha que precisa ser controlada.
+Experimentos preliminares mostraram que, com poucos passos de otimização, as
+estatísticas móveis das camadas de normalização em lote não convergem, e o
+modelo colapsa em modo de avaliação --- inclusive sobre o próprio conjunto de
+treino. O quadro se parece com sobreajuste catastrófico, mas o mesmo modelo
+acerta cerca de \SI{94,5}{\percent} da validação quando a normalização usa as
+estatísticas do lote corrente. Mede-se, nesse caso, um artefato de
+normalização, e não perda de generalização.
 
-A semente que governa a corrupção é independente daquela que governa a
-partição e a inicialização dos pesos. A separação é necessária: se ambas
-fossem a mesma, repetir o experimento alterando apenas a semente
-reproduziria os mesmos rótulos corrompidos, medindo sensibilidade à
-inicialização em lugar de replicação.
+Por isso cada fração é treinada em duas versões. Na versão \emph{curta}, o
+número de épocas é o usual para a fração (60 épocas a \SI{10}{\percent} e 200
+épocas a \SI{2}{\percent} e \SI{1}{\percent}, ou \num{2220}, \num{1600} e
+\num{800} passos). Na versão de \emph{passos igualados}, o número de épocas é
+ampliado até que o total de passos iguale o do controle (599, \num{2768} e
+\num{5535} épocas, cerca de \num{22140} passos). A comparação entre as duas
+versões separa o efeito de ter poucos dados do efeito de ter poucos passos.
 
-Cada execução com corrupção possui uma execução de controle
-\textbf{estritamente pareada}, idêntica a ela em arquitetura, partição,
-semente, número de épocas, decaimento de pesos e ausência de aumento de
-dados, diferindo unicamente por $\rho = 0$. O rigor desse pareamento é
-condição de validade: qualquer diferença adicional entre os grupos, como
-a presença de aumento de dados em apenas um deles, tornaria o contraste
-observado atribuível a mais de uma causa.
+\subsection{Ruído nas imagens de treino}
+\label{sec:ruido-imagem}
 
-A confirmação de que houve memorização, e não apenas degradação, é feita
-\emph{a posteriori}: verifica-se que a acurácia de treino em modo de
-avaliação sobe até ajustar os rótulos corrompidos, enquanto a acurácia de
-validação cai.
+Soma-se às imagens de treino um campo de ruído gerado no domínio da
+frequência. Sorteia-se ruído branco gaussiano do tamanho da imagem, aplica-se a
+transformada de Fourier bidimensional, multiplica-se o espectro pelo filtro
+radial $1/f^{\beta/2}$, com $f$ a frequência espacial, e retorna-se ao domínio
+espacial. O espectro de potência resultante é proporcional a $1/f^{\beta}$:
+$\beta = 0$ produz ruído \emph{branco}, de potência plana, e $\beta = 1$
+produz ruído \emph{rosa}, com mais potência nas baixas frequências. O
+componente de frequência nula é zerado, para que o ruído não desloque o brilho
+médio da imagem, e o campo é normalizado para desvio-padrão unitário. A imagem
+ruidosa é $\mathrm{clip}(x + \sigma z,\ 0,\ 1)$, com $x$ a imagem em $[0, 1]$, $z$
+o campo de ruído e $\sigma \in \{0{,}05;\ 0{,}1;\ 0{,}2\}$ a intensidade, na
+mesma escala do pixel. O mesmo campo é somado aos três canais, pois o MedNIST é
+escala de cinza replicada.
+
+O ruído é \emph{fixo por imagem}: cada imagem de treino recebe sempre o mesmo
+campo, em todas as épocas, de modo que a rede pode ajustá-lo. Os rótulos
+permanecem intactos. Há cinco sementes por combinação de cor e intensidade,
+totalizando 30 execuções.
 
 % ===========================================================================
 
@@ -179,8 +180,7 @@ Equação~\ref{eq:ordem-neuronio} mede a regularidade \emph{dentro do campo
 receptivo de cada neurônio}; a Equação~\ref{eq:ordem-entrada} mede a
 regularidade \emph{da distribuição de uma mesma entrada entre os
 neurônios}. Adota-se a primeira como convenção padrão, por corresponder ao
-achatamento nativo do PyTorch, e a comparação entre as duas é reportada
-como ablação. O Apêndice~\ref{ap:exemplo-numerico} ilustra as duas ordens
+achatamento nativo do PyTorch. O Apêndice~\ref{ap:exemplo-numerico} ilustra as duas ordens
 com um exemplo numérico. Para a complexidade LMC a distinção é
 irrelevante, pois a medida depende apenas do histograma dos valores e é
 invariante a permutações.
@@ -237,55 +237,19 @@ $m = 2$ e $r = 0{,}2\,\sigma(U)$ \cite{yentes2013}, validados pelo
 grupo de pesquisa em estudos prévios.
 
 
-\subsection{SampEn 2D}
-\label{sec:medidas-extensoes}
-
-A SampEn 2D \cite{silva2016} opera diretamente sobre a matriz de pesos, sem
-\emph{flatten}, preservando a estrutura nas duas direções e contornando por
-completo a escolha da ordem de achatamento discutida na
-Seção~\ref{sec:camada-densa}. Os parâmetros adotados são descritos na
-Seção~\ref{sec:monitor}.
-
-
 % ===========================================================================
 
 \section{Monitoramento durante o treinamento}
 \label{sec:monitor}
 
 As medidas são calculadas \textbf{a cada época, dentro do laço de
-treinamento}, e não sobre \emph{snapshots} analisados posteriormente. A escolha decorre do objetivo: se o propósito é
-oferecer ao desenvolvedor um aviso utilizável, a medida precisa estar
-disponível enquanto o treinamento ocorre, e não apenas em análise
-posterior.
+treinamento}, e não sobre \emph{snapshots} analisados posteriormente. A escolha
+tem razão prática: nas execuções de passos igualados, com milhares de épocas,
+guardar os pesos de cada época seria inviável em disco, e o cálculo dentro do
+laço dispensa esse armazenamento.
 
-São calculadas por época a complexidade LMC com $N_{bins} = 100$, a
-SampEn$_{1D}$ com $m = 2$ e $r = 0{,}20\,\sigma$, e a SampEn2D com
-$m = 1$ e o mesmo $r$. A escolha de $m = 1$ para a variante bidimensional
-é deliberada e merece justificativa: com $m = 2$, as janelas comparadas
-são sub-matrizes $3 \times 3$, que em uma matriz de apenas seis linhas
-raramente encontram pares similares, produzindo contagens instáveis. Com
-$m = 1$, comparam-se janelas $1 \times 1$ contra $2 \times 2$, o que
-mantém as contagens em regime numericamente estável.
+São calculadas por época a complexidade LMC com $N_{bins} = 100$ e a
+SampEn$_{1D}$ com $m = 2$ e $r = 0{,}20\,\sigma$.
 
 O custo do monitoramento é baixo, pois incide apenas sobre a camada densa, e pode
 ser desativado por opção de linha de comando.
-
-% ===========================================================================
-
-\section{Definição operacional da referência temporal}
-\label{sec:referencia-temporal}
-
-Para quantificar antecedência é preciso uma referência que produza um
-número de época. Adota-se como âncora a época em que a acurácia de
-validação passa a cair de forma sustentada.
-
-A opção pela acurácia, e não pela perda de validação, decorre de uma
-observação empírica. Ancorando o diagnóstico na perda, o monitor
-sinalizava sobreajuste em todas as execuções, incluindo os controles, e
-em cerca de metade das épocas --- consequência de o MedNIST saturar muito
-cedo, fazendo a perda de validação subir logo após as primeiras épocas
-mesmo em treinamentos saudáveis. Reancorado na acurácia, o comportamento
-tornou-se o esperado. O episódio ilustra que a definição operacional de
-sobreajuste não é detalhe de implementação, mas condição de validade do
-resultado.
-

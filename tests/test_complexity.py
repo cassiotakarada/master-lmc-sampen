@@ -4,8 +4,7 @@ tests/test_complexity.py — Unit tests for src/complexity.py.
 Covers analytically known or clearly bounded cases for each measure:
   - LMC: uniform → entropy max, D≈0, C≈0; constant → entropy≈0, D max, C≈0
   - SampEn₁D: periodic series → low; noise → high; vs. antropy reference
-  - SampEn₂D: constant matrix → 0; noise > structured pattern
-  - MSE₁D/₂D: shape correctness; scale-1 matches direct SampEn
+  - MSE₁D: shape correctness; scale-1 matches direct SampEn
 
 All seeds are fixed for reproducibility.
 """
@@ -15,9 +14,7 @@ import pytest
 from src.complexity import (
     lmc_complexity,
     sample_entropy_1d,
-    sample_entropy_2d,
     mse_1d,
-    mse_2d,
 )
 
 RNG = np.random.default_rng(42)
@@ -166,68 +163,6 @@ class TestSampleEntropy1D:
 
 
 # ============================================================================
-# 2D Sample Entropy
-# ============================================================================
-
-class TestSampleEntropy2D:
-
-    def test_constant_matrix_returns_zero(self):
-        mat = np.full((32, 32), 3.14)
-        assert sample_entropy_2d(mat) == 0.0
-
-    def test_noise_matrix_finite_or_inf_and_nonnegative(self):
-        # inf is a valid return (A=0: no (m+1)-windows match → max irregularity)
-        mat = RNG.standard_normal((32, 32))
-        se = sample_entropy_2d(mat, m=2, r_scale=0.15)
-        assert np.isfinite(se) or np.isinf(se), f"Expected finite or inf, got {se}"
-        if np.isfinite(se):
-            assert se >= 0.0
-
-    def test_noise_higher_than_checkerboard(self):
-        # Checkerboard: highly regular 2D pattern → lower SampEn₂D than noise
-        rng = np.random.default_rng(7)
-        noise = rng.standard_normal((32, 32))
-
-        # ±1 checkerboard has SD=1 and perfectly repeating 2-period pattern
-        ii, jj = np.indices((32, 32))
-        checker = ((ii + jj) % 2).astype(float) * 2.0 - 1.0
-
-        se_noise = sample_entropy_2d(noise, m=2, r_scale=0.15)
-        se_check = sample_entropy_2d(checker, m=2, r_scale=0.15)
-        assert se_noise > se_check, (
-            f"Noise ({se_noise:.4f}) should exceed checkerboard ({se_check:.4f})"
-        )
-
-    def test_uniform_random_matrix_positive_sampen(self):
-        mat = RNG.uniform(-1, 1, size=(40, 40))
-        se = sample_entropy_2d(mat, m=2, r_scale=0.15)
-        assert se > 0.0, f"Expected positive SampEn₂D for random matrix, got {se}"
-
-    def test_large_matrix_subsampled(self):
-        # Large weight matrix (e.g. ResNet conv layer) should not raise
-        mat = RNG.standard_normal((128, 128))
-        se = sample_entropy_2d(mat, m=2, max_dim=32)
-        assert np.isfinite(se) or se == np.inf
-
-    def test_non_square_matrix_accepted(self):
-        mat = RNG.standard_normal((16, 64))
-        se = sample_entropy_2d(mat, m=2)
-        assert np.isfinite(se) or np.isnan(se) or se == np.inf
-
-    def test_raises_on_1d_input(self):
-        with pytest.raises(ValueError):
-            sample_entropy_2d(np.arange(100.0))
-
-    def test_output_nonnegative(self):
-        # By construction A ≤ B, so SampEn₂D = -ln(A/B) ≥ 0 for any input
-        for _ in range(5):
-            mat = RNG.standard_normal((20, 20))
-            se = sample_entropy_2d(mat)
-            if np.isfinite(se):
-                assert se >= 0.0, f"SampEn₂D must be ≥ 0, got {se}"
-
-
-# ============================================================================
 # Multiscale Sample Entropy — 1D
 # ============================================================================
 
@@ -261,67 +196,3 @@ class TestMSE1D:
         manual_se = sample_entropy_1d(x_cg, m=2, r=r_orig)  # pass same r
         mse = mse_1d(x, max_scale=2)
         assert abs(mse[1] - manual_se) < 1e-10
-
-
-# ============================================================================
-# Multiscale Sample Entropy — 2D
-# ============================================================================
-
-class TestMSE2D:
-
-    def test_output_shape(self):
-        mat = RNG.standard_normal((32, 32))
-        result = mse_2d(mat, max_scale=5)
-        assert result.shape == (5,)
-
-    def test_scale1_matches_direct_sampen2d(self):
-        mat = RNG.standard_normal((24, 24))
-        mse = mse_2d(mat, max_scale=3, m=2)
-        # r fixed from original matrix for MSE (ddof=0, supervisor's convention)
-        r = 0.2 * np.std(mat)
-        direct = sample_entropy_2d(mat, m=2, r=r)
-        # Both inf or both equal finite value
-        both_inf = np.isinf(mse[0]) and np.isinf(direct)
-        both_nan = np.isnan(mse[0]) and np.isnan(direct)
-        assert both_inf or both_nan or abs(mse[0] - direct) < 1e-10, (
-            f"MSE₂D at τ=1 ({mse[0]}) should equal direct SampEn₂D ({direct})"
-        )
-
-    def test_constant_matrix_returns_zeros(self):
-        mat = np.full((20, 20), 1.0)
-        result = mse_2d(mat, max_scale=4)
-        assert np.all(result == 0.0)
-
-    def test_all_scales_not_negative_infinity(self):
-        # Valid outputs are: finite (≥0), +inf (max irregularity), or nan (undefined).
-        # Negative infinity is never expected.
-        mat = RNG.standard_normal((32, 32))
-        result = mse_2d(mat, max_scale=8)
-        for i, v in enumerate(result):
-            assert not (np.isinf(v) and v < 0), (
-                f"Unexpected -inf at scale {i+1}"
-            )
-            assert not np.isnan(v) or True  # nan is acceptable
-
-    def test_r_fixed_from_original_matrix(self):
-        mat = RNG.standard_normal((24, 24))
-        r_orig = 0.2 * np.std(mat)   # ddof=0, supervisor's convention
-        # Coarse-grain scale 2 manually and compute SampEn₂D with original r
-        mat_cg = _coarse_grain_2d_helper(mat, tau=2)
-        manual_se = sample_entropy_2d(mat_cg, m=2, r=r_orig)
-        mse = mse_2d(mat, max_scale=2)
-        # Handle inf==inf and nan==nan correctly
-        both_inf = np.isinf(mse[1]) and np.isinf(manual_se)
-        both_nan = np.isnan(mse[1]) and np.isnan(manual_se)
-        assert both_inf or both_nan or abs(mse[1] - manual_se) < 1e-10, (
-            f"MSE₂D scale-2 ({mse[1]}) should equal manual ({manual_se})"
-        )
-
-
-# Helper for the last MSE₂D test (mirrors the private function)
-def _coarse_grain_2d_helper(mat: np.ndarray, tau: int) -> np.ndarray:
-    H, W = mat.shape
-    H_t = (H // tau) * tau
-    W_t = (W // tau) * tau
-    trimmed = mat[:H_t, :W_t]
-    return trimmed.reshape(H_t // tau, tau, W_t // tau, tau).mean(axis=(1, 3))

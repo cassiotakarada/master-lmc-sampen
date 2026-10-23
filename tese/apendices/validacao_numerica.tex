@@ -7,7 +7,7 @@
 Este apêndice cumpre a parte do objetivo específico~1
 (\autoref{ch:introducao}) referente à \emph{validação numérica das medidas
 em casos analiticamente conhecidos}. As implementações descritas na
-\autoref{sec:medidas} --- complexidade LMC e \emph{Sample Entropy} 1D e 2D ---
+\autoref{sec:medidas} --- complexidade LMC e \emph{Sample Entropy} ---
 são aplicadas a distribuições e séries cujo comportamento esperado é conhecido
 em forma fechada ou qualitativamente, verificando-se que os valores produzidos
 coincidem com a teoria. Todos os resultados desta seção são reproduzíveis
@@ -73,38 +73,7 @@ confirma a ordenação esperada.
 \end{table}
 
 % ===========================================================================
-\section{Sample Entropy 2D}
-\label{sec:ap-validacao-sampen2d}
-
-A SampEn 2D preserva os limites esperados: uma matriz \emph{constante}
-produz $0$, e uma matriz com \emph{estrutura periódica} produz valor baixo.
-Para \emph{ruído branco} $64 \times 64$, a tolerância padrão $r = 0{,}2\,\sigma$
-satura em $+\infty$ --- nenhum par de janelas $(m+1)\times(m+1)$ casa dentro da
-tolerância ---, exatamente o comportamento que motivou a adoção de
-$r = 0{,}5\,\sigma$ na \autoref{sec:medidas-extensoes}; sob essa tolerância o
-valor torna-se finito ($\approx 6{,}46$). A validação, portanto, não apenas
-confirma os limites como reproduz de forma independente a justificativa
-metodológica para a calibração de $r$ no caso 2D.
-
-\begin{table}[H]
-  \centering
-  \caption{Validação da SampEn 2D ($m = 2$, matrizes $64 \times 64$). O caso
-  do ruído sob $r = 0{,}2\,\sigma$ reproduz a saturação que motiva
-  $r = 0{,}5\,\sigma$.}
-  \label{tab:val-sampen2d}
-  \begin{tabular}{lrl}
-    \toprule
-    Matriz & SampEn 2D & Esperado \\
-    \midrule
-    Constante                    & $0{,}0000$ & $0$ (regular) \\
-    Estrutura periódica          & $0{,}8173$ & baixa (estruturada) \\
-    Ruído branco ($r=0{,}2\,\sigma$) & $+\infty$ & satura (motiva $r=0{,}5\,\sigma$) \\
-    Ruído branco ($r=0{,}5\,\sigma$) & $6{,}4636$ & finito e elevado (irregular) \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-Em conjunto, as três validações estabelecem que as implementações reproduzem os
+Em conjunto, as duas validações estabelecem que as implementações reproduzem os
 valores analíticos exatos nos extremos (LMC nas distribuições uniforme e
 degenerada; SampEn em séries constantes) e a ordenação qualitativa esperada nos
 regimes intermediários, sustentando o uso das medidas nas análises do

@@ -1,27 +1,22 @@
 \begin{resumo}[Abstract]
 \begin{otherlanguage*}{english}
-Diagnosing overfitting in deep neural networks currently relies on a labelled
+Monitoring the training of deep neural networks currently relies on a labelled
 validation set that is representative and sufficiently large --- a condition
 often unattainable in medical imaging, where annotation is costly and requires
-expert knowledge. This dissertation investigates whether statistical complexity
+expert knowledge. This dissertation describes how statistical complexity
 measures computed exclusively from network weights, without access to any
-label, can serve as markers of the onset of overfitting. Three measures are
-considered: the Lopez-Ruiz--Mancini--Calbet (LMC) complexity, defined as the
-product of Shannon entropy and the statistical distance from equilibrium;
-sample entropy (SampEn); and its two-dimensional variant (SampEn2D), computed
-at every epoch over the dense-layer weights of networks trained on the MedNIST
-dataset. Memorisation is induced by controlled label corruption, preserving
-data volume. With eight runs and strictly paired controls, SampEn2D
-inflects $7.5 \pm 0.9$ epochs before validation accuracy degrades, with an
-amplitude ratio of $5.7$ between runs with and without memorisation
-($p = 0.00016$), a result replicated on the DenseNet-121 architecture
-($4.3$ times; $p = 0.0016$). LMC complexity, however, fails to discriminate
-memorisation in the dense layer ($1.1$ times; $p = 0.19$). The findings
-indicate that the ability to mark overfitting depends on the measure employed.
+label, behave throughout training. Two measures are considered: the
+Lopez-Ruiz--Mancini--Calbet (LMC) complexity, defined as the product of Shannon
+entropy and the statistical distance from equilibrium, and sample entropy
+(SampEn), computed at every epoch over the dense-layer weights of networks
+trained on the MedNIST dataset. The trajectories are compared across control
+runs, runs with a subsampled training set and runs with white and pink noise
+added to the training images.
+\pendente{summary of the results of the remaining regimes.}
 
 \vspace{\onelineskip}
 \noindent
-\textbf{Keywords}: Statistical complexity; Sample entropy; Overfitting; Deep
-learning; Medical imaging; Memorisation; LMC complexity.
+\textbf{Keywords}: Statistical complexity; Sample entropy; Deep learning;
+Medical imaging; LMC complexity.
 \end{otherlanguage*}
 \end{resumo}

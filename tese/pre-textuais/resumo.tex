@@ -1,25 +1,18 @@
 \begin{resumo}
-O diagnóstico de sobreajuste (\emph{overfitting}) em redes neurais profundas
-depende, na prática corrente, de um conjunto de validação rotulado,
-representativo e suficientemente grande --- condição frequentemente inviável em
-imagens médicas, nas quais a anotação é onerosa e exige especialista. Esta
-dissertação investiga se medidas de complexidade estatística calculadas
-exclusivamente sobre os pesos da rede, sem acesso a rótulo algum, constituem
-marcadores do início do sobreajuste. São consideradas a complexidade
-Lopez-Ruiz--Mancini--Calbet (LMC), produto da entropia de Shannon pela
-distância estatística ao equilíbrio, a entropia amostral (SampEn) e sua variante
-bidimensional (SampEn2D), calculadas a cada época sobre os pesos da camada densa
-de redes treinadas no conjunto MedNIST. A memorização é induzida por corrupção
-controlada de rótulos, preservando o volume de dados. Com oito execuções e
-controles estritamente pareados, a SampEn2D inflete
-$7{,}5 \pm 0{,}9$ épocas antes da degradação da acurácia de validação, com
-razão de amplitude de $5{,}7$ vezes entre execuções com e sem memorização
-($p = 0{,}00016$), resultado replicado na arquitetura DenseNet-121
-($4{,}3$ vezes; $p = 0{,}0016$). A complexidade LMC, contudo, não discrimina
-memorização na camada densa ($1{,}1$ vez; $p = 0{,}19$). Conclui-se que a
-capacidade de marcar o sobreajuste depende da medida empregada.
+O acompanhamento do treinamento de redes neurais profundas depende, na prática
+corrente, de um conjunto de validação rotulado, representativo e suficientemente
+grande --- condição frequentemente inviável em imagens médicas, nas quais a
+anotação é onerosa e exige especialista. Esta dissertação descreve como medidas
+de complexidade estatística calculadas exclusivamente sobre os pesos da rede,
+sem acesso a rótulo algum, se comportam ao longo do treinamento. São
+consideradas a complexidade Lopez-Ruiz--Mancini--Calbet (LMC), produto da
+entropia de Shannon pela distância estatística ao equilíbrio, e a entropia
+amostral (SampEn), calculadas a cada época sobre os pesos da camada densa de
+redes treinadas no conjunto MedNIST. As trajetórias são comparadas entre
+execuções de controle, execuções com subamostragem do conjunto de treino e
+execuções com ruído branco e rosa somado às imagens de treino.
+\pendente{síntese dos resultados dos regimes que permanecem no trabalho.}
 
 \textbf{Palavras-chave}: Complexidade estatística; Entropia amostral;
-Sobreajuste; Aprendizagem profunda; Imagens médicas; Memorização;
-Complexidade LMC.
+Aprendizagem profunda; Imagens médicas; Complexidade LMC.
 \end{resumo}

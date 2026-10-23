@@ -17,10 +17,8 @@ formal às medidas que vêm a seguir. A \autoref{sec:apen-sampen}
 percorre a transição da Entropia Aproximada (ApEn) para a Entropia de
 Amostra (SampEn), explicitando os vieses que motivaram o refinamento e
 a interpretação probabilística de SampEn como log-verossimilhança
-condicional. As \autoref{sec:sampen2d} e \autoref{sec:mse} estendem
-SampEn ao domínio espacial bidimensional e ao plano multiescala,
-respectivamente, fornecendo as duas leituras complementares sobre a
-matriz de pesos de uma camada convolucional. Por fim, a
+condicional. A \autoref{sec:mse} estende SampEn ao plano multiescala.
+Por fim, a
 \autoref{sec:lmc} apresenta a complexidade estatística de López-Ruiz,
 Mancini e Calbet (LMC), discute a controvérsia sobre normalização e
 intensividade que se seguiu à proposta original e justifica a
@@ -66,9 +64,9 @@ Na presente dissertação essa distinção é operacional, e não apenas conceit
 O nível microscópico é o dos valores individuais dos pesos; o macroscópico é o
 da capacidade de generalização do modelo, aferida em dados não vistos. A
 hipótese central pode então ser reformulada nesses termos: pretende-se
-verificar se uma estatística calculada sobre o nível microscópico --- a
-distribuição e a organização dos pesos --- acompanha, e eventualmente antecipa,
-a transição de regime observada no nível macroscópico.
+descrever como uma estatística calculada sobre o nível microscópico --- a
+distribuição e a organização dos pesos --- se comporta diante das mudanças de
+regime observadas no nível macroscópico.
 
 \subsection{Auto-organização}
 
@@ -90,12 +88,11 @@ auto-organização não evoluem de modo homogêneo: eles frequentemente apresent
 \emph{transições de regime}, nas quais o comportamento qualitativo muda em
 intervalos relativamente curtos \cite{sayama2015}. É exatamente essa a estrutura
 que a hipótese desta dissertação pressupõe. Se o treinamento consistisse em um
-processo homogêneo de melhoria gradual, não haveria transição a ser detectada, e
-a busca por um marcador do início do sobreajuste careceria de objeto. A
-existência de dois regimes sucessivos no aprendizado --- um em que a rede extrai
-regularidades generalizáveis e outro em que passa a memorizar exemplos
-inconsistentes --- é documentada empiricamente por
-\citeonline{arpit2017} e constitui o pressuposto factual da proposta.
+processo homogêneo de melhoria gradual, as trajetórias das medidas teriam pouco
+a registrar. A existência de dois regimes sucessivos no aprendizado --- um em que
+a rede extrai regularidades generalizáveis e outro em que passa a memorizar
+exemplos --- é documentada empiricamente por \citeonline{arpit2017} e constitui
+o pressuposto factual da proposta.
 
 \subsection{Delimitação: o que não se pretende afirmar}
 
@@ -251,64 +248,6 @@ estatística. Esta dissertação adota $m = 2$ e $r = 0{,}2 \times
 (\texttt{ddof}=0), em consonância com a convenção do grupo de pesquisa
 e com o intervalo recomendado pela literatura.
 
-\section{Entropia de Amostra Bidimensional (SampEn2D)}
-\label{sec:sampen2d}
-
-A extensão bidimensional da SampEn surge da observação de que pesos
-de camadas convolucionais e parâmetros de matrizes têm estrutura
-espacial: a vizinhança de um peso é tão informativa quanto sua
-sequência linear, e o domínio natural para análise é a matriz, não
-o vetor. \citeonline{silva2014embc} apresentaram uma primeira
-formulação, validada posteriormente em \citeonline{silva2016} sobre
-imagens de textura sintéticas, do banco Brodatz e de cortes
-histológicos de nervo sural, demonstrando que SampEn2D recupera as
-propriedades qualitativas de SampEn 1D ao mesmo tempo em que
-incorpora a dependência bidimensional.
-
-Seja $\mathbf{W} \in \mathbb{R}^{H \times W}$ uma matriz de pesos
-extraída de uma camada da rede. Fixe-se um tamanho de janela $m$ e
-uma tolerância $r$. As janelas $m \times m$ centradas em
-$(i, j)$ formam a coleção
-$\mathcal{V}_m = \{ \mathbf{V}_{i,j}^{(m)} : 1 \le i \le H - m,\,
-1 \le j \le W - m\}$. Para uma janela maior $(m+1) \times (m+1)$,
-analogamente, escreve-se $\mathcal{V}_{m+1}$. Por construção,
-restringe-se às posições $(i, j)$ tais que ambas as janelas $m$ e
-$m+1$ caibam integralmente em $\mathbf{W}$, garantindo emparelhamento
-entre $\mathcal{V}_m$ e $\mathcal{V}_{m+1}$. Em analogia com as
-\autoref{eq:sampen-B} e \autoref{eq:sampen-A}, definem-se
-\begin{align}
-  B^m_{\mathrm{2D}}(r)
-    &= \#\{(p, q) : p \neq q,\ d[\mathbf{V}_p^{(m)}, \mathbf{V}_q^{(m)}] \le r\},
-    \label{eq:sampen2d-B} \\
-  A^m_{\mathrm{2D}}(r)
-    &= \#\{(p, q) : p \neq q,\ d[\mathbf{V}_p^{(m+1)}, \mathbf{V}_q^{(m+1)}] \le r\},
-    \label{eq:sampen2d-A}
-\end{align}
-em que $p, q$ percorrem as posições válidas e $d[\cdot, \cdot]$ é a
-distância de Chebyshev sobre a janela vista como vetor. A
-\emph{Sample Entropy 2D} é
-\begin{equation}
-  \mathrm{SampEn2D}(m, r, \mathbf{W})
-    = -\ln \frac{A^m_{\mathrm{2D}}(r)}{B^m_{\mathrm{2D}}(r)}.
-  \label{eq:sampen2d}
-\end{equation}
-A interpretação probabilística replica a do caso unidimensional:
-SampEn2D é o negativo do logaritmo da probabilidade de que duas
-janelas $m \times m$ próximas tenham vizinhanças que permaneçam
-próximas quando a janela é estendida em uma linha e uma coluna.
-
-A literatura aponta dois aspectos práticos relevantes. Primeiro, a
-SampEn2D pode produzir valores indefinidos para matrizes pequenas
-quando $A^m_{\mathrm{2D}}(r) = 0$, problema que motivou propostas
-alternativas baseadas em entropias de dispersão e
-fuzzificação. Segundo, o custo computacional cresce
-quadraticamente com o número de janelas válidas, tornando a
-estimativa custosa para matrizes grandes \cite{silva2016}. Para os
-fins desta dissertação, o tamanho típico das matrizes de uma camada
-convolucional na ResNet-18 mantém-se confortavelmente acima do
-regime patológico identificado pela literatura, e a SampEn2D é
-aplicada diretamente, sem recurso a substitutos.
-
 \section{Entropia Multiescala (MSE)}
 \label{sec:mse}
 
@@ -446,7 +385,7 @@ resolução suficiente para camadas pequenas sem incorrer em viés de
 subamostragem em camadas grandes.
 
 A combinação entre LMC (sensível à forma da distribuição marginal
-dos pesos) e SampEn (sensível à estrutura sequencial e espacial)
+dos pesos) e SampEn (sensível à estrutura sequencial)
 fornece, portanto, dois ângulos complementares sobre o estado
 interno da rede ao longo do treinamento. Os parâmetros operacionais
 adotados, junto da fundamentação aqui apresentada, são retomados em
@@ -473,19 +412,17 @@ que a acompanha. A Seção~\ref{sec:ea-sintese} sintetiza e posiciona a proposta
 
 \citeonline{zhang2017} demonstraram que redes convolucionais de grande porte
 ajustam perfeitamente rótulos atribuídos ao acaso, e que esse comportamento
-persiste sob regularização explícita. O resultado é duplamente relevante para
-esta dissertação: estabelece que a capacidade de memorização não é acidente, mas
-propriedade das arquiteturas usuais, e fornece o protocolo de indução por
-corrupção controlada de rótulos adotado no Capítulo~\ref{ch:metodologia}. A
-limitação, do ponto de vista aqui assumido, é que o diagnóstico permanece
+persiste sob regularização explícita. O resultado é relevante para esta
+dissertação por estabelecer que a capacidade de memorização não é acidente, mas
+propriedade das arquiteturas usuais. A limitação, do ponto de vista aqui assumido, é que o diagnóstico permanece
 ancorado na comparação entre desempenho de treino e de teste.
 
 \citeonline{arpit2017} refinam o quadro ao mostrar que memorização e aprendizado
 de padrões não são simultâneos: redes tendem a aprender primeiro as
 regularidades simples e só depois memorizar os exemplos ruidosos. A existência
 de dois regimes sucessivos, e não de um processo homogêneo, é o pressuposto que
-torna plausível a hipótese desta dissertação --- se há transição, pode haver
-assinatura da transição. Os autores, contudo, caracterizam os regimes por
+torna plausível a hipótese desta dissertação --- se há transição, as medidas
+calculadas sobre os pesos podem registrá-la. Os autores, contudo, caracterizam os regimes por
 métricas que dependem dos dados, não da estrutura dos pesos.
 
 \citeonline{power2022} descrevem o fenômeno de \emph{grokking}, em que a
@@ -515,10 +452,9 @@ causal com a lacuna de generalização. A conclusão é cautelar e impõe exigê
 metodológica a qualquer trabalho subsequente: muitas medidas teoricamente
 motivadas correlacionam-se mal com a generalização observada, e medidas baseadas
 em otimização desempenham-se melhor do que as baseadas em norma. A consequência
-adotada nesta dissertação é que não basta exibir correlação entre indicador e
-sobreajuste em uma execução; é preciso demonstrar \emph{discriminação} entre
-execuções com e sem memorização, com controles pareados e teste de
-significância.
+adotada nesta dissertação é que não basta exibir o comportamento de uma medida
+em uma execução; é preciso compará-lo entre regimes, com várias sementes por
+regime e teste de significância.
 
 \subsection{Abordagens espectrais}
 \label{sec:ea-espectral}
@@ -566,7 +502,7 @@ da informação mútua em redes determinísticas.
 Essa controvérsia recomenda cautela e delimita o escopo do presente trabalho de
 modo produtivo. As medidas aqui empregadas \emph{não} são estimativas de
 informação mútua entre camadas e dados, e portanto não herdam as dificuldades de
-estimação que Saxe e colaboradores identificam: LMC, SampEn e SampEn2D são
+estimação que Saxe e colaboradores identificam: LMC e SampEn são
 estatísticas calculadas sobre os \emph{valores dos pesos}, sem referência a
 qualquer distribuição conjunta com os dados. A escolha evita o problema
 metodológico central da controvérsia, ao custo de abdicar da interpretação
@@ -581,21 +517,21 @@ formal em termos de compressão de informação.
 rotulados, à natureza temporal da leitura e ao objeto medido.}
 \label{tab:estado-arte}
 \footnotesize
-\begin{tabular}{llccc}
+\begin{tabular}{llcc}
 \toprule
 \textbf{Trabalho} & \textbf{Objeto da medida} & \textbf{Exige rótulo} &
-\textbf{Leitura temporal} & \textbf{Avisa antes} \\
+\textbf{Leitura temporal} \\
 \midrule
-\citeonline{prechelt1998}   & Erro de validação          & Sim & Sim & Não \\
-\citeonline{zhang2017}      & Desempenho                 & Sim & Não & Não \\
-\citeonline{arpit2017}      & Desempenho                 & Sim & Sim & Não \\
-\citeonline{bartlett2017}   & Norma espectral            & Não & Não & Não \\
-\citeonline{dziugaite2017}  & Limite PAC-Bayes           & Sim & Não & Não \\
-\citeonline{jiang2020}      & Diversas                   & Sim & Não & Não \\
-\citeonline{martin2021}     & Espectro dos pesos         & Não & Não & Não \\
-\citeonline{tishby2015}     & Informação mútua           & Sim & Não & Não \\
-\citeonline{shwartzziv2017} & Informação mútua           & Sim & Sim & Não \\
-\textbf{Esta dissertação}   & Complexidade dos pesos     & Não & Sim & Sim \\
+\citeonline{prechelt1998}   & Erro de validação          & Sim & Sim \\
+\citeonline{zhang2017}      & Desempenho                 & Sim & Não \\
+\citeonline{arpit2017}      & Desempenho                 & Sim & Sim \\
+\citeonline{bartlett2017}   & Norma espectral            & Não & Não \\
+\citeonline{dziugaite2017}  & Limite PAC-Bayes           & Sim & Não \\
+\citeonline{jiang2020}      & Diversas                   & Sim & Não \\
+\citeonline{martin2021}     & Espectro dos pesos         & Não & Não \\
+\citeonline{tishby2015}     & Informação mútua           & Sim & Não \\
+\citeonline{shwartzziv2017} & Informação mútua           & Sim & Sim \\
+\textbf{Esta dissertação}   & Complexidade dos pesos     & Não & Sim \\
 \bottomrule
 \end{tabular}
 \fonte{Elaborado pelo autor.}
@@ -617,8 +553,8 @@ sobre a distribuição de valores e a organização espacial dos pesos, não sob
 espectro das matrizes nem sobre informação mútua com os dados; (ii) a leitura é
 temporal, produzindo uma trajetória por época em lugar de um escalar ao final do
 treino; (iii) nenhum rótulo é consumido, o que a torna aplicável em cenários de
-anotação escassa; e (iv) a validação é feita por controles estritamente pareados
-com indução explícita de memorização, em resposta direta à advertência de
+anotação escassa; e (iv) o comportamento das medidas é comparado entre regimes
+de treinamento, com várias sementes por regime, em resposta à advertência de
 \citeonline{jiang2020} quanto a correlações espúrias.
 
 Registre-se, por fim, uma limitação da própria revisão. A literatura de medidas

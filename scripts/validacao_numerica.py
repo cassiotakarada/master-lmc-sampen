@@ -15,11 +15,6 @@ em forma fechada ou qualitativamente, para verificar a corretude da implementaç
     - Periódica  → ≈ 0 (alta previsibilidade)
     - Ruído branco gaussiano → finito e elevado (alta irregularidade)
 
-  SampEn 2D (m=2, r=0.2·σ):
-    - Matriz constante → 0
-    - Estrutura periódica → baixa
-    - Ruído branco → finito e elevado
-
 Uso:  python scripts/validacao_numerica.py
 """
 
@@ -28,7 +23,7 @@ import sys, os
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.complexity import lmc_complexity, sample_entropy_1d, sample_entropy_2d
+from src.complexity import lmc_complexity, sample_entropy_1d
 
 SEED = 42
 N_BINS = 100
@@ -78,25 +73,6 @@ def main():
 
     noi = rng.normal(0.0, 1.0, 1000)
     print(f"{'ruído branco gaussiano':<28}{sample_entropy_1d(noi):>12.4f}   finito e elevado (irregular)")
-
-    # ────────────────────────────────────────────────────────────────────
-    banner("SampEn 2D  (m=2, r=0.2·σ)")
-    print(f"{'caso':<28}{'SampEn2D':>12}   esperado")
-    print("-" * 64)
-
-    mcst = np.ones((64, 64))
-    print(f"{'matriz constante':<28}{sample_entropy_2d(mcst):>12.4f}   = 0 (regular)")
-
-    # Estrutura periódica 2D
-    g = np.linspace(0, 2 * np.pi, 64)
-    mper = np.add.outer(np.sin(2 * g), np.sin(2 * g))
-    print(f"{'estrutura periódica 2D':<28}{sample_entropy_2d(mper):>12.4f}   baixa (estruturada)")
-
-    mnoi = rng.normal(0.0, 1.0, (64, 64))
-    s02 = sample_entropy_2d(mnoi, r_scale=0.2)
-    s05 = sample_entropy_2d(mnoi, r_scale=0.5)
-    print(f"{'ruído branco 2D (r=0.2σ)':<28}{s02:>12.4f}   satura em +inf (motiva r=0.5σ; cf. M3/DL8)")
-    print(f"{'ruído branco 2D (r=0.5σ)':<28}{s05:>12.4f}   finito e elevado (irregular)")
 
     print()
 
