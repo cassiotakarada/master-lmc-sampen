@@ -201,15 +201,13 @@ sentido das trajetórias.
 \begin{enumerate}
     \item Os experimentos restringem-se a um único repositório de imagens, que
           é reconhecidamente fácil e satura rapidamente. A extensão a um
-          segundo repositório está em discussão.
+          segundo repositório, o PathMNIST, está em execução.
     \item Os regimes têm cinco sementes, o que limita o poder dos testes; os
           efeitos que sobrevivem ao controle dos passos precisam de
           confirmação com mais execuções.
     \item As comparações não foram corrigidas para múltiplos testes; valores-$p$
           isolados próximos de \num{0,05} não devem ser interpretados como
           efeito.
-    \item A definição do ruído colorido nas imagens --- se o filtro $1/f$ deve
-          incidir sobre a potência (rosa) ou sobre a amplitude (marrom) --- e os
-          valores de $\sigma$ ainda são provisórios.
-    \item Os resultados referem-se a uma única arquitetura, a ResNet-18.
+    \item Os regimes usam uma única arquitetura, a ResNet-18; a DenseNet-121
+          entra apenas como controle.
 \end{enumerate}

@@ -22,9 +22,11 @@
 > - ruído rosa e branco nas **imagens** de treino, σ ∈ {0,05; 0,1; 0,2} (`f9_{rosa,branco}_s*_seed*`, n = 5);
 > - acerto por classe na validação.
 >
-> **Pendências:** (1) orientador confirmar se o filtro 1/f vai na potência (rosa, β = 1)
-> ou na amplitude (marrom, β = 2), e os valores de σ; (2) segundo conjunto de dados a
-> confirmar; (3) mais sementes para os efeitos que sobrevivem aos passos igualados (LMC
+> **Definido em 2026-10-23:** o ruído é rosa (filtro 1/f na potência, β = 1), não marrom,
+> e σ ∈ {0,05; 0,1; 0,2} vale para o MedNIST e o PathMNIST.
+>
+> **Pendências:** (1) segundo conjunto de dados, o PathMNIST 64×64 (runs `pm_*`), em
+> execução; (2) mais sementes para os efeitos que sobrevivem aos passos igualados (LMC
 > final a 2 %, amplitude da LMC a 1 %).
 >
 > As seções abaixo são o **histórico das fases**. Trechos sobre SampEn2D, ruído nos rótulos,

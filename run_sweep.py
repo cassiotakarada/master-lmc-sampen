@@ -96,8 +96,8 @@ EXPERIMENTS: List[Experiment] = [
 # decay e com eval_train -- assim o ruido e a unica diferenca, e os controles ja existem.
 # noise_seed = seed, como nas demais replicacoes.
 #
-# SIGMA_RUIDO: intensidade na escala do pixel [0, 1]. Valores ainda a decidir com o
-# orientador em 2026-10-15: 0,05, 0,1 e 0,2 (rosa e branco).
+# SIGMA_RUIDO: intensidade na escala do pixel [0, 1]. Valores definidos: 0,05, 0,1 e 0,2
+# (rosa e branco), os mesmos no MedNIST e no PathMNIST.
 SIGMA_RUIDO = (0.05, 0.1, 0.2)
 for _cor in ("branco", "rosa"):
     for _sig in SIGMA_RUIDO:
