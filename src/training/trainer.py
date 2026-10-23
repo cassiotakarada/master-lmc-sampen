@@ -82,7 +82,7 @@ class Trainer:
         if self.eval_train:
             colunas += ["train_eval_loss", "train_eval_accuracy"]
         if self.monitor is not None:
-            colunas += ["lmc_dense", "sampen_dense", "status"]
+            colunas += ["lmc_dense", "sampen_dense"]
         self._history_cols = colunas
         with open(self.history_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -291,18 +291,6 @@ class Trainer:
         rel["regra"] = ("As analises devem usar apenas as epocas <= melhor_epoca. "
                         "As posteriores ficam gravadas, mas marcadas como pos-overfitting "
                         "e excluidas das conclusoes (regra D6 do plan.md).")
-        # O status online do monitor e provisorio (nao conhece o futuro); este relatorio,
-        # calculado sobre a trajetoria completa, e quem manda. Divergencia e esperada.
-        if self.monitor is not None:
-            online = [h.get("status") for h in self.monitor.historico]
-            n_online_of = sum(1 for st in online if st == "OVERFITTING")
-            if n_online_of and not rel["confirmado"]:
-                self.logger.info(
-                    "O status online acusou OVERFITTING em %d epoca(s), mas a trajetoria "
-                    "completa nao confirma. Vale o relatorio: nenhuma epoca sera descartada.",
-                    n_online_of,
-                )
-            rel["status_online_overfitting_em"] = n_online_of
         destino = os.path.join(self.results_dir, "overfit_report.json")
         with open(destino, "w", encoding="utf-8") as f:
             json.dump(rel, f, indent=2, ensure_ascii=False)
@@ -318,7 +306,7 @@ class Trainer:
         if self.eval_train:
             linha += [tr_eval["loss"], tr_eval["accuracy"]] if tr_eval else ["", ""]
         if self.monitor is not None:
-            linha += ([comp["lmc"], comp["sampen"], comp["status"]] if comp else ["", "", ""])
+            linha += ([comp["lmc"], comp["sampen"]] if comp else ["", ""])
         try:
             with open(self.history_path, "a", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)

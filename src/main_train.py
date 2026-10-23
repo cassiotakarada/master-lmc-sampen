@@ -19,7 +19,7 @@ from .data.mednist import MedNISTDataset, ParticaoMedNIST
 from .data.split import resumo_particao, stratified_subset_indices
 from .training.model import build_model
 from .training.trainer import Trainer
-from .training.complexity_monitor import ComplexityMonitor, LimiaresStatus
+from .training.complexity_monitor import ComplexityMonitor
 from .training.checkpoints import save_initial_weights, save_config
 from .utils.param_types import save_param_types
 from .utils.paths import ensure_dir
@@ -246,7 +246,6 @@ def main() -> None:
                 order=cfg.flatten_order,
                 n_bins=cfg.lmc_bins,
                 r_scale=cfg.sampen_r_factor,
-                limiares=LimiaresStatus(patience=cfg.patience),
                 logger=logger,
             )
             amostra = monitor.medir(model)

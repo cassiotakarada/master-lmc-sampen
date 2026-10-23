@@ -30,7 +30,9 @@
 > As seções abaixo são o **histórico das fases**. Trechos sobre SampEn2D, ruído nos rótulos,
 > controles × ruído, níveis de ruído, status/detector calibrado no ruído, DenseNet-121
 > controle × ruído e sensibilidade estão marcados como **[RETIRADO 2026-10-22]** e não
-> descrevem mais o projeto.
+> descrevem mais o projeto. Em 2026-10-23 o *status* online (`TrainingStatus`,
+> `LimiaresStatus`, coluna `status`) saiu do código e dos dados brutos: o monitor só mede
+> e registra LMC e SampEn; as seções D7, §4.2 e F4 abaixo descrevem a versão antiga.
 
 ---
 
