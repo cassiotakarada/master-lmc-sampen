@@ -6,8 +6,8 @@ Pergunta que uma banca faz: a LMC ou a SampEn trazem algo que uma medida trivial
 Frobenius ||W||_F da camada densa (fc.weight / classifier.weight) e:
   1. compara cada regime com o controle da sua arquitetura (valor final e amplitude,
      Mann-Whitney), na mesma forma de scripts/comportamento_densa.py;
-  2. mede, dentro de cada treino, a correlacao de Spearman entre a norma e a LMC, a
-     SampEn 1D e a SampEn2D ao longo das epocas.
+  2. mede, dentro de cada treino, a correlacao de Spearman entre a norma e a LMC e a
+     SampEn 1D ao longo das epocas.
 Usa os checkpoints epoch_*.pth (os runs de passos igualados nao os tem e ficam de fora).
 """
 from __future__ import annotations
@@ -34,16 +34,15 @@ from scipy.stats import mannwhitneyu, spearmanr
 SURFACE, TEXT_1, TEXT_2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e3e2de"
 
 REGIMES = [
-    ("controle", "f6_ctrlpar_seed*"), ("ruido15", "f6_ruido15_seed*"), ("ruido30", "f6_ruido30*"),
-    ("ruido50", "f6_ruido50_seed*"),
+    ("controle", "f6_ctrlpar_seed*"),
     ("frac10", "f6_frac10_seed*"), ("frac02", "f6_frac02_seed*"), ("frac01", "f6_frac01_seed*"),
     ("rosa005", "f9_rosa_s005_seed*"), ("rosa010", "f9_rosa_s010_seed*"), ("rosa020", "f9_rosa_s020_seed*"),
     ("branco005", "f9_branco_s005_seed*"), ("branco010", "f9_branco_s010_seed*"),
     ("branco020", "f9_branco_s020_seed*"),
-    ("dn_controle", "dn121_ctrlpar_seed*"), ("dn_ruido30", "dn121_ruido30_seed*"),
+    ("dn_controle", "dn121_ctrlpar_seed*"),
 ]
 CONTROLE_DE = {r: ("dn_controle" if r.startswith("dn_") else "controle") for r, _ in REGIMES}
-FIGURA = [("controle", "#2a78d6", "Controle"), ("ruido30", "#eb6834", "Ruído 30% nos rótulos"),
+FIGURA = [("controle", "#2a78d6", "Controle"),
           ("rosa020", "#e87ba4", "Ruído rosa σ = 0,2"), ("branco020", "#7c7b76", "Ruído branco σ = 0,2")]
 
 
@@ -59,7 +58,7 @@ def norma_run(args) -> pd.DataFrame:
         linhas.append({"epoch": int(re.search(r"epoch_(\d+)", ck).group(1)),
                        "norma": float(W.float().norm())})
     df = pd.DataFrame(linhas).sort_values("epoch")
-    live = pd.read_csv(os.path.join(run_dir, "complexity_live.csv"))[["epoch", "lmc", "sampen", "sampen2d"]]
+    live = pd.read_csv(os.path.join(run_dir, "complexity_live.csv"))[["epoch", "lmc", "sampen"]]
     df = df.merge(live, on="epoch", how="left")
     df.insert(0, "run", os.path.basename(run_dir))
     df.insert(0, "regime", regime)
@@ -94,7 +93,7 @@ def main() -> int:
     for (regime, run), g in df.groupby(["regime", "run"]):
         ln = {"regime": regime, "run": run, "norma_final": g.norma.iloc[-1],
               "norma_amplitude": amplitude_relativa(g.norma)}
-        for k in ("lmc", "sampen", "sampen2d"):
+        for k in ("lmc", "sampen"):
             ln[f"spearman_norma_{k}"] = spearmanr(g.norma, g[k]).correlation
         por_run.append(ln)
     por_run = pd.DataFrame(por_run)

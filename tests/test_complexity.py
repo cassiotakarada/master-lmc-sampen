@@ -35,7 +35,6 @@ from src.complexity import (  # noqa: E402
     lmc_complexity,
     mse_1d,
     sample_entropy_1d,
-    sample_entropy_2d,
     shannon_entropy_from_hist,
 )
 
@@ -430,29 +429,10 @@ class TestLocalizacaoDaCamadaDensa:
 
 
 # ==========================================================================
-# Sanidade de 2D e multiescala (usados na F9)
+# Sanidade da multiescala
 # ==========================================================================
 
-class TestBidimensionalEMultiescala:
-    def test_sampen2d_de_matriz_constante_e_zero(self):
-        assert sample_entropy_2d(np.ones((32, 32))) == 0.0
-
-    def test_sampen2d_ruido_maior_que_padrao_regular(self):
-        rng = np.random.default_rng(0)
-        regular = np.tile(np.array([[0.0, 1.0], [1.0, 0.0]]), (16, 16))
-        ruido = rng.normal(size=(32, 32))
-        assert sample_entropy_2d(ruido) > sample_entropy_2d(regular)
-
-    def test_sampen2d_e_invariante_a_ordem_de_achatamento(self):
-        """SampEn2D opera na matriz, entao nao exige escolher n_major/x_major."""
-        rng = np.random.default_rng(1)
-        W = rng.normal(size=(32, 32))
-        assert sample_entropy_2d(W) == sample_entropy_2d(W.T.T)
-
-    def test_sampen2d_rejeita_nao_2d(self):
-        with pytest.raises(ValueError, match="2D"):
-            sample_entropy_2d(np.zeros(10))
-
+class TestMultiescala:
     def test_mse_devolve_um_valor_por_escala(self):
         rng = np.random.default_rng(2)
         vals = mse_1d(rng.normal(size=2000), max_scale=5)

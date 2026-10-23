@@ -229,8 +229,6 @@ class Trainer:
                     self.writer.add_scalar("Complexity/LMC_dense", comp["lmc"], epoch)
                     if comp["sampen"] == comp["sampen"]:      # nao-NaN
                         self.writer.add_scalar("Complexity/SampEn_dense", comp["sampen"], epoch)
-                    if comp.get("sampen2d") == comp.get("sampen2d") and "sampen2d" in comp:
-                        self.writer.add_scalar("Complexity/SampEn2D_dense", comp["sampen2d"], epoch)
             if self.save_every_epoch:
                 save_epoch_weights(self.model, os.path.join(self.results_dir, f"epoch_{epoch:03d}.pth"), logger=self.logger)
             if self.best_val_loss is None or val_loss < self.best_val_loss:

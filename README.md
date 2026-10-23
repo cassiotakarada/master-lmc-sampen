@@ -209,17 +209,39 @@ pesos da época de menor `val_loss` — nunca os da última época. O resultado 
 > ⚠️ **Cuidado com `--train_fraction` pequeno.** Com poucos passos de treino, as estatísticas
 > móveis do BatchNorm não convergem e o modelo desaba em `eval()` — inclusive sobre o próprio
 > conjunto de treino. Isso **imita overfitting de forma convincente** sem ser overfitting. O
-> código emite `WARNING` abaixo de 200 passos. Para induzir overfitting de verdade, prefira
-> **ruído de rótulo**, que mantém o dataset inteiro.
+> código emite `WARNING` abaixo de 200 passos. Para comparar com o controle, use os regimes com
+> **passos igualados** (`scripts/subamostragem_passos_igualados.sh`): aumentam as épocas até o
+> total de passos igualar o do controle (~22.140).
 
 ## 🧮 Complexidade: uma única implementação
 
-Todas as medidas (LMC, SampEn 1D/2D, MSE) vivem em **`src/complexity.py`**. Nenhum outro
+Todas as medidas (LMC, SampEn 1D, MSE 1D) vivem em **`src/complexity.py`**. Nenhum outro
 arquivo deve redefini-las. Pacote autocontido para compartilhar:
 `deliverables/complexity_reference/` (gerado por `python deliverables/build_deliverable.py`).
 
 Convenções fixadas: `n_bins=100`, `m=2`, `r=0.20·σ`, ordem de achatamento `n_major`
 (`n1x1, n1x2, …`). Ver `plan.md` §2 para a justificativa.
+
+## 📌 Estado atual (2026-10-22)
+
+Escopo **descritivo**: descrever como a **LMC** e a **SampEn 1D** dos pesos da camada densa
+(`fc.weight`, 6×512) se comportam ao longo do treinamento. Não há detector de overfitting.
+A SampEn2D e o ruído nos rótulos foram **retirados** do código, dos resultados e dos textos
+em 2026-10-22; os runs antigos estão em `~/Área de trabalho/arquivo_ruido_rotulo/`.
+
+Regimes (ResNet-18, MedNIST, AdamW lr 0,001, weight decay 0, lote 128, sem aumento de dados,
+60 épocas no controle):
+
+| Regime | Runs | Como se gera |
+|---|---|---|
+| Controle | `f6_ctrlpar_seed*` (n = 8) | todo o treino |
+| Subamostragem curta | `f6_frac{10,02,01}_seed*` (n = 5) | `--train_fraction 0.10/0.02/0.01` |
+| Subamostragem, passos igualados | `f6_frac{10,02,01}eq_seed*` (n = 5) | `scripts/subamostragem_passos_igualados.sh` |
+| Ruído nas imagens | `f9_{rosa,branco}_s{005,010,020}_seed*` (n = 5) | `--image_noise {branco,rosa} --image_noise_sigma 0.05/0.1/0.2` |
+
+O ruído nas imagens (`src/data/image_noise.py`) é gerado por FFT com potência ∝ 1/f^β
+(branco β = 0, rosa β = 1), é fixo por imagem e afeta só o treino; os rótulos não mudam.
+O documento do projeto (3 pilares) está em `projeto/`; o plano de fases, em `plan.md`.
 
 ---
 

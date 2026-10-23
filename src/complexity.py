@@ -7,8 +7,7 @@ FONTE UNICA DE VERDADE deste repositorio. Nenhum outro arquivo deve redefinir
 Implementa:
   - Complexidade estatistica LMC     (Lopez-Ruiz, Mancini & Calbet, 1995)
   - Entropia amostral 1D (SampEn)    (Richman & Moorman, 2000; Pincus, 1991)
-  - Entropia amostral 2D (SampEn2D)  (Silva et al., 2018)
-  - MSE 1D / 2D                      (Costa, Goldberger & Peng, 2002/2005)
+  - MSE 1D                           (Costa, Goldberger & Peng, 2002/2005)
   - Localizacao e achatamento da CAMADA DENSA (ver secao "Camada densa" abaixo)
 
 Alinhado com `thesis-complexity-nn/src/complexity.py` — as convencoes numericas
@@ -52,7 +51,7 @@ Por isso `flatten_dense` expoe a ordem como parametro explicito, com default
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -65,9 +64,7 @@ __all__ = [
     "lmc_complexity",
     # SampEn
     "sample_entropy_1d",
-    "sample_entropy_2d",
     "mse_1d",
-    "mse_2d",
     # Camada densa
     "FLATTEN_ORDERS",
     "flatten_dense",
@@ -89,31 +86,12 @@ def _to_numpy(x) -> np.ndarray:
     return np.asarray(x, dtype=np.float64)
 
 
-def _subsample_2d(mat: np.ndarray, max_dim: int) -> np.ndarray:
-    """Subamostra uma matriz 2D para no maximo max_dim x max_dim por passo fixo."""
-    H, W = mat.shape
-    sh = max(1, H // max_dim)
-    sw = max(1, W // max_dim)
-    return np.ascontiguousarray(mat[::sh, ::sw][:max_dim, :max_dim])
-
-
 def _coarse_grain_1d(x: np.ndarray, tau: int) -> np.ndarray:
     """Granulacao grossa 1D: media em blocos nao sobrepostos de tamanho tau."""
     if tau == 1:
         return x
     n_trim = (len(x) // tau) * tau
     return x[:n_trim].reshape(-1, tau).mean(axis=1)
-
-
-def _coarse_grain_2d(mat: np.ndarray, tau: int) -> np.ndarray:
-    """Granulacao grossa 2D: media em blocos nao sobrepostos tau x tau."""
-    if tau == 1:
-        return mat
-    H, W = mat.shape
-    H_t = (H // tau) * tau
-    W_t = (W // tau) * tau
-    trimmed = mat[:H_t, :W_t]
-    return trimmed.reshape(H_t // tau, tau, W_t // tau, tau).mean(axis=(1, 3))
 
 
 def _chebyshev_match_count(windows: np.ndarray, r: float) -> int:
@@ -127,27 +105,6 @@ def _chebyshev_match_count(windows: np.ndarray, r: float) -> int:
     matches = dists <= r
     np.fill_diagonal(matches, False)
     return int(matches.sum())
-
-
-def _extract_valid_windows(mat: np.ndarray, m: int) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Extrai janelas m x m E (m+1) x (m+1) a partir do MESMO conjunto de posicoes
-    iniciais validas (i, j), onde ambas cabem na matriz:
-        0 <= i <= H-m-1,  0 <= j <= W-m-1   ->  N = (H-m)(W-m) posicoes.
-    """
-    H, W = mat.shape
-    n_rows = H - m
-    n_cols = W - m
-    if n_rows < 1 or n_cols < 1:
-        return (np.empty((0, m * m)), np.empty((0, (m + 1) ** 2)))
-
-    wins_m_full = np.lib.stride_tricks.sliding_window_view(mat, (m, m))
-    wins_m = wins_m_full[:n_rows, :n_cols].reshape(-1, m * m).astype(np.float64)
-
-    wins_m1_full = np.lib.stride_tricks.sliding_window_view(mat, (m + 1, m + 1))
-    wins_m1 = wins_m1_full.reshape(-1, (m + 1) ** 2).astype(np.float64)
-
-    return wins_m, wins_m1
 
 
 # ============================================================================
@@ -304,56 +261,6 @@ def sample_entropy_1d(
 
 
 # ============================================================================
-# Entropia amostral 2D  (Silva et al., 2018)
-# ============================================================================
-
-def sample_entropy_2d(
-    matrix,
-    m: int = 2,
-    r: Optional[float] = None,
-    r_scale: float = 0.2,
-    max_dim: int = 64,
-) -> float:
-    """
-    Entropia amostral 2D: SampEn2D(m, r) = -ln(U^{m+1}(r) / U^m(r)),
-    com janelas quadradas m x m e (m+1) x (m+1) e distancia de Chebyshev.
-
-    Aplica-se a matriz de pesos tratada como estrutura espacial — NAO exige
-    escolher uma ordem de achatamento (ver `flatten_dense`).
-
-    Se qualquer dimensao exceder `max_dim`, a matriz e subamostrada por passo
-    fixo antes de extrair as janelas; r e calculado da matriz ORIGINAL.
-    """
-    mat = _to_numpy(matrix)
-    if mat.ndim != 2:
-        raise ValueError(f"Esperava array 2D, recebi forma {mat.shape}")
-
-    if r is None:
-        sd = float(np.std(mat))
-        if sd == 0.0:
-            return 0.0
-        r = r_scale * sd
-
-    mat_sub = _subsample_2d(mat, max_dim)
-    H, W = mat_sub.shape
-    if H < m + 1 or W < m + 1:
-        return np.nan
-
-    wins_m, wins_m1 = _extract_valid_windows(mat_sub, m)
-    if wins_m.shape[0] < 2:
-        return np.nan
-
-    B = _chebyshev_match_count(wins_m, r)
-    A = _chebyshev_match_count(wins_m1, r)
-
-    if B == 0:
-        return np.nan
-    if A == 0:
-        return np.inf
-    return float(-np.log(A / B))
-
-
-# ============================================================================
 # Multiscale entropy (MSE)
 # ============================================================================
 
@@ -372,23 +279,6 @@ def mse_1d(series, max_scale: int = 10, m: int = 2, r_scale: float = 0.2) -> np.
     result = np.empty(max_scale)
     for tau in range(1, max_scale + 1):
         result[tau - 1] = sample_entropy_1d(_coarse_grain_1d(x, tau), m=m, r=r)
-    return result
-
-
-def mse_2d(matrix, max_scale: int = 10, m: int = 2, r_scale: float = 0.2, max_dim: int = 64) -> np.ndarray:
-    """MSE 2D (Silva et al., 2018), analogo a `mse_1d` com blocos tau x tau."""
-    mat = _to_numpy(matrix)
-    if mat.ndim != 2:
-        raise ValueError(f"Esperava array 2D, recebi forma {mat.shape}")
-
-    sd = float(np.std(mat))
-    if sd == 0.0:
-        return np.zeros(max_scale)
-    r = r_scale * sd
-
-    result = np.empty(max_scale)
-    for tau in range(1, max_scale + 1):
-        result[tau - 1] = sample_entropy_2d(_coarse_grain_2d(mat, tau), m=m, r=r, max_dim=max_dim)
     return result
 
 

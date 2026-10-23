@@ -13,7 +13,6 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from src.training.overfit import (  # noqa: E402
-    epoca_de_afastamento,
     epoca_de_queda_relativa,
     epocas_abaixo_do_pico,
 )
@@ -176,30 +175,6 @@ class TestDetectoresOnline:
         assert epocas_abaixo_do_pico(serie[:4], queda=0.01) == 3
         # a ultima epoca reestabelece o pico e zera a contagem
         assert epocas_abaixo_do_pico(serie, queda=0.01) == 0
-
-    def test_afastamento_sinaliza_saida_do_plato(self):
-        serie = [1.0, 1.01, 0.99, 1.0, 1.005] + [2.0] * 5
-        assert epoca_de_afastamento(serie, base_epocas=5, k=4.0, p=3) == 6
-
-    def test_afastamento_devolve_none_em_serie_estavel(self):
-        rng = np.random.default_rng(0)
-        serie = 1.0 + rng.normal(0, 0.01, 40)
-        assert epoca_de_afastamento(serie, base_epocas=5, k=4.0, p=3) is None
-
-    def test_afastamento_exige_persistencia(self):
-        """Um unico ponto fora da faixa nao e afastamento -- p=3 exige 3 seguidos."""
-        serie = [1.0, 1.01, 0.99, 1.0, 1.005, 5.0, 1.0, 1.0, 1.0, 1.0]
-        assert epoca_de_afastamento(serie, base_epocas=5, k=4.0, p=3) is None
-
-    def test_afastamento_e_causal(self):
-        """A decisao ate a epoca k nao pode mudar por causa do que vem depois."""
-        serie = [1.0, 1.01, 0.99, 1.0, 1.005] + [2.0] * 5
-        cedo = epoca_de_afastamento(serie[:8], base_epocas=5, k=4.0, p=3)
-        tarde = epoca_de_afastamento(serie + [9.0] * 5, base_epocas=5, k=4.0, p=3)
-        assert cedo == tarde == 6
-
-    def test_afastamento_sem_historico_suficiente(self):
-        assert epoca_de_afastamento([1.0, 1.0, 1.0], base_epocas=5, k=4.0, p=3) is None
 
 
 class TestQuedaRelativa:

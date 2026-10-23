@@ -33,8 +33,8 @@
 \sisetup{output-decimal-marker={,}, group-separator={.}, group-digits=integer}
 
 %% ─── Metadados ──────────────────────────────────────────────────────────────
-\titulo{Complexidade estatística dos pesos como indicador de overfitting
-independente do conjunto de validação}
+\titulo{Comportamento da complexidade estatística dos pesos da camada densa
+durante o treinamento de redes neurais convolucionais em imagens médicas}
 \autor{Cássio Silva Takarada}
 \local{Ribeirão Preto}
 \data{2026}
@@ -59,26 +59,29 @@ Preto da Universidade de São Paulo.}
 \imprimirfolhaderosto
 
 \begin{resumo}
-O diagnóstico de \emph{overfitting} em redes neurais profundas depende hoje,
-integralmente, de um conjunto de validação rotulado, representativo e
-suficientemente grande --- condição frequentemente inviável em imagens médicas,
-onde a anotação é cara e exige especialista. Este projeto investiga se medidas
-de complexidade estatística calculadas \emph{exclusivamente sobre os pesos} da
-camada densa de uma rede, sem acesso a rótulo algum, fornecem ao desenvolvedor
-uma leitura do estado do treinamento independente da validação. São
-consideradas a complexidade LMC, a entropia amostral unidimensional (SampEn) e
-a entropia amostral bidimensional (SampEn2D), acompanhadas ao longo das épocas
-de treino. Resultados preliminares com a rede ResNet-18 sobre o repositório
-MedNIST, em oito pares de execuções com e sem corrupção controlada de rótulos,
-indicam que a SampEn2D da camada densa inflete, em média,
-\num{7,5} $\pm$ \num{0,9} épocas antes da degradação da acurácia de validação,
-com razão de amplitude de \num{5,7} vezes entre execuções com e sem
-memorização ($p = \num{0,00016}$), enquanto a complexidade LMC não discrimina
-as duas condições ($p = \num{0,33}$). Pretende-se consolidar esses achados,
-caracterizar os limites de generalização entre arquiteturas e entregar um
-monitor acoplável a qualquer laço de treinamento em PyTorch.
+O treinamento de redes neurais profundas é acompanhado, na prática, quase
+exclusivamente por métricas que dependem de dados rotulados --- perda e
+acurácia nos conjuntos de treino e de validação. Os próprios pesos da rede,
+que registram o que foi aprendido, raramente são tratados como objeto de
+medida. Este projeto descreve como duas medidas de complexidade estatística
+calculadas \emph{exclusivamente sobre os pesos} da camada densa --- a
+complexidade LMC e a entropia amostral (SampEn) --- se comportam ao longo das
+épocas, em regimes de treinamento que diferem pela quantidade e pela qualidade
+das imagens de treino. Os experimentos usam a ResNet-18 sobre o repositório
+MedNIST, com um controle de oito sementes, subamostragem do treino a
+\SI{10}{\percent}, \SI{2}{\percent} e \SI{1}{\percent} --- com e sem
+igualar o número de passos de otimização ao do controle --- e ruído branco e
+rosa somado às imagens de treino. Resultados preliminares mostram que a LMC
+final da subamostragem curta fica entre \num{0,13} e \num{0,43} vezes a do
+controle ($p = \num{0,0016}$), mas que essa diferença praticamente desaparece
+quando os passos são igualados, indicando que ela acompanha o número de passos
+de otimização mais do que a quantidade de dados. O ruído nas imagens, nos
+níveis testados, não altera as duas medidas, embora com $\sigma = \num{0,2}$
+derrube o acerto de uma das seis classes na validação. O trabalho não propõe
+um detector: seu objetivo é caracterizar o comportamento dessas medidas e
+delimitar o que elas registram e o que não registram.
 \textbf{Palavras-chave}: complexidade estatística; entropia amostral;
-\emph{overfitting}; aprendizado profundo; imagens médicas.
+camada densa; aprendizado profundo; imagens médicas.
 \end{resumo}
 
 \tableofcontents

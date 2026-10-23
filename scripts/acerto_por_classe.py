@@ -40,14 +40,13 @@ SURFACE, TEXT_1, TEXT_2 = "#fcfcfb", "#0b0b0b", "#52514e"
 
 # (regime, padrao) -- mesma nomenclatura de scripts/comportamento_densa.py
 REGIMES = [
-    ("controle", "f6_ctrlpar_seed*"), ("ruido15", "f6_ruido15_seed*"), ("ruido30", "f6_ruido30*"),
-    ("ruido50", "f6_ruido50_seed*"),
+    ("controle", "f6_ctrlpar_seed*"),
     ("frac10", "f6_frac10_seed*"), ("frac02", "f6_frac02_seed*"), ("frac01", "f6_frac01_seed*"),
     ("frac10eq", "f6_frac10eq_seed*"), ("frac02eq", "f6_frac02eq_seed*"), ("frac01eq", "f6_frac01eq_seed*"),
     ("rosa005", "f9_rosa_s005_seed*"), ("rosa010", "f9_rosa_s010_seed*"), ("rosa020", "f9_rosa_s020_seed*"),
     ("branco005", "f9_branco_s005_seed*"), ("branco010", "f9_branco_s010_seed*"),
     ("branco020", "f9_branco_s020_seed*"),
-    ("dn_controle", "dn121_ctrlpar_seed*"), ("dn_ruido30", "dn121_ruido30_seed*"),
+    ("dn_controle", "dn121_ctrlpar_seed*"),
 ]
 
 

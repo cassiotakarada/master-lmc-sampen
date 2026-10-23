@@ -2,13 +2,13 @@
 Comportamento da LMC e da SampEn na camada densa, por regime de treino.
 
 Escopo DESCRITIVO (decisao de 2026-10-01): nao ha detector, limiar nem "status". O
-script so le o `complexity_live.csv` de cada run -- LMC, SampEn 1D e SampEn2D ja
-calculadas epoca a epoca sobre os 3.072 pesos de `fc.weight` -- e descreve como cada
-estatistica se comporta em tres regimes:
+script so le o `complexity_live.csv` de cada run -- LMC e SampEn 1D ja calculadas
+epoca a epoca sobre os 3.072 pesos de `fc.weight` -- e descreve como cada estatistica
+se comporta em tres regimes:
 
-  controle       100% dos dados, rotulos corretos            (f6_ctrlpar_seed*)
-  ruido          100% dos dados, 15/30/50% dos rotulos trocados (f6_ruido*_seed*)
-  subamostragem  10/2/1% dos dados, rotulos corretos          (f6_frac*_seed*)
+  controle         100% dos dados, imagens limpas                 (f6_ctrlpar_seed*)
+  subamostragem    10/2/1% dos dados, imagens limpas              (f6_frac*_seed*)
+  ruido na imagem  100% dos dados, ruido rosa/branco no treino    (f9_*_seed*)
 
 Alem do eixo de epocas, usa o eixo de PASSOS DE OTIMIZACAO: com 2% dos dados uma
 epoca tem 8 passos, com 100% tem 369. Comparar por epoca mistura "quanto dado" com
@@ -40,10 +40,6 @@ SURFACE, TEXT_1, TEXT_2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e3e2de"
 
 REGIMES = {
     "controle":  ("f6_ctrlpar_seed*", "Controle (100% dos dados)"),
-    "ruido15":   ("f6_ruido15_seed*", "Ruído 15%"),
-    # f6_ruido30 = semente 42 (rodada antes de o nome levar a semente; noise_seed=None)
-    "ruido30":   ("f6_ruido30*",      "Ruído 30%"),
-    "ruido50":   ("f6_ruido50_seed*", "Ruído 50%"),
     "frac10":    ("f6_frac10_seed*",  "Subamostragem 10%"),
     "frac02":    ("f6_frac02_seed*",  "Subamostragem 2%"),
     "frac01":    ("f6_frac01_seed*",  "Subamostragem 1%"),
@@ -58,20 +54,19 @@ REGIMES = {
     "branco005": ("f9_branco_s005_seed*", "Ruído branco σ = 0,05"),
     "branco010": ("f9_branco_s010_seed*", "Ruído branco σ = 0,1"),
     "branco020": ("f9_branco_s020_seed*", "Ruído branco σ = 0,2"),
-    # DenseNet-121: camada densa classifier.weight (6 x 1.024); comparada com o controle DELA
+    # DenseNet-121: camada densa classifier.weight (6 x 1.024), so o controle
     "dn_controle": ("dn121_ctrlpar_seed*", "DenseNet-121 · controle"),
-    "dn_ruido30":  ("dn121_ruido30_seed*", "DenseNet-121 · ruído 30%"),
 }
 # cada regime e comparado com o controle da propria arquitetura
 CONTROLE_DE = {r: ("dn_controle" if r.startswith("dn_") else "controle") for r in REGIMES}
 # figura principal: um representante de cada familia, cores fixas por entidade
-PRINCIPAIS = [("controle", "#2a78d6"), ("ruido30", "#eb6834"), ("frac02eq", "#1baf7a")]
+PRINCIPAIS = [("controle", "#2a78d6"), ("rosa010", "#eb6834"), ("frac02eq", "#1baf7a")]
 
-ESTATISTICAS = [("lmc", "LMC"), ("sampen", "SampEn 1D"), ("sampen2d", "SampEn2D")]
+ESTATISTICAS = [("lmc", "LMC"), ("sampen", "SampEn 1D")]
 
 
 def amplitude_relativa(v) -> float:
-    """(max - min) / |media| -- mesma definicao de scripts/analise_f6.py."""
+    """(max - min) / |media| da trajetoria."""
     v = np.asarray(v, dtype=float)
     v = v[np.isfinite(v)]
     return float((v.max() - v.min()) / abs(v.mean())) if len(v) > 1 and v.mean() else float("nan")
@@ -195,28 +190,11 @@ def _painel_trajetorias(ax, dados, series, k, rotulo, eixo):
     _eixo(ax, xl, rotulo, rotulo)
 
 
-def figura_niveis_ruido(dados, out):
-    """Controle + ruido 15/30/50 %: o nivel de ruido e magnitude -> uma so matiz, clara a escura."""
-    series = [("controle", "#7c7b76", "Controle (0%)"), ("ruido15", "#f4a37f", "Ruído 15%"),
-              ("ruido30", "#eb6834", "Ruído 30%"), ("ruido50", "#a83a12", "Ruído 50%")]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
-    for ax, (k, rot) in zip(axes, ESTATISTICAS):
-        _painel_trajetorias(ax, dados, series, k, rot, "epoch")
-    axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
-    fig.suptitle("Níveis de ruído nos rótulos — ResNet-18, camada densa, média ± 1 DP entre sementes",
-                 color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
-    fig.text(0.006, 0.91, "Controle n = 8 · ruído 15% n = 3 · ruído 30% n = 8 · ruído 50% n = 3. "
-             "A queda da SampEn não cresce com o nível de ruído.", color=TEXT_2, fontsize=9, ha="left")
-    fig.tight_layout(rect=[0, 0, 1, 0.88])
-    fig.savefig(out, dpi=160, facecolor=SURFACE)
-    plt.close(fig)
-
-
 def figura_ruido_rosa(dados, out):
     """Controle + ruido rosa nas imagens, sigma 0,05/0,1/0,2: magnitude -> uma matiz, clara a escura."""
     series = [("controle", "#7c7b76", "Controle (sem ruído)"), ("rosa005", "#f2b6cc", "Rosa σ = 0,05"),
               ("rosa010", "#e87ba4", "Rosa σ = 0,1"), ("rosa020", "#a8335f", "Rosa σ = 0,2")]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.4), facecolor=SURFACE)
     for ax, (k, rot) in zip(axes, ESTATISTICAS):
         _painel_trajetorias(ax, dados, series, k, rot, "epoch")
     axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
@@ -233,7 +211,7 @@ def figura_ruido_branco(dados, out):
     """Mesmo desenho de figura_ruido_rosa, para o ruido branco."""
     series = [("controle", "#2a78d6", "Controle (sem ruído)"), ("branco005", "#c3c2b7", "Branco σ = 0,05"),
               ("branco010", "#8a8980", "Branco σ = 0,1"), ("branco020", "#3d3c38", "Branco σ = 0,2")]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.4), facecolor=SURFACE)
     for ax, (k, rot) in zip(axes, ESTATISTICAS):
         _painel_trajetorias(ax, dados, series, k, rot, "epoch")
     axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
@@ -241,23 +219,6 @@ def figura_ruido_branco(dados, out):
                  color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
     fig.text(0.006, 0.91, "Controle n = 8 · cada intensidade n = 5. Ruído fixo por imagem, só no treino; "
              "validação e teste limpos.", color=TEXT_2, fontsize=9, ha="left")
-    fig.tight_layout(rect=[0, 0, 1, 0.88])
-    fig.savefig(out, dpi=160, facecolor=SURFACE)
-    plt.close(fig)
-
-
-def figura_densenet(dados, out):
-    """DenseNet-121: controle x ruido 30 %, as tres estatisticas por epoca."""
-    series = [("dn_controle", "#2a78d6", "Controle"), ("dn_ruido30", "#eb6834", "Ruído 30%")]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4), facecolor=SURFACE)
-    for ax, (k, rot) in zip(axes, ESTATISTICAS):
-        _painel_trajetorias(ax, dados, series, k, rot, "epoch")
-    axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
-    n_c, n_r = len(dados["dn_controle"]), len(dados["dn_ruido30"])
-    fig.suptitle("DenseNet-121 — camada densa (classifier.weight, 6.144 pesos), média ± 1 DP entre sementes",
-                 color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
-    fig.text(0.006, 0.91, f"Controle n = {n_c} · ruído 30% n = {n_r}. 60 épocas, 369 passos por época.",
-             color=TEXT_2, fontsize=9, ha="left")
     fig.tight_layout(rect=[0, 0, 1, 0.88])
     fig.savefig(out, dpi=160, facecolor=SURFACE)
     plt.close(fig)
@@ -288,16 +249,13 @@ def main() -> int:
 
     for k, rot in ESTATISTICAS:
         figura_trajetorias(dados, k, rot, os.path.join(a.output_dir, f"trajetoria_{k}.png"))
-    figura_niveis_ruido(dados, os.path.join(a.output_dir, "niveis_de_ruido.png"))
-    figura_densenet(dados, os.path.join(a.output_dir, "densenet121_controle_vs_ruido.png"))
     figura_ruido_rosa(dados, os.path.join(a.output_dir, "ruido_rosa.png"))
     figura_ruido_branco(dados, os.path.join(a.output_dir, "ruido_branco.png"))
 
     pd.set_option("display.width", 200)
     print(tab.groupby("regime")[["n_treino", "passos_totais", "acc_treino_final", "acc_val_final",
                                  "lmc_inicial", "lmc_final", "lmc_amplitude",
-                                 "sampen_final", "sampen_amplitude",
-                                 "sampen2d_final", "sampen2d_amplitude"]].mean().round(4).to_string())
+                                 "sampen_final", "sampen_amplitude"]].mean().round(4).to_string())
     print()
     print(comp.round(4).to_string(index=False))
     print(f"\nSalvo em {a.output_dir}/")

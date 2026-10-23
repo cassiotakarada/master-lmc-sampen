@@ -7,6 +7,33 @@
 
 ---
 
+> ## ⛔ Decisão de 2026-10-22 — SampEn2D e ruído nos rótulos retirados
+>
+> **SampEn2D e ruído nos rótulos retirados do código, dos resultados e dos textos; runs
+> movidos para `~/Área de trabalho/arquivo_ruido_rotulo/`.** A análise de sensibilidade
+> (bins, r, m), que comparava controle × ruído 30 %, saiu junto. A norma dos pesos já
+> estava fora (decisão de 2026-10-19).
+>
+> **Estado atual (o que vale):** escopo **descritivo** — descrever como a **LMC** e a
+> **SampEn 1D** da **camada densa** (`fc.weight`, 6×512, ordem por neurônio) se comportam
+> ao longo do treinamento, sem detector/status como produto. Regimes, todos ResNet-18 no
+> MedNIST e comparados ao controle `f6_ctrlpar_seed*` (n = 8):
+> - subamostragem curta `f6_frac{10,02,01}_seed*` e com passos igualados `f6_frac{10,02,01}eq_seed*` (n = 5);
+> - ruído rosa e branco nas **imagens** de treino, σ ∈ {0,05; 0,1; 0,2} (`f9_{rosa,branco}_s*_seed*`, n = 5);
+> - acerto por classe na validação.
+>
+> **Pendências:** (1) orientador confirmar se o filtro 1/f vai na potência (rosa, β = 1)
+> ou na amplitude (marrom, β = 2), e os valores de σ; (2) segundo conjunto de dados a
+> confirmar; (3) mais sementes para os efeitos que sobrevivem aos passos igualados (LMC
+> final a 2 %, amplitude da LMC a 1 %).
+>
+> As seções abaixo são o **histórico das fases**. Trechos sobre SampEn2D, ruído nos rótulos,
+> controles × ruído, níveis de ruído, status/detector calibrado no ruído, DenseNet-121
+> controle × ruído e sensibilidade estão marcados como **[RETIRADO 2026-10-22]** e não
+> descrevem mais o projeto.
+
+---
+
 ## 0. Decisões tomadas na reunião com o orientador
 
 | # | Decisão | Impacto |
@@ -406,6 +433,8 @@ Flags: `--flatten_order`, `--lmc_bins`, `--sampen_r_factor`, `--sampen2d_m`, `--
 
 #### ⚠️ Achado: a SampEn2D com m=2 é inutilizável em pesos de camada densa
 
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
+
 Com o padrão `m=2`, a SampEn2D ficou **indefinida em 10 de 10 épocas** de um run real.
 
 A primeira explicação que levantei — "a matriz só tem 6 linhas" — estava **errada**, e o
@@ -532,6 +561,8 @@ disparem o corte.
 ---
 
 ### ✅ F6 — Re-execução dos experimentos e ablação da ordem (D1, D2) — **CONCLUÍDA em 2026-09-21**
+
+> **[PARCIALMENTE RETIRADO 2026-10-22]** — os runs com ruído nos rótulos (`f6_ruido*`, `dn121_ruido*`) e os controles não pareados (`f6_seed*`, `dn121_seed*`) saíram do projeto e foram arquivados; ficam os controles pareados `f6_ctrlpar_seed*` como controle comum.
 **Fazer:**
 1. Atualizar `run_sweep.py`: grid mínimo = **3 sementes × 2 ordens de flatten** (a ordem não exige re-treino — é só recalcular sobre os mesmos checkpoints; então na prática são **3 treinos** e 2 análises cada).
    - Grid: ResNet-18 @64, 3 sementes, **40 épocas** (mais que as 20 atuais, para ver o overfitting acontecer de verdade em vez de só suspeitar).
@@ -571,6 +602,8 @@ o critério de acurácia devolve `confirmado=False` para as cinco, como deveria.
 
 #### 🚨 A LMC não discrimina overfitting
 
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
+
 Desenho final: **5 runs com ruído × 5 controles** (sementes 42, 1, 7, 13, 23 dos dois lados).
 
 | indicador | amplitude com ruído | amplitude nos controles | razão | p (Welch) | dispara em runs SEM overfitting |
@@ -589,6 +622,8 @@ dois regimes não avisa nada. O critério correto é o CONTRASTE entre um run co
 controles sem — e por isso os runs de controle não são um detalhe do experimento, são metade dele.
 
 #### Antecedência nos runs com overfitting — replicado em 5 sementes (2026-09-22)
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 Âncora: época em que a acurácia de validação cai 1 ponto percentual de forma sustentada.
 Positivo = o indicador disparou antes.
@@ -613,6 +648,8 @@ Poder de discriminação: ver a tabela 5 × 5 acima — LMC 1,0× (p = 0,85, **n
 SampEn 1D 3,5×, SampEn2D 5,3× (ambas p < 0,0001).
 
 #### A separação limpa: QUANDO o indicador dispara
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 A taxa de falso positivo sozinha engana. Com 5 controles a SampEn2D dispara em 3 deles — mas
 **sempre tarde**, e os runs com ruído **sempre cedo**:
@@ -666,6 +703,8 @@ formulações diferentes, ao olharem a mesma vizinhança, chegam à mesma época
 
 #### Linha do tempo do status (§4.2) — feita em 2026-09-22
 
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
+
 `scripts/status_timeline.py` → `status_timeline.png`. A faixa colorida por época, sob a
 curva de `val_loss`, mostra o que o monitor **dizia naquele momento** — um juízo online,
 sem conhecer o futuro.
@@ -690,6 +729,8 @@ calculado sobre a trajetória completa. O aviso já escrito em `complexity_monit
 ("os limiares são PROVISÓRIOS") fica assim confirmado pelos dados.
 
 #### ✅ Status recalibrado para a acurácia — 2026-09-22
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 `scripts/calibrar_status.py`. **Resolve o item da F6 que pedia calibrar em algumas sementes
 e verificar em outras.** Duas mudanças na máquina de estados (§4.2):
@@ -741,6 +782,8 @@ restrição dura, o que indica que o problema é fácil neste conjunto, não que
 
 #### Teste prospectivo — semente 99, dados que não existiam na calibração (2026-09-22)
 
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
+
 A verificação acima usou as sementes 13 e 23: elas ficaram fora da busca, mas os dados
 delas **já existiam** quando a grade foi percorrida. A semente 99 é diferente — os dois runs
 foram treinados **depois** de os limiares serem fixados, e o status saiu ao vivo no log, pelo
@@ -770,6 +813,8 @@ dava para saber se era a régua real ou azar de uma semente — daí as duas pro
 seguintes.
 
 #### Fecho: 3 sementes prospectivas (99, 101, 202) — 2026-09-23
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 | run | conjunto | alerta | overfit | âncora | antecedência |
 |---|---|---|---|---|---|
@@ -809,6 +854,8 @@ alerta num run de ruído: 12; primeiro num controle: 26).
 O treino usa 190 MB de GPU; o problema é de convivência na máquina, não do projeto.
 
 #### 🎯 Níveis de ruído: 15 %, 30 % e 50 % — 2026-09-23
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 `scripts/niveis_de_ruido.py` → `niveis_de_ruido.png`. Fecha a última lacuna da F6: até aqui
 **todo** o resultado vinha de um único nível, o que tornava a conclusão uma afirmação sobre
@@ -851,6 +898,8 @@ nítida e monotônica, mas a afirmação "o alerta não depende do nível de ru�
 de independência — com n = 9 o teste não teria força para achar um efeito pequeno.
 
 #### ❌ DenseNet-121: a MEDIDA generaliza, o DETECTOR não — 2026-09-23
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 6 runs (3 ruído 30 % + 3 controles), mesmas sementes dos runs de referência, prefixo
 `dn121_` para não contaminar as varreduras `f6_*`. Camada densa 6×**1024** em vez de 6×512.
@@ -904,6 +953,8 @@ transfere como está.* Separar a medida do detector é o que permite reportar os
 resultados sem que o negativo apague o positivo.
 
 #### ✅ Detector redesenhado: queda relativa ao máximo corrente — 2026-09-24
+
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
 
 **A troca.** Saiu "afastou-se `k`·σ do platô das épocas 1–5"; entrou **"caiu `queda_rel`
 abaixo do seu máximo corrente por `queda_p` épocas"** (`epoca_de_queda_relativa`).
@@ -987,6 +1038,8 @@ seleciona o critério. Resolve o item deixado em aberto na F5.
 
 #### Ressalvas honestas
 
+> **[RETIRADO 2026-10-22]** — trecho histórico; ver a decisão no topo do plano.
+
 - ~~**n = 1 run com overfitting.**~~ **Resolvido em 2026-09-22:** replicado em 5 sementes
   (42, 1, 7, 13, 23), com realizações de ruído independentes. Antecedência da SampEn2D:
   +7,4 ± 0,5 épocas (IC 95 %: 6,7 a 8,1). Os 5 runs compartilham arquitetura, dataset e nível
@@ -1005,6 +1058,8 @@ seleciona o critério. Resolve o item deixado em aberto na F5.
 ---
 
 ### 🟠 F7 — Texto do projeto: os 3 pilares com foco no desenvolvedor (D3) — **TEXTO ESCRITO em 2026-09-24, aguardando revisão do autor/orientador**
+
+> **Atualização 2026-10-22:** `projeto/` foi reescrito no escopo descritivo (título: *Comportamento da complexidade estatística dos pesos da camada densa durante o treinamento de redes neurais convolucionais em imagens médicas*), só com LMC e SampEn 1D, controle, subamostragem (curta e passos igualados), ruído nas imagens e acerto por classe. O enquadramento "voltado ao desenvolvedor" e o monitor/detector descritos abaixo são históricos.
 **Fazer:** escrever/atualizar o documento do projeto com três seções:
 
 1. **Conteúdo teórico**
@@ -1187,9 +1242,9 @@ repositório da tese **não está sob git**, então farei backup antes.
 - Reconciliar as discrepâncias D3/D4 já registradas entre a metodologia da tese e o código (subamostragem aleatória e cálculo por grupo) — **grande parte delas some** com o foco na camada densa, mas o texto da tese precisa ser corrigido.
 
 ### 🟡 F9 — Depois: extensões
-- SampEn2D sobre a matriz $W$ (sem achatar) — o projeto original do orientador prevê; com a camada densa 6×512 é barato.
+- ~~SampEn2D sobre a matriz $W$ (sem achatar)~~ — **[RETIRADO 2026-10-22]**.
 - Multiscale entropy (MSE).
-- DenseNet-121 além do ResNet-18, para mostrar que o indicador não é específico da arquitetura.
+- DenseNet-121 além do ResNet-18 — hoje só há controles (`dn121_ctrlpar_seed*`); a comparação com ruído nos rótulos foi retirada em 2026-10-22.
 - Mais sementes (3 é pouco para afirmação estatística) e teste de significância.
 - Dashboard ao vivo (TensorBoard custom scalar ou página HTML).
 

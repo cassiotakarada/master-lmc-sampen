@@ -54,19 +54,16 @@ class TrainConfig:
     )
     # Avalia o proprio TREINO em eval() a cada epoca. Custa uma passada extra, mas e a
     # unica forma de distinguir overfitting real (treino alto, val baixa) de artefato de
-    # BatchNorm (os dois baixos). Essencial nos runs de ruido.
+    # BatchNorm (os dois baixos). Essencial nos runs de subamostragem.
     eval_train: bool = _env("EVAL_TRAIN", "0") == "1"
-    # Aumento de dados (espelhamento horizontal) no treino. Desligue nos runs de ruido:
-    # aumento COMBATE memorizacao, que e justamente o que queremos provocar la.
+    # Aumento de dados (espelhamento horizontal) no treino. Os experimentos atuais rodam
+    # sem ele (--no_augment), para que so o regime estudado mude entre os runs.
     augment: bool = _env("AUGMENT", "1") == "1"
     # --- monitor de complexidade ao vivo (F4) ---
     live_complexity: bool = _env("LIVE_COMPLEXITY", "1") == "1"
     flatten_order: str = _env("FLATTEN_ORDER", "n_major")   # n_major = n1x1, n1x2, ...
     lmc_bins: int = int(_env("LMC_BINS", "100"))            # fixado pelo estudo da F2
     sampen_r_factor: float = float(_env("SAMPEN_R_FACTOR", "0.20"))
-    live_sampen2d: bool = _env("LIVE_SAMPEN2D", "1") == "1"
-    # m=1 e obrigatorio numa densa de poucas linhas: com m=2 a SampEn2D fica indefinida
-    sampen2d_m: int = int(_env("SAMPEN2D_M", "1"))
     # --- deteccao de overfitting (F5) ---
     patience: int = int(_env("PATIENCE", "3"))
     overfit_delta: float = float(_env("OVERFIT_DELTA", "0.0"))

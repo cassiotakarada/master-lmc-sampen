@@ -4,11 +4,10 @@
 Este capítulo reúne os conceitos necessários para acompanhar as escolhas
 metodológicas e a leitura dos resultados. A Seção~\ref{sec:T-complexidade}
 apresenta a noção de complexidade estatística e a formulação LMC. A
-Seção~\ref{sec:T-sampen} define a entropia amostral e sua extensão
-bidimensional. A Seção~\ref{sec:T-camada} justifica a escolha da camada densa
+Seção~\ref{sec:T-sampen} define a entropia amostral. A Seção~\ref{sec:T-camada} justifica a escolha da camada densa
 como objeto de medida e formaliza a leitura de seus pesos como sequência. A
-Seção~\ref{sec:T-overfitting} fixa a definição operacional de
-\emph{overfitting} adotada.
+Seção~\ref{sec:T-overfitting} fixa as definições usadas para descrever o
+treinamento.
 
 \section{Complexidade Estatística}
 \label{sec:T-complexidade}
@@ -60,8 +59,8 @@ Duas propriedades são relevantes para este trabalho. A primeira é que
 $C_{\mathrm{LMC}}$ depende apenas do histograma dos valores, sendo portanto
 \emph{invariante a qualquer permutação} da sequência analisada. A segunda,
 consequência da primeira, é que a LMC não pode captar nenhuma informação
-posicional: se a memorização se manifestar na organização espacial dos pesos e
-não na distribuição de seus valores, a LMC será cega a ela.
+posicional: se uma mudança no treinamento se manifestar na organização dos
+pesos e não na distribuição de seus valores, a LMC será cega a ela.
 
 \section{Entropia Amostral}
 \label{sec:T-sampen}
@@ -87,26 +86,12 @@ O parâmetro $m$ é o comprimento do padrão comparado e $r$ é a tolerância de
 similaridade, usualmente expressa como fração do desvio-padrão da série. Valores
 elevados de $\mathrm{SampEn}$ indicam baixa previsibilidade. A escolha de $m$ e
 $r$ não é neutra e afeta a estabilidade da estimativa, especialmente em séries
-curtas \cite{yentes2013}; por isso este trabalho reporta a sensibilidade dos
-resultados a esses parâmetros.
+curtas \cite{yentes2013}; por isso os valores adotados são fixados antes das
+comparações e mantidos iguais em todos os regimes.
 
 Diferentemente da LMC, a entropia amostral \emph{não} é invariante à ordem, pois
 compara janelas consecutivas. Essa é precisamente a propriedade que a torna
 complementar à LMC neste trabalho.
-
-\subsection{Extensão bidimensional}
-
-A entropia amostral bidimensional \cite{silva2016} generaliza a
-Equação~\ref{eq:sampen} substituindo as janelas unidimensionais por
-sub-matrizes $m \times m$ deslizantes sobre uma matriz, com a mesma lógica de
-contagem de pares similares. Preserva-se assim a vizinhança nas duas direções,
-em vez de destruí-la pelo achatamento. Sua formulação e validação em textura de
-imagens são discutidas em \citeonline{silva2014embc} e \citeonline{silva2012qsampen}.
-
-Para este trabalho a SampEn2D é particularmente pertinente, pois a matriz de
-pesos de uma camada densa é um objeto naturalmente bidimensional --- cada linha
-corresponde a um neurônio de saída e cada coluna a uma característica de
-entrada --- e reduzi-la a um vetor descarta uma das duas estruturas.
 
 \subsection{Entropia multiescala}
 
@@ -114,7 +99,8 @@ A entropia multiescala \cite{costa2002, costa2005} aplica a entropia amostral a
 versões da série granuladas em escalas crescentes, obtidas pela média de blocos
 consecutivos não sobrepostos. O perfil resultante distingue sinais cuja
 irregularidade se mantém através das escalas daqueles em que ela se concentra
-na escala fina. Está implementada neste trabalho e prevista como extensão.
+na escala fina. Sua versão unidimensional está implementada neste trabalho e
+fica prevista como extensão.
 
 \section{A Camada Densa como Objeto de Medida}
 \label{sec:T-camada}
@@ -124,9 +110,10 @@ na escala fina. Está implementada neste trabalho e prevista como extensão.
 Em uma rede convolucional de classificação, as camadas convolucionais produzem
 uma representação da imagem e a camada densa final converte essa representação
 em pontuações por classe. É nela que a decisão é efetivamente tomada, e é nela
-que a associação entre representação e rótulo precisa ser armazenada. Se a rede
-memoriza pares imagem--rótulo inconsistentes, é razoável esperar que essa
-associação se inscreva de forma mais direta nos pesos dessa camada. A escolha
+que a associação entre representação e rótulo precisa ser armazenada. É
+razoável esperar, portanto, que mudanças no que a rede precisa ajustar --- menos
+exemplos, ou exemplos degradados --- se inscrevam de forma direta nos pesos
+dessa camada. A escolha
 tem ainda a vantagem prática de manter o custo do monitoramento baixo: na
 ResNet-18 aplicada a seis classes, a matriz de pesos tem forma $6 \times 512$,
 totalizando \num{3072} parâmetros.
@@ -170,41 +157,43 @@ viés é um deslocamento aditivo do neurônio, não a ligação entre uma entrad
 um neurônio. Quando há mais de uma camada densa, cada uma é analisada
 separadamente, sem concatenação.
 
-\section{Definição Operacional de \emph{Overfitting}}
+\section{Definições Usadas na Descrição do Treinamento}
 \label{sec:T-overfitting}
-
-Para que a antecedência de um indicador seja mensurável, é preciso uma
-definição de \emph{overfitting} que produza um número de época, e não apenas
-uma descrição qualitativa. Adota-se a seguinte construção.
-
-Seja $\mathrm{val\_loss}(e)$ a perda no conjunto de validação na época $e$. A
-melhor época é $e^{*} = \arg\min_{e} \mathrm{val\_loss}(e)$. O início do
-\emph{overfitting} é a primeira época $e^{of} > e^{*}$ tal que
-$\mathrm{val\_loss}(e) > \mathrm{val\_loss}(e^{*}) + \delta$ de forma sustentada
-por um número pré-fixado de épocas consecutivas. Toda análise dos indicadores
-restringe-se às épocas $e \le e^{of}$; as posteriores permanecem registradas e
-são exibidas nas figuras em região sombreada, mas não sustentam nenhuma
-conclusão.
-
-Como referência temporal para o cálculo da antecedência utiliza-se uma âncora
-definida sobre a acurácia de validação --- a época em que ela passa a cair de
-forma sustentada. A opção pela acurácia, e não pela perda, decorre de uma
-observação empírica relatada no Capítulo~\ref{cap:resultados}: em repositórios
-que saturam rapidamente, a perda de validação começa a subir muito cedo, mesmo
-em execuções sem memorização, o que a torna uma âncora pouco discriminativa.
 
 A partição dos dados segue a separação em três conjuntos disjuntos. O conjunto
 de treino é o único que participa da retropropagação; o de validação é
 observado a cada época e nunca entra no gradiente; o de teste é consultado uma
 única vez, ao final, na época selecionada.
 
+Seja $\mathrm{val\_loss}(e)$ a perda no conjunto de validação na época $e$. A
+melhor época é $e^{*} = \arg\min_{e} \mathrm{val\_loss}(e)$, e é nela que se
+avalia o teste. Diz-se que há \emph{overfitting} quando o desempenho no treino
+supera de forma persistente o desempenho na validação; a lacuna entre a
+acurácia final de treino e a de validação é reportada para cada regime.
+
+Como o trabalho compara regimes com números de exemplos muito diferentes, a
+época não é uma unidade de tempo comparável entre eles: uma época com
+\SI{1}{\percent} dos dados corresponde a cerca de um centésimo das atualizações
+de uma época completa. Por isso as trajetórias também são descritas em
+\emph{passos de otimização} --- o número de atualizações dos pesos ---, e os
+regimes de subamostragem são repetidos com o número de passos igualado ao do
+controle.
+
+Para resumir uma trajetória $y(e)$ de uma medida usam-se duas estatísticas: o
+valor final, $y(e_{\mathrm{fim}})$, e a amplitude relativa,
+\begin{equation}
+    A = \frac{\max_e y(e) - \min_e y(e)}{\left|\overline{y}\right|},
+    \label{eq:amplitude}
+\end{equation}
+em que $\overline{y}$ é a média da trajetória. A normalização torna a
+amplitude comparável entre medidas que vivem em escalas distintas.
+
 \section{Síntese}
 \label{sec:T-sintese}
 
 Os conceitos aqui reunidos sustentam a proposta em três pontos. A complexidade
 LMC oferece uma leitura da distribuição de valores dos pesos, insensível à
-posição. A entropia amostral, uni e bidimensional, oferece uma leitura sensível
-à organização --- e, no caso bidimensional, preserva a estrutura de linhas e
-colunas da matriz de pesos. A formalização do caminho e da ordem de achatamento
+posição. A entropia amostral oferece uma leitura sensível à organização da
+sequência de pesos. A formalização do caminho e da ordem de achatamento
 torna explícita uma escolha que, de outro modo, permaneceria arbitrária e não
 reprodutível.

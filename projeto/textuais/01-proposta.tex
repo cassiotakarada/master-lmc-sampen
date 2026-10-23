@@ -11,174 +11,149 @@ grandes conjuntos de dados anotados. Em imagens médicas, a anotação exige um
 especialista, é onerosa e lenta, e frequentemente esbarra em restrições éticas
 e de privacidade que limitam o compartilhamento entre instituições.
 
-Essa escassez tem uma consequência metodológica pouco discutida. O procedimento
-padrão para decidir quando interromper o treinamento --- o \emph{early
-stopping} --- monitora o erro em um conjunto de validação separado e interrompe
-o ajuste quando esse erro deixa de diminuir \cite{prechelt1998}. O
-procedimento é sólido, mas transfere para o conjunto de validação toda a
-responsabilidade pelo diagnóstico: se ele é pequeno, desbalanceado ou pouco
-representativo, a estimativa do momento de parada torna-se ruidosa, e o
-desenvolvedor não dispõe de nenhum sinal alternativo para confrontá-la. Em
-outras palavras, justamente no regime de poucos dados --- aquele em que o
-\emph{overfitting} é mais provável --- o instrumento de medida é o menos
-confiável.
+Essa escassez tem uma consequência metodológica pouco discutida. O
+acompanhamento do treinamento --- inclusive a decisão de quando
+interrompê-lo, o \emph{early stopping} \cite{prechelt1998} --- é feito quase
+exclusivamente por métricas calculadas sobre dados rotulados: perda e acurácia
+nos conjuntos de treino e de validação. Toda a leitura do processo passa,
+portanto, pelos dados, e é tão confiável quanto eles. Justamente no regime de
+poucos dados, em que o \emph{overfitting} é mais provável, essa leitura é a
+menos estável.
 
-Há, entretanto, uma fonte de informação sobre o estado do treinamento que
-permanece pouco explorada e que não depende de rótulo algum: os próprios pesos
-da rede. A memorização de exemplos deixa marcas na distribuição de valores dos
-parâmetros, e trabalhos consolidados mostram que redes profundas são capazes de
-ajustar rótulos completamente aleatórios \cite{zhang2017}, memorizando-os por um
-regime de aprendizado distinto daquele em que extraem padrões
-generalizáveis \cite{arpit2017}. Se esses dois regimes deixam assinaturas
-distinguíveis na estrutura dos pesos, então medidas de complexidade estatística
-aplicadas a esses pesos podem, em princípio, sinalizar a transição entre eles
-sem consultar nenhum dado rotulado.
+Há, entretanto, uma fonte de informação sobre o treinamento que permanece pouco
+explorada e que não depende de rótulo algum: os próprios pesos da rede. É neles
+que fica registrado o que a rede aprendeu, e trabalhos consolidados mostram que
+o modo como uma rede ajusta os dados de treino --- extraindo regularidades ou
+decorando exemplos --- varia com o regime de
+treinamento \cite{zhang2017, arpit2017}. Medidas de complexidade estatística,
+desenvolvidas para caracterizar sinais e sistemas físicos, oferecem uma forma
+de resumir a estrutura desses pesos em números acompanháveis época a época. O
+que essas medidas registram ao longo do treinamento, e em que condições, ainda
+não foi descrito de forma sistemática.
 
 \section{Problema de Pesquisa}
 \label{sec:P-problema}
 
-É possível detectar o início do \emph{overfitting} de uma rede neural profunda
-a partir exclusivamente da complexidade estatística de seus pesos, sem recorrer
-a um conjunto de validação rotulado?
+Como se comportam a complexidade LMC e a entropia amostral dos pesos da camada
+densa ao longo do treinamento de uma rede convolucional, e como esse
+comportamento muda quando se altera a quantidade e a qualidade das imagens de
+treino?
 
 \section{Hipótese}
 \label{sec:P-hipotese}
 
-A hipótese central deste trabalho é a de que a transição do regime de
-aprendizado generalizante para o regime de memorização produz uma mudança
-mensurável na irregularidade estrutural dos pesos da camada densa, e que essa
-mudança \emph{antecede} a degradação observável no conjunto de validação.
+A hipótese de trabalho é a de que as duas medidas respondem ao regime de
+treinamento: em regimes que alteram de modo relevante o que a rede precisa
+ajustar --- menos dados, ou dados degradados --- as trajetórias de LMC e de
+SampEn afastam-se das do controle de forma maior do que a variação entre
+sementes.
 
-Operacionalmente, espera-se que, em execuções nas quais o \emph{overfitting} é
-induzido de forma controlada, ao menos um dos indicadores considerados apresente
-inflexão em uma época anterior àquela em que a acurácia de validação começa a
-cair de modo sustentado, e que essa inflexão não ocorra --- ou ocorra de forma
-substancialmente atenuada --- em execuções de controle sem indução. A hipótese
-é falsificável: caso a inflexão ocorra simultaneamente ou posteriormente à
-degradação da validação, ou caso ocorra com a mesma intensidade nas execuções
-de controle, o indicador não tem valor como aviso antecipado e isso deve ser
-reportado como tal.
+A hipótese é falsificável e é avaliada regime a regime. Para cada regime,
+compara-se o valor final e a amplitude de cada medida com os do controle, por
+teste não paramétrico entre sementes. Se a diferença não superar a variação
+entre sementes, a medida não registra aquele regime, e isso é reportado como
+resultado --- não como falha a ser contornada. Também se verifica se uma
+diferença observada pode ser explicada por um fator mais simples do que o
+regime em si, como o número de passos de otimização.
 
 \section{Objetivos}
 \label{sec:P-objetivos}
 
 \subsection{Objetivo Geral}
 
-Avaliar a complexidade estatística dos pesos de redes neurais profundas como
-indicador de \emph{overfitting} independente do conjunto de validação,
-entregando ao desenvolvedor um instrumento de diagnóstico acoplável ao laço de
-treinamento.
+Descrever o comportamento da complexidade LMC e da entropia amostral dos pesos
+da camada densa durante o treinamento de redes neurais convolucionais em
+imagens médicas, sob diferentes regimes de quantidade e qualidade dos dados de
+treino.
 
 \subsection{Objetivos Específicos}
 
 \begin{enumerate}
     \item Implementar, em um módulo único e validado numericamente, a
-          complexidade LMC, a entropia amostral unidimensional (SampEn) e a
-          entropia amostral bidimensional (SampEn2D), estabelecendo-o como
-          fonte única de cálculo para todo o trabalho.
+          complexidade LMC e a entropia amostral, estabelecendo-o como fonte
+          única de cálculo para todo o trabalho.
     \item Formalizar a leitura dos pesos da camada densa como objeto de
           medida, fixando a ordem de achatamento da matriz de pesos e
           justificando-a experimentalmente.
-    \item Definir operacionalmente o início do \emph{overfitting} e construir
-          um protocolo de indução controlada por corrupção de rótulos, com
-          execuções de controle pareadas.
-    \item Implementar um monitor que calcule os indicadores a cada época
-          durante o treinamento e emita um estado do aprendizado em tempo real.
-    \item Quantificar a antecedência de cada indicador em relação à degradação
-          da validação, com múltiplas sementes e teste de significância.
-    \item Caracterizar os limites do indicador quanto ao nível de corrupção e
-          quanto à arquitetura da rede, reportando explicitamente os regimes em
-          que ele falha.
+    \item Registrar as duas medidas a cada época de treinamento, junto com as
+          métricas convencionais de perda e acurácia.
+    \item Comparar com o controle os regimes de subamostragem do treino, com e
+          sem igualar o número de passos de otimização, para separar o efeito
+          da quantidade de dados do efeito do número de passos.
+    \item Comparar com o controle os regimes de ruído somado às imagens de
+          treino, com diferentes espectros (branco e rosa) e intensidades.
+    \item Relacionar o comportamento das medidas ao desempenho por classe na
+          validação, explicitando os casos em que o desempenho muda e as
+          medidas não.
 \end{enumerate}
 
-\section{Justificativa: o ponto de vista do desenvolvedor}
+\section{Justificativa}
 \label{sec:P-justificativa}
 
-A justificativa deste trabalho é deliberadamente formulada do ponto de vista de
-quem treina a rede, e não apenas do ponto de vista teórico.
+O público deste trabalho são pesquisadores que estudam o treinamento de redes
+neurais e a sua aplicação em imagens médicas. A mensagem central é que existem
+parâmetros, calculados apenas sobre os pesos, que podem ser usados para
+\emph{medir} o treinamento --- e que vale caracterizar o que eles medem antes
+de propor qualquer uso prático para eles.
 
-\subsection{A dependência atual dos dados rotulados}
+\subsection{Os pesos como objeto de medida}
 
-Para saber se uma rede aprendeu ou apenas memorizou, o desenvolvedor depende
-hoje inteiramente dos dados. É preciso construir conjuntos de treino, validação
-e teste que sejam bem particionados, corretamente rotulados e representativos da
-população de interesse. Cada um desses requisitos custa tempo e dinheiro, e em
-imagens médicas frequentemente esbarra na indisponibilidade de especialistas
-para anotação. O diagnóstico do treinamento é, portanto, uma função do orçamento
-de anotação --- não uma propriedade que se possa ler diretamente do modelo.
+As métricas convencionais descrevem o \emph{desempenho} da rede sobre um
+conjunto de dados; não descrevem a rede em si. Duas redes com a mesma acurácia
+podem ter chegado a ela por caminhos diferentes, com pesos organizados de modo
+diferente. Medidas calculadas sobre os pesos não consomem imagem, não consomem
+rótulo e não dependem de partição, e por isso fornecem uma leitura do
+treinamento obtida por um caminho independente daquele das métricas usuais.
 
-\subsection{O que muda com um indicador calculado sobre os pesos}
+\subsection{Por que descrever antes de propor}
 
-Os indicadores investigados neste trabalho são calculados exclusivamente a
-partir dos pesos da rede. Não consomem imagem, não consomem rótulo e não
-dependem de nenhuma partição. Se forem capazes de sinalizar a transição para o
-regime de memorização, o desenvolvedor passa a dispor de uma segunda leitura do
-treinamento, obtida por um caminho independente daquele do conjunto de
-validação. As duas leituras podem então ser confrontadas: quando concordam, a
-decisão de parada ganha confiança; quando discordam, há indício de que a
-validação não é representativa.
-
-\subsection{Casos de uso concretos}
-
-\begin{enumerate}
-    \item \textbf{Decidir quando parar.} Um aviso emitido antes da degradação
-          observável na validação amplia a janela de decisão do desenvolvedor,
-          em vez de constatar a perda depois de consumada.
-    \item \textbf{Economizar computação.} Detectar que a rede deixou de
-          aprender evita épocas de treinamento que não trarão ganho, com
-          impacto direto em custo de GPU.
-    \item \textbf{Comparar arquiteturas sem ampliar a anotação.} Como a medida
-          não consome dados rotulados, a comparação entre arquiteturas
-          candidatas não exige a ampliação do conjunto de validação.
-    \item \textbf{Diagnosticar com validação pequena.} Em cenários nos quais o
-          conjunto de validação é pequeno demais para ser confiável, um
-          indicador independente oferece evidência adicional --- exatamente o
-          cenário típico em imagens médicas.
-\end{enumerate}
-
-\subsection{Entrega prática}
-
-A contribuição não se esgota na constatação empírica. Entrega-se um monitor
-implementado em PyTorch, acoplável ao laço de treinamento de terceiros, que
-calcula os indicadores a cada época e devolve um estado do aprendizado. O custo
-computacional é baixo, pois a medida incide apenas sobre a camada densa.
+Uma medida só pode ser usada com segurança quando se sabe a que ela responde.
+Uma diferença entre regimes pode refletir o fenômeno de interesse ou um fator
+lateral --- por exemplo, o número de atualizações dos pesos. Este trabalho
+adota deliberadamente um escopo descritivo: caracterizar como as medidas se
+comportam, separar os fatores que as movem e registrar os casos em que elas
+permanecem insensíveis. Esse mapa é pré-requisito para qualquer proposta
+posterior de uso.
 
 \section{Visão Geral da Metodologia}
 \label{sec:P-metodologia}
 
-O trabalho experimental organiza-se em torno da comparação pareada entre
-execuções com e sem \emph{overfitting} induzido. A indução é feita por corrupção
-controlada de uma fração dos rótulos do conjunto de treino, procedimento que
-força a rede a memorizar exemplos inconsistentes \cite{zhang2017}. Cada execução
-com corrupção possui uma execução de controle correspondente, que deve ser
-idêntica a ela em arquitetura, partição, semente, número de épocas e ajustes de
-regularização, diferindo \emph{apenas} pela presença da corrupção --- de modo
-que a semente que governa o ruído é separada daquela que governa a partição e a
-inicialização. O rigor desse pareamento é condição de validade do experimento:
-qualquer diferença adicional entre os grupos, como a presença de aumento de
-dados em apenas um deles, torna o contraste observado atribuível a mais de uma
-causa.
+O trabalho experimental compara regimes de treinamento contra um controle comum.
+O controle usa todo o conjunto de treino, sem aumento de dados, por \num{60}
+épocas. Os regimes alteram um único aspecto por vez:
 
-Durante o treinamento, um monitor calcula a cada época a LMC, a SampEn e a
-SampEn2D sobre os pesos da camada densa. Ao final, compara-se a época em que
-cada indicador inflete com a época em que a acurácia de validação passa a cair
-de forma sustentada, definida como âncora. A diferença entre as duas é a
-antecedência, positiva quando o indicador avisa antes. A significância é
-avaliada por teste não paramétrico entre os grupos com e sem corrupção,
-escolhido pelo tamanho reduzido das amostras.
+\begin{enumerate}
+    \item \textbf{Subamostragem curta}: \SI{10}{\percent}, \SI{2}{\percent} ou
+          \SI{1}{\percent} do treino, com um número fixo de épocas --- e,
+          portanto, muito menos passos de otimização que o controle.
+    \item \textbf{Subamostragem com passos igualados}: as mesmas frações, com o
+          número de épocas aumentado até que o total de passos se iguale ao do
+          controle (cerca de \num{22140}).
+    \item \textbf{Ruído nas imagens}: um campo de ruído é somado aos pixels das
+          imagens de treino, com espectro branco (potência constante em
+          frequência) ou rosa (potência proporcional a $1/f$), e desvio-padrão
+          $\sigma \in \{\num{0,05}; \num{0,1}; \num{0,2}\}$. Os rótulos não são
+          alterados.
+\end{enumerate}
 
-O detalhamento reprodutível --- repositório de imagens, arquiteturas,
-hiperparâmetros, partição congelada e critério de inflexão --- constitui o
-capítulo de metodologia do documento final.
+Em todos os regimes apenas o treino é modificado; validação e teste permanecem
+intactos. O controle é repetido com uma segunda arquitetura, a DenseNet-121,
+para verificar se o comportamento observado depende da rede. A cada época calculam-se a LMC e a SampEn sobre os pesos da camada
+densa. Para cada execução resumem-se as trajetórias pelo valor final e pela
+amplitude relativa, e cada regime é comparado ao controle pelo teste de
+Mann-Whitney, escolhido pelo tamanho reduzido das amostras. O detalhamento
+reprodutível --- repositório de imagens, arquitetura, hiperparâmetros e
+partição congelada --- constitui o capítulo de metodologia do documento final.
 
 \section{Contribuição Esperada}
 \label{sec:P-contribuicao}
 
-Espera-se contribuir em três frentes. Do ponto de vista científico, caracterizar
-empiricamente se e quando medidas de complexidade estatística sobre pesos
-antecipam o \emph{overfitting}, incluindo a delimitação honesta dos regimes em
-que não o fazem. Do ponto de vista metodológico, formalizar a leitura dos pesos
-de uma camada densa como objeto de medida de complexidade, questão até aqui
-tratada de modo implícito na literatura. Do ponto de vista prático, disponibilizar
-um monitor documentado e testado, utilizável por terceiros independentemente
-deste trabalho.
+Espera-se contribuir em três frentes. Do ponto de vista científico, descrever
+empiricamente como medidas de complexidade estatística dos pesos se comportam
+ao longo do treinamento e a que fatores respondem, incluindo a delimitação dos
+regimes que elas não registram. Do ponto de vista metodológico, formalizar a
+leitura dos pesos de uma camada densa como objeto de medida de complexidade,
+questão até aqui tratada de modo implícito na literatura, e mostrar a
+importância de controlar o número de passos de otimização ao comparar regimes.
+Do ponto de vista prático, disponibilizar o módulo de cálculo e o registro por
+época, documentados e testados, para uso por outros pesquisadores.

@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval_train", action="store_true", default=None,
                         help="avalia o treino em eval() a cada epoca (checagem anti-BatchNorm)")
     parser.add_argument("--no_augment", dest="augment", action="store_false", default=None,
-                        help="desliga o aumento de dados (use nos runs de ruido)")
+                        help="desliga o aumento de dados (padrao dos experimentos atuais)")
     parser.add_argument("--model_name", type=str, default=None)
     parser.add_argument("--image_size", type=int, default=None)
     parser.add_argument("--flatten_order", type=str, default=None,
@@ -72,9 +72,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no_live_complexity", dest="live_complexity",
                         action="store_false", default=None,
                         help="desliga o calculo de LMC/SampEn durante o treino")
-    parser.add_argument("--no_live_sampen2d", dest="live_sampen2d",
-                        action="store_false", default=None)
-    parser.add_argument("--sampen2d_m", type=int, default=None)
     parser.add_argument("--patience", type=int, default=None)
     parser.add_argument("--overfit_delta", type=float, default=None)
     parser.add_argument("--early_stop", action="store_true", default=None,
@@ -212,9 +209,7 @@ def main() -> None:
             logger.warning(
                 "POUCOS PASSOS (%d < 200): as estatisticas moveis do BatchNorm podem nao "
                 "convergir. O modelo pode desabar em eval() por artefato, NAO por overfitting. "
-                "Antes de interpretar o resultado, confira a acuracia do proprio TREINO em eval(). "
-                "Para induzir overfitting, prefira ruido de rotulo (mantem o dataset inteiro) "
-                "a reduzir train_fraction.",
+                "Antes de interpretar o resultado, confira a acuracia do proprio TREINO em eval().",
                 passos_totais,
             )
 
@@ -251,18 +246,16 @@ def main() -> None:
                 order=cfg.flatten_order,
                 n_bins=cfg.lmc_bins,
                 r_scale=cfg.sampen_r_factor,
-                calcular_2d=cfg.live_sampen2d,
-                sampen2d_m=cfg.sampen2d_m,
                 limiares=LimiaresStatus(patience=cfg.patience),
                 logger=logger,
             )
             amostra = monitor.medir(model)
             logger.info(
                 "Monitor ao vivo LIGADO | camada=%s [%d neuronios x %d entradas = %d pesos, "
-                "todos usados] | ordem=%s | bins=%d | r=%.2f*sigma | 2D=%s",
+                "todos usados] | ordem=%s | bins=%d | r=%.2f*sigma",
                 amostra["camada"], amostra["n_neuronios"], amostra["n_entradas"],
                 amostra["n_pesos"], cfg.flatten_order, cfg.lmc_bins,
-                cfg.sampen_r_factor, cfg.live_sampen2d,
+                cfg.sampen_r_factor,
             )
         else:
             logger.info("Monitor ao vivo DESLIGADO (--no_live_complexity)")

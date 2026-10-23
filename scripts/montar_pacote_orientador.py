@@ -17,12 +17,11 @@ Estrutura gerada:
       todos_os_pesos_densenet121.csv
       <arquitetura>/<regime>/semente_XX/
         pesos_camada_densa.csv         epoca, n1_x1 ...
-        metricas_por_epoca.csv         LMC, SampEn, SampEn2D, perdas e acuracias
+        metricas_por_epoca.csv         LMC, SampEn, perdas e acuracias
         config.json, test_metrics.json
     graficos/
       comparativos/                    trajetorias medias por regime
       por_treino/<arquitetura>/<regime>/semente_XX.png
-      analises_anteriores/<pasta>/     figuras das fases F6/F7 (enquadramento antigo)
     tabelas/                           CSVs da analise descritiva
   <saida>.zip
 """
@@ -45,23 +44,21 @@ import pandas as pd
 
 # (arquitetura, regime na pasta, padrao dos runs, descricao)
 GRUPOS = [
-    ("resnet18", "controle",                      "f6_ctrlpar_seed*",  "100% dos dados, rotulos corretos, 60 epocas"),
-    ("resnet18", "ruido15",                       "f6_ruido15_seed*",  "15% dos rotulos de treino sorteados, 60 epocas"),
-    ("resnet18", "ruido30",                       "f6_ruido30*",       "30% dos rotulos de treino sorteados, 60 epocas"),
-    ("resnet18", "ruido50",                       "f6_ruido50_seed*",  "50% dos rotulos de treino sorteados, 60 epocas"),
+    ("resnet18", "controle",                      "f6_ctrlpar_seed*",  "100% dos dados, imagens limpas, 60 epocas"),
     ("resnet18", "subamostragem10_curta",         "f6_frac10_seed*",   "10% dos dados, 60 epocas (2.220 passos)"),
     ("resnet18", "subamostragem02_curta",         "f6_frac02_seed*",   "2% dos dados, 200 epocas (1.600 passos)"),
     ("resnet18", "subamostragem01_curta",         "f6_frac01_seed*",   "1% dos dados, 200 epocas (800 passos)"),
     ("resnet18", "subamostragem10_passos_iguais", "f6_frac10eq_seed*", "10% dos dados, 599 epocas (~22.140 passos)"),
     ("resnet18", "subamostragem02_passos_iguais", "f6_frac02eq_seed*", "2% dos dados, 2.768 epocas (~22.140 passos)"),
     ("resnet18", "subamostragem01_passos_iguais", "f6_frac01eq_seed*", "1% dos dados, 5.535 epocas (~22.140 passos)"),
-    ("densenet121", "controle",                   "dn121_ctrlpar_seed*", "100% dos dados, rotulos corretos, 60 epocas"),
-    ("densenet121", "ruido30",                    "dn121_ruido30_seed*", "30% dos rotulos de treino sorteados, 60 epocas"),
+    ("resnet18", "ruido_rosa_s005",               "f9_rosa_s005_seed*",   "ruido rosa nas imagens de treino, sigma 0,05, 60 epocas"),
+    ("resnet18", "ruido_rosa_s010",               "f9_rosa_s010_seed*",   "ruido rosa nas imagens de treino, sigma 0,1, 60 epocas"),
+    ("resnet18", "ruido_rosa_s020",               "f9_rosa_s020_seed*",   "ruido rosa nas imagens de treino, sigma 0,2, 60 epocas"),
+    ("resnet18", "ruido_branco_s005",             "f9_branco_s005_seed*", "ruido branco nas imagens de treino, sigma 0,05, 60 epocas"),
+    ("resnet18", "ruido_branco_s010",             "f9_branco_s010_seed*", "ruido branco nas imagens de treino, sigma 0,1, 60 epocas"),
+    ("resnet18", "ruido_branco_s020",             "f9_branco_s020_seed*", "ruido branco nas imagens de treino, sigma 0,2, 60 epocas"),
+    ("densenet121", "controle",                   "dn121_ctrlpar_seed*", "100% dos dados, imagens limpas, 60 epocas"),
 ]
-
-# figuras das fases anteriores (mesmos runs; marcam o "sinal" do detector, hoje fora do escopo)
-ANALISES_ANTERIORES = ["f6_analise", "f6_analise_n8", "f6_analise_dn121", "f7_pareado_resnet",
-                       "f7_pareado_dn121", "sensibilidade"]
 
 
 def peso_denso(caminho: str) -> np.ndarray:
@@ -112,8 +109,9 @@ def processar_run(args) -> str:
 
     live = pd.read_csv(os.path.join(run_dir, "complexity_live.csv"))
     hist = pd.read_csv(os.path.join(run_dir, "history.csv"))
+    # sampen2d: gravada pelos treinos antigos, mas fora do trabalho desde 2026-10-22
     live = live.drop(columns=[c for c in ("val_loss", "val_accuracy", "status", "d_lmc", "d_sampen",
-                                          "incl_lmc_rel", "overhead_s") if c in live.columns])
+                                          "incl_lmc_rel", "overhead_s", "sampen2d") if c in live.columns])
     cols = [c for c in ("epoch", "train_loss", "val_loss", "val_accuracy", "train_eval_loss",
                         "train_eval_accuracy") if c in hist.columns]
     met = live.merge(hist[cols], on="epoch", how="left")
@@ -127,7 +125,7 @@ def processar_run(args) -> str:
 
 
 def figura_run(df: pd.DataFrame, nome: str, out: str) -> None:
-    """Seis paineis, um eixo y cada: perda, acuracia, LMC, entropia, SampEn 1D, SampEn2D."""
+    """Cinco paineis, um eixo y cada: perda, acuracia, LMC, entropia, SampEn 1D."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -141,9 +139,9 @@ def figura_run(df: pd.DataFrame, nome: str, out: str) -> None:
         ("Entropia de Shannon do histograma (bits)", [("entropia", "H", "#4a3aa7")]),
         ("SampEn 1D", [("sampen", "ordem por neurônio", "#eb6834"),
                        ("sampen_x_major", "ordem por entrada", "#eda100")]),
-        ("SampEn2D", [("sampen2d", "SampEn2D", "#1baf7a")]),
     ]
     fig, axes = plt.subplots(2, 3, figsize=(15, 8), facecolor=SURFACE)
+    axes.ravel()[-1].set_visible(False)
     x = df["epoch"]
     for ax, (titulo, series) in zip(axes.ravel(), paineis):
         for col, rot, cor in series:
@@ -205,28 +203,26 @@ SampEn desses treinos está em `metricas_por_epoca.csv`, calculada durante o tre
 
 Na mesma pasta de cada treino:
 - `metricas_por_epoca.csv`: LMC, entropia, desequilíbrio, SampEn 1D (ordem por neurônio e por
-  entrada), SampEn2D, perdas e acurácias, época a época.
+  entrada), perdas e acurácias, época a época.
 - `config.json`: todos os hiperparâmetros. `test_metrics.json`: desempenho no conjunto de teste.
 
 ## Gráficos (`graficos/`)
 
 | Pasta | O que mostra |
 |---|---|
-| `por_treino/<arquitetura>/<regime>/semente_XX.png` | Um gráfico por treino com 6 painéis: perda, acurácia, LMC, entropia, SampEn 1D e SampEn2D por época |
-| `comparativos/` | Média ± desvio entre sementes: trajetórias de cada regime por época e por passos (`trajetoria_*`), níveis de ruído 15/30/50% (`niveis_de_ruido`), DenseNet-121 controle × ruído (`densenet121_controle_vs_ruido`) e sensibilidade aos parâmetros das medidas (`sensibilidade_parametros`) |
-| `analises_anteriores/` | Figuras das fases anteriores (F6/F7) com os mesmos treinos. Elas marcam o "sinal" de um detector de overfitting, abordagem que saiu do escopo; servem como registro |
+| `por_treino/<arquitetura>/<regime>/semente_XX.png` | Um gráfico por treino com 5 painéis: perda, acurácia, LMC, entropia e SampEn 1D por época |
+| `comparativos/` | Média ± desvio entre sementes: trajetórias de cada regime por época e por passos (`trajetoria_*`), ruído rosa e branco nas imagens (`ruido_rosa`, `ruido_branco`), exemplo dos ruídos e seus espectros (`exemplo_ruido`) e acerto por classe (`acerto_por_classe`) |
 
 ## Tabelas (`tabelas/`)
 
 | Arquivo | O que é |
 |---|---|
-| `comportamento_por_run.csv` | Uma linha por treino: valor inicial, final, amplitude relativa, época do pico e do vale de LMC, SampEn 1D e SampEn2D, além das acurácias finais |
+| `comportamento_por_run.csv` | Uma linha por treino: valor inicial, final, amplitude relativa, época do pico e do vale de LMC e SampEn 1D, além das acurácias finais |
 | `comparacoes_vs_controle.csv` | Cada regime comparado ao controle (teste de Mann-Whitney): média, desvio, razão e valor-p do valor final e da amplitude de cada medida |
 | `trajetorias_medias.csv` | As curvas médias (e desvio) de cada regime, por época e por passos, usadas nos gráficos comparativos |
-| `sensibilidade_resumo.csv` | Para cada valor de parâmetro (bins da LMC; r da SampEn 1D e 2D): médias de controle e ruído 30%, razão e valor-p |
-| `sensibilidade_por_epoca.csv` | Os valores época a época que geram o gráfico de sensibilidade |
+| `acerto_por_classe.csv` / `acerto_por_classe_resumo.csv` | Acerto de cada classe na validação, por treino (melhor época e última época) e a média por regime |
 
-Nas comparações, cada regime da DenseNet-121 é comparado com o controle da própria DenseNet-121 (coluna `controle`).
+A DenseNet-121 entra só com o controle (outra arquitetura, mesmas sementes e configuração); a coluna `controle` das comparações diz contra qual controle cada regime foi comparado.
 
 Amplitude relativa = (máximo − mínimo) / |média| da trajetória da medida.
 
@@ -234,9 +230,11 @@ Amplitude relativa = (máximo − mínimo) / |média| da trajetória da medida.
 
 {tabela}
 
+**Ruído nas imagens** (`ruido_rosa*`, `ruido_branco*`): campo de ruído somado aos pixels, potência ∝ 1/f no rosa e plana no branco, gerado com a transformada de Fourier do SciPy, fixo por imagem; os rótulos não mudam. Só o treino é afetado; validação e teste ficam limpos.
+
 Configuração comum: MedNIST (partição fixa 47.164 / 5.895 / 5.895), imagens 64×64, AdamW
 (lr = 0,001, weight decay = 0), lote 128, sem aumento de dados. LMC com 100 bins; SampEn 1D
-com m = 2 e r = 0,2·DP; SampEn2D com m = 1.
+com m = 2 e r = 0,2·DP.
 """
 
 
@@ -244,7 +242,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Monta o pacote do orientador")
     p.add_argument("--root", default="monai_weights")
     p.add_argument("--analise", nargs="+",
-                   default=["monai_weights/f8_comportamento", "monai_weights/f8_sensibilidade"])
+                   default=["monai_weights/f8_comportamento", "monai_weights/f8_acerto_por_classe",
+                            "monai_weights/f9_ruido_imagem"])
     p.add_argument("--saida", required=True)
     p.add_argument("--workers", type=int, default=8)
     a = p.parse_args()
@@ -279,13 +278,6 @@ def main() -> int:
             shutil.copy2(f, comp)
         for f in glob.glob(os.path.join(pasta, "*.csv")):
             shutil.copy2(f, tab)
-    for nome in ANALISES_ANTERIORES:
-        figs = glob.glob(os.path.join(a.root, nome, "*.png"))
-        if figs:
-            dest = os.path.join(a.saida, "graficos", "analises_anteriores", nome)
-            os.makedirs(dest, exist_ok=True)
-            for f in figs:
-                shutil.copy2(f, dest)
 
     tabela = ("| Arquitetura | Pasta | Treinos | Sementes | Descrição |\n|---|---|---|---|---|\n"
               + "\n".join(linhas))

@@ -18,19 +18,20 @@ Seção~\ref{sec:E-sintese} sintetiza e posiciona a proposta.
 \citeonline{zhang2017} demonstraram experimentalmente que redes convolucionais
 de grande porte ajustam perfeitamente rótulos atribuídos ao acaso, e que esse
 comportamento persiste mesmo sob regularização explícita. O resultado é
-qualitativamente importante para este trabalho por duas razões: estabelece que a
+qualitativamente importante para este trabalho porque estabelece que a
 capacidade de memorização não é um acidente, mas uma propriedade das
-arquiteturas usuais, e fornece o protocolo experimental --- corrupção
-controlada de rótulos --- que permite induzir memorização de forma reprodutível.
-A limitação, do ponto de vista aqui adotado, é que o diagnóstico continua
-dependendo da comparação entre desempenho de treino e de teste.
+arquiteturas usuais: o modo como a rede ajusta os dados depende do regime de
+treinamento, e não apenas da arquitetura. A limitação, do ponto de vista aqui
+adotado, é que a caracterização continua dependendo da comparação entre
+desempenho de treino e de teste.
 
 \citeonline{arpit2017} refinam esse quadro ao mostrar que memorização e
 aprendizado de padrões não ocorrem simultaneamente: redes tendem a aprender
 primeiro as regularidades simples e só depois memorizam os exemplos ruidosos.
 A existência de dois regimes sucessivos, e não de um processo homogêneo, é o
-pressuposto que torna plausível a hipótese deste projeto --- se há transição,
-pode haver assinatura da transição. Os autores, contudo, caracterizam os
+que motiva acompanhar os pesos época a época, e não apenas ao final do
+treinamento: se o processo tem fases, uma medida dos pesos pode registrá-las.
+Os autores, contudo, caracterizam os
 regimes por meio de métricas que dependem dos dados, e não da estrutura dos
 pesos.
 
@@ -39,10 +40,10 @@ generalização ocorre muito depois do ajuste completo do treino, às vezes apó
 longo período de estagnação da validação. O fenômeno é relevante aqui porque
 constitui um contraexemplo aos critérios ingênuos de parada antecipada: uma
 interrupção baseada apenas na estagnação da validação eliminaria justamente o
-regime em que a generalização acabaria emergindo. Um indicador que leia o
-estado interno da rede, e não apenas seu desempenho externo, é potencialmente
-capaz de distinguir estagnação de reorganização --- questão que este trabalho
-deixa registrada como hipótese derivada, ainda não testada.
+regime em que a generalização acabaria emergindo. Uma medida que leia o
+estado interno da rede, e não apenas seu desempenho externo, pode em princípio
+distinguir estagnação de reorganização --- questão que este trabalho deixa
+registrada, sem testá-la.
 
 \section{Métricas de Generalização a partir dos Pesos}
 \label{sec:E-pesos}
@@ -62,8 +63,9 @@ medidas teoricamente motivadas correlacionam-se mal com a generalização
 observada, e medidas baseadas em otimização desempenham-se melhor do que as
 baseadas em norma. Esse resultado impõe a este trabalho uma exigência
 metodológica clara --- não basta exibir correlação entre indicador e
-\emph{overfitting} em uma execução; é preciso demonstrar discriminação entre
-execuções com e sem memorização, com controles pareados.
+o regime de treinamento em uma execução; é preciso comparar múltiplas
+sementes contra um controle comum e verificar se a diferença não se explica por
+um fator mais simples.
 
 \citeonline{martin2021} mostram que propriedades de cauda pesada do espectro das
 matrizes de pesos permitem prever tendências de qualidade de modelos sem acesso
@@ -71,7 +73,7 @@ aos dados de treino ou de teste. Este é o trabalho mais próximo do objetivo aq
 perseguido, e convém explicitar a diferença: a abordagem é \emph{espectral},
 apoiando-se nos autovalores das matrizes, ao passo que a abordagem deste projeto
 é \emph{informação-teórica}, apoiando-se na distribuição de valores e na
-organização espacial dos pesos. Além disso, o alvo em \citeonline{martin2021} é
+organização sequencial dos pesos. Além disso, o alvo em \citeonline{martin2021} é
 comparar modelos já treinados, enquanto aqui o alvo é acompanhar a trajetória
 temporal de um único treinamento.
 
@@ -87,9 +89,9 @@ diretamente relevante para a estabilidade das estimativas aqui empregadas.
 
 O que a revisão da literatura não localizou foi trabalho que acompanhe, época a
 época, medidas de complexidade estatística calculadas sobre os pesos de uma
-camada específica com o propósito explícito de emitir um aviso antecipado de
-\emph{overfitting}, com controles pareados e quantificação da antecedência.
-Essa é a lacuna que o projeto endereça.
+camada específica, descrevendo de forma sistemática como elas se comportam em
+regimes de treinamento distintos e a que fatores respondem. Essa é a lacuna
+que o projeto endereça.
 
 \section{Critérios de Parada}
 \label{sec:E-parada}
@@ -99,8 +101,9 @@ antecipada baseados em validação cruzada, avaliando empiricamente catorze
 critérios quanto a eficiência e eficácia. O trabalho permanece a referência
 metodológica da prática corrente e explicita seu próprio pressuposto: a decisão
 de parada é uma função do erro medido em dados separados. É exatamente esse
-pressuposto que este projeto procura relaxar, não substituindo o critério
-clássico, mas oferecendo uma segunda leitura obtida por caminho independente.
+pressuposto que motiva este projeto a olhar para os pesos: não para substituir
+o critério clássico, mas para descrever uma segunda leitura do treinamento,
+obtida por caminho independente.
 
 \section{Síntese e Posicionamento da Proposta}
 \label{sec:E-sintese}
@@ -111,18 +114,18 @@ clássico, mas oferecendo uma segunda leitura obtida por caminho independente.
     rotulados e à natureza temporal da leitura.}
     \label{tab:estado-arte}
     \footnotesize
-    \begin{tabular}{lcccc}
+    \begin{tabular}{lccc}
         \toprule
-        Trabalho & Objeto da medida & Precisa de rótulo & Leitura temporal & Avisa antes? \\
+        Trabalho & Objeto da medida & Precisa de rótulo & Leitura temporal \\
         \midrule
-        \citeonline{prechelt1998} & Erro de validação   & Sim  & Sim & Não \\
-        \citeonline{zhang2017}    & Desempenho          & Sim  & Não & Não \\
-        \citeonline{arpit2017}    & Desempenho          & Sim  & Sim & Não \\
-        \citeonline{bartlett2017} & Norma espectral     & Não  & Não & Não \\
-        \citeonline{dziugaite2017}& Limite PAC-Bayes    & Sim  & Não & Não \\
-        \citeonline{jiang2020}    & Diversas            & Sim  & Não & Não \\
-        \citeonline{martin2021}   & Espectro dos pesos  & Não  & Não & Não \\
-        \textbf{Este trabalho}    & Complexidade dos pesos & Não & Sim & Sim \\
+        \citeonline{prechelt1998} & Erro de validação   & Sim  & Sim \\
+        \citeonline{zhang2017}    & Desempenho          & Sim  & Não \\
+        \citeonline{arpit2017}    & Desempenho          & Sim  & Sim \\
+        \citeonline{bartlett2017} & Norma espectral     & Não  & Não \\
+        \citeonline{dziugaite2017}& Limite PAC-Bayes    & Sim  & Não \\
+        \citeonline{jiang2020}    & Diversas            & Sim  & Não \\
+        \citeonline{martin2021}   & Espectro dos pesos  & Não  & Não \\
+        \textbf{Este trabalho}    & Complexidade dos pesos & Não & Sim \\
         \bottomrule
     \end{tabular}
     \fonte{Elaborado pelo autor.}
@@ -138,8 +141,9 @@ nenhuma foi concebida para acompanhar a trajetória do treinamento época a
 A proposta deste trabalho situa-se na interseção ainda vazia desses dois eixos,
 e diferencia-se da literatura existente em três aspectos: (i) a medida é
 informação-teórica, incidindo sobre a distribuição de valores e sobre a
-organização espacial dos pesos, e não sobre seu espectro; (ii) a leitura é
+organização sequencial dos pesos, e não sobre seu espectro; (ii) a leitura é
 temporal, produzindo uma trajetória e não um escalar ao final do treino; e
-(iii) a validação é feita por controles pareados com indução explícita de
-memorização, em resposta direta à advertência metodológica de
-\citeonline{jiang2020} quanto a correlações espúrias.
+(iii) a comparação é feita contra um controle comum, com várias sementes por
+regime e com o número de passos de otimização controlado, em resposta direta à
+advertência metodológica de \citeonline{jiang2020} quanto a correlações
+espúrias.

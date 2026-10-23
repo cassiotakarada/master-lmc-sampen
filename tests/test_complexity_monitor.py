@@ -9,7 +9,6 @@ import torch.nn as nn
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from src.complexity import sample_entropy_2d  # noqa: E402
 from src.training.complexity_monitor import (  # noqa: E402
     ComplexityMonitor,
     LimiaresStatus,
@@ -120,9 +119,9 @@ class TestMedicao:
         assert m["n_pesos"] == 512 * 6 == 3072
         assert m["n_neuronios"] == 6 and m["n_entradas"] == 512
 
-    def test_produz_os_tres_indicadores(self):
-        m = ComplexityMonitor(calcular_2d=True, calcular_ambas_ordens=True).medir(ModeloFake())
-        for chave in ("lmc", "sampen", "sampen_x_major", "sampen2d"):
+    def test_produz_os_indicadores(self):
+        m = ComplexityMonitor(calcular_ambas_ordens=True).medir(ModeloFake())
+        for chave in ("lmc", "sampen", "sampen_x_major"):
             assert chave in m, f"faltou {chave}"
             assert np.isfinite(m[chave]), f"{chave} nao e finito"
 
@@ -132,51 +131,6 @@ class TestMedicao:
         b = ComplexityMonitor(order="x_major").medir(model)
         assert a["lmc"] == b["lmc"]
         assert a["sampen"] != b["sampen"]
-
-    def test_sampen2d_e_igual_nas_duas_ordens(self):
-        """SampEn2D opera na matriz: nao existe escolha de ordem para influenciar."""
-        model = ModeloFake()
-        a = ComplexityMonitor(order="n_major").medir(model)
-        b = ComplexityMonitor(order="x_major").medir(model)
-        assert a["sampen2d"] == b["sampen2d"]
-        assert np.isfinite(a["sampen2d"])
-
-    def test_sampen2d_usa_m1_por_padrao(self):
-        """Com m=2 numa densa de 6 linhas a medida fica indefinida -- ver docstring."""
-        assert ComplexityMonitor().sampen2d_m == 1
-
-    def test_sampen2d_com_m2_fica_indefinida_nesta_matriz(self):
-        """Documenta a limitacao real: janelas 3x3 nao se repetem numa matriz 6x512."""
-        m = ComplexityMonitor(sampen2d_m=2).medir(ModeloFake())
-        assert np.isnan(m["sampen2d"])
-
-    @pytest.mark.parametrize("n_in,n_out", [(512, 6), (48, 32), (64, 64)])
-    def test_m2_fica_indefinida_em_pesos_de_densa(self, n_in, n_out):
-        """A causa NAO e o tamanho da matriz: m=2 falha em todas as formas testadas."""
-        torch.manual_seed(0)
-        m = ComplexityMonitor(sampen2d_m=2).medir(ModeloFake(n_in=n_in, n_out=n_out))
-        assert np.isnan(m["sampen2d"])
-
-    def test_m2_funciona_quando_ha_estrutura_espacial(self):
-        """A causa real: janelas 3x3 so casam se padroes locais se repetirem.
-
-        Pesos de camada densa sao quase independentes -- cada peso liga um par
-        (entrada, neuronio) e nao guarda relacao com o vizinho na matriz -- entao nao
-        ha nada que se repita. Numa matriz COM estrutura, m=2 funciona normalmente.
-        """
-        rng = np.random.default_rng(0)
-
-        # padrao 4x4 ladrilhado: vizinhancas locais se repetem o tempo todo
-        estruturada = np.tile(rng.normal(size=(4, 4)), (16, 16))
-        assert np.isfinite(sample_entropy_2d(estruturada, m=2, r_scale=0.20, max_dim=64))
-
-        # mesmo tamanho, mesma escala, mas sem estrutura: indefinida
-        independente = rng.normal(size=(64, 64))
-        assert not np.isfinite(sample_entropy_2d(independente, m=2, r_scale=0.20, max_dim=64))
-
-    def test_pode_desligar_o_2d(self):
-        assert "sampen2d" not in ComplexityMonitor(calcular_2d=False).medir(ModeloFake())
-
 
 # ==========================================================================
 # Maquina de estados
@@ -192,7 +146,7 @@ class TestStatus:
         """
         torch.manual_seed(0)
         model = ModeloFake()
-        mon = ComplexityMonitor(calcular_2d=False, calcular_ambas_ordens=False,
+        mon = ComplexityMonitor(calcular_ambas_ordens=False,
                                 limiares=limiares or LimiaresStatus())
         if val_accs is None:
             pior = max(val_losses)
@@ -233,7 +187,7 @@ class TestStatus:
         """Sem o dado que decide, o monitor admite que nao sabe -- nao chuta."""
         torch.manual_seed(0)
         model = ModeloFake()
-        mon = ComplexityMonitor(calcular_2d=False, calcular_ambas_ordens=False)
+        mon = ComplexityMonitor(calcular_ambas_ordens=False)
         est = [mon.on_epoch_end(model, i, 1.0 / i)["status"] for i in range(1, 7)]
         assert set(est) == {TrainingStatus.INICIALIZANDO.value}
 
@@ -244,7 +198,7 @@ class TestStatus:
         assert set(est) <= validos
 
     def test_historico_cresce_uma_entrada_por_epoca(self):
-        mon = ComplexityMonitor(calcular_2d=False)
+        mon = ComplexityMonitor()
         model = ModeloFake()
         for i in range(1, 6):
             mon.on_epoch_end(model, i, 1.0 / i)
@@ -252,7 +206,7 @@ class TestStatus:
         assert [h["epoch"] for h in mon.historico] == [1, 2, 3, 4, 5]
 
     def test_d_lmc_e_a_diferenca_para_a_epoca_anterior(self):
-        mon = ComplexityMonitor(calcular_2d=False)
+        mon = ComplexityMonitor()
         model = ModeloFake()
         r1 = mon.on_epoch_end(model, 1, 1.0)
         model.fc.weight.data.add_(torch.randn_like(model.fc.weight) * 0.05)
@@ -266,10 +220,8 @@ class TestLimiares:
         lim = LimiaresStatus()
         assert lim.patience == 3 and lim.janela == 3
         assert lim.var_relativa_estavel == 0.02
-        # Valores escolhidos pela calibracao de 2026-09-22 (scripts/calibrar_status.py):
-        # ajustados em 3+3 runs e verificados em 2+2 que a busca nunca viu.
         assert lim.queda_acc == 0.005
-        assert lim.afast_k == 5.0 and lim.afast_p == 3 and lim.afast_base == 5
+        assert lim.queda_rel == 0.10 and lim.queda_p == 2
         assert not hasattr(lim, "melhora_val_minima"), (
             "o status deixou de ser ancorado no val_loss na recalibracao de 2026-09-22")
 

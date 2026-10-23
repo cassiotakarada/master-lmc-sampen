@@ -142,9 +142,7 @@ O **bias é excluído** da análise: o projeto mede *caminhos* entre unidades, e
 
 | Função | Referência |
 |--------|-----------|
-| `sample_entropy_2d(matrix, m=2, r=None, max_dim=64)` | Silva et al. (2018) — trata `W` como estrutura 2D, **sem** precisar escolher ordem de achatamento |
 | `mse_1d(series, max_scale=10)` | Costa, Goldberger & Peng (2002, 2005) — entropia multiescala |
-| `mse_2d(matrix, max_scale=10)` | versão 2D da multiescala |
 
 ---
 

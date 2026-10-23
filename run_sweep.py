@@ -65,15 +65,17 @@ class Experiment:
 # ===========================================================================
 # Controles: treino normal (rotulos e imagens intactos)
 # ===========================================================================
-# Os runs de ruido de ROTULO (f6_ruido*, dn121_ruido*) e os controles pareados
-# (f6_ctrlpar_*, dn121_ctrlpar_*) ja rodaram; o codigo do ruido de rotulo foi retirado
-# do pipeline em 2026-10-15 e os resultados continuam em monai_weights/.
+# 60 epocas, sem aumento de dados, sem weight decay e com eval_train: a mesma
+# configuracao dos regimes de subamostragem e de ruido nas imagens, para que o regime
+# seja a unica diferenca. Os runs ja existem em monai_weights/ (o runner os pula).
 EXPERIMENTS: List[Experiment] = [
-    Experiment(run_id=f"f6_seed{_s}", model_name="resnet18", image_size=64, seed=_s, epochs=40)
+    Experiment(run_id=f"f6_ctrlpar_seed{_s}", model_name="resnet18", image_size=64, seed=_s,
+               epochs=60, augment=False, weight_decay=0.0, eval_train=True)
     for _s in (42, 1, 7, 13, 23, 99, 101, 202)
 ] + [
-    Experiment(run_id=f"dn121_seed{_s}", model_name="densenet121", image_size=64, seed=_s, epochs=40)
-    for _s in (42, 1, 7)
+    Experiment(run_id=f"dn121_ctrlpar_seed{_s}", model_name="densenet121", image_size=64, seed=_s,
+               epochs=60, augment=False, weight_decay=0.0, eval_train=True)
+    for _s in (13, 23, 99, 101, 202)
 ]
 
 # ===========================================================================
