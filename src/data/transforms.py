@@ -12,6 +12,8 @@ saidas: (a) trocar a primeira convolucao por uma de 1 canal, ou (b) replicar o c
 tres vezes. Adotamos (b) porque e o que a dissertacao ja faz -- manter os dois
 pipelines iguais vale mais do que a pequena economia de (a). A camada densa analisada
 (`fc`, 6x512) e identica nos dois casos.
+
+O PathMNIST ja chega em RGB (3 canais): `_para_rgb` nao faz nada nele.
 """
 from __future__ import annotations
 

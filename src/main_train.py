@@ -16,6 +16,7 @@ from .data.transforms import build_transforms
 from .data.dataset import create_loaders
 from .data.image_noise import RuidoNaImagem, resolver_beta
 from .data.mednist import MedNISTDataset, ParticaoMedNIST
+from .data.pathmnist import ArquivoPathMNIST, PathMNISTDataset
 from .data.split import resumo_particao, stratified_subset_indices
 from .training.model import build_model
 from .training.trainer import Trainer
@@ -26,9 +27,16 @@ from .utils.paths import ensure_dir
 from .utils.seed import set_seed
 from .utils.logging import setup_logger, get_logger
 
+NUM_CLASSES_POR_DATASET = {"mednist": 6, "pathmnist": 9}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Treinador de classificacao 2D (PyTorch puro)")
+    parser.add_argument("--dataset", type=str, default=None,
+                        choices=sorted(NUM_CLASSES_POR_DATASET),
+                        help="conjunto de dados (padrao mednist)")
+    parser.add_argument("--pathmnist_file", type=str, default=None,
+                        help=".npz do PathMNIST (padrao ~/.medmnist/pathmnist_64.npz)")
     parser.add_argument("--db_path", type=str, default=None)
     parser.add_argument("--data_root", type=str, default=None)
     parser.add_argument("--results_dir", type=str, default=None)
@@ -94,6 +102,12 @@ def merge_config(args: argparse.Namespace) -> TrainConfig:
         cfg.log_level = "DEBUG"
     if getattr(args, "log_level", None):
         cfg.log_level = args.log_level
+    if cfg.dataset not in NUM_CLASSES_POR_DATASET:
+        raise ValueError(f"dataset desconhecido {cfg.dataset!r}; use um de {sorted(NUM_CLASSES_POR_DATASET)}")
+    esperado = NUM_CLASSES_POR_DATASET[cfg.dataset]
+    if getattr(args, "num_classes", None) is not None and args.num_classes != esperado:
+        raise ValueError(f"--num_classes {args.num_classes} nao bate com {cfg.dataset} ({esperado} classes)")
+    cfg.num_classes = esperado
     return cfg
 
 
@@ -103,6 +117,61 @@ def log_dataset_samples(dataset, split: str, n: int) -> None:
     for idx in range(preview):
         item = dataset[idx]
         logger.info("Sample %s | idx=%d label=%s shape=%s", split, idx, item.get("label"), np.array(item.get("image")).shape)
+
+
+def aplicar_ruido_e_subamostragem(cfg: TrainConfig, train_ds):
+    """Ruido nas imagens (opcional) e subamostragem estratificada, so no TREINO.
+
+    Comum aos dois datasets: o ruido e somado antes de subamostrar, entao a imagem de
+    indice i recebe o mesmo ruido com ou sem subamostragem.
+    """
+    logger = get_logger()
+    if cfg.image_noise != "nenhum" or cfg.image_noise_beta is not None:
+        beta = resolver_beta(cfg.image_noise, cfg.image_noise_beta)
+        semente_ruido = cfg.noise_seed if cfg.noise_seed is not None else cfg.seed
+        train_ds = RuidoNaImagem(train_ds, beta=beta, sigma=cfg.image_noise_sigma, seed=semente_ruido)
+        logger.info(
+            "RUIDO NAS IMAGENS de treino: %s (potencia ~ 1/f^%.2f), sigma=%.3f na escala [0, 1], "
+            "FIXO por imagem (semente noise_seed=%d, independente de seed=%d). "
+            "Validacao e teste permanecem INTACTOS.",
+            cfg.image_noise, beta, cfg.image_noise_sigma, semente_ruido, cfg.seed,
+        )
+
+    n_train_original = len(train_ds)
+    if cfg.train_fraction < 1.0:
+        indices = stratified_subset_indices(train_ds.rotulos(), cfg.train_fraction, seed=cfg.data_seed)
+        train_ds = Subset(train_ds, indices)
+        logger.info(
+            "Treino subamostrado (train_fraction=%.3f): %d -> %d amostras, estratificado por classe",
+            cfg.train_fraction, n_train_original, len(train_ds),
+        )
+
+    return train_ds
+
+
+def prepare_pathmnist_datasets(cfg: TrainConfig, transforms_treino, transforms_aval):
+    """Carrega o PathMNIST na particao OFICIAL do arquivo (treino/validacao/teste).
+
+    Nao ha particao a congelar: ela vem no `.npz`. O sha256 do arquivo vai para o
+    config.json, para registrar exatamente que dado foi usado.
+    """
+    logger = get_logger()
+    arquivo = ArquivoPathMNIST.carregar(cfg.pathmnist_file)
+    logger.info("PathMNIST carregado | %s", arquivo.resumo())
+
+    train_ds = PathMNISTDataset("train", transform=transforms_treino, arquivo=arquivo)
+    val_ds = PathMNISTDataset("val", transform=transforms_aval, arquivo=arquivo)
+    test_ds = PathMNISTDataset("test", transform=transforms_aval, arquivo=arquivo)
+
+    train_ds = aplicar_ruido_e_subamostragem(cfg, train_ds)
+
+    logger.info("Particao dos dados (oficial do PathMNIST) | %s",
+                resumo_particao(len(train_ds), len(val_ds), len(test_ds)))
+    logger.info(
+        "Semente da SUBAMOSTRAGEM data_seed=%d (fixa) | semente do TREINO seed=%d (varia)",
+        cfg.data_seed, cfg.seed,
+    )
+    return train_ds, val_ds, test_ds
 
 
 def prepare_mednist_datasets(cfg: TrainConfig, transforms_treino, transforms_aval):
@@ -123,25 +192,7 @@ def prepare_mednist_datasets(cfg: TrainConfig, transforms_treino, transforms_ava
     val_ds = MedNISTDataset("val", transform=transforms_aval, particao=particao)
     test_ds = MedNISTDataset("test", transform=transforms_aval, particao=particao)
 
-    if cfg.image_noise != "nenhum" or cfg.image_noise_beta is not None:
-        beta = resolver_beta(cfg.image_noise, cfg.image_noise_beta)
-        semente_ruido = cfg.noise_seed if cfg.noise_seed is not None else cfg.seed
-        train_ds = RuidoNaImagem(train_ds, beta=beta, sigma=cfg.image_noise_sigma, seed=semente_ruido)
-        logger.info(
-            "RUIDO NAS IMAGENS de treino: %s (potencia ~ 1/f^%.2f), sigma=%.3f na escala [0, 1], "
-            "FIXO por imagem (semente noise_seed=%d, independente de seed=%d). "
-            "Validacao e teste permanecem INTACTOS.",
-            cfg.image_noise, beta, cfg.image_noise_sigma, semente_ruido, cfg.seed,
-        )
-
-    n_train_original = len(train_ds)
-    if cfg.train_fraction < 1.0:
-        indices = stratified_subset_indices(train_ds.rotulos(), cfg.train_fraction, seed=cfg.data_seed)
-        train_ds = Subset(train_ds, indices)
-        logger.info(
-            "Treino subamostrado (train_fraction=%.3f): %d -> %d amostras, estratificado por classe",
-            cfg.train_fraction, n_train_original, len(train_ds),
-        )
+    train_ds = aplicar_ruido_e_subamostragem(cfg, train_ds)
 
     logger.info("Particao dos dados | %s", resumo_particao(len(train_ds), len(val_ds), len(test_ds)))
     logger.info(
@@ -184,9 +235,14 @@ def main() -> None:
         transforms_aval = build_transforms(size=(cfg.image_size, cfg.image_size), treino=False)
         logger.info("Transformacoes | treino: %s", transforms_treino)
         logger.info("Transformacoes | validacao/teste (sem aumento): %s", transforms_aval)
-        logger.info("Expected modality: grayscale in_channels=%d image_size=%d", cfg.in_channels, cfg.image_size)
+        logger.info("Dataset=%s (%s) in_channels=%d num_classes=%d image_size=%d",
+                    cfg.dataset, "RGB" if cfg.dataset == "pathmnist" else "cinza replicado em RGB",
+                    cfg.in_channels, cfg.num_classes, cfg.image_size)
 
-        train_ds, val_ds, test_ds = prepare_mednist_datasets(cfg, transforms_treino, transforms_aval)
+        if cfg.dataset == "pathmnist":
+            train_ds, val_ds, test_ds = prepare_pathmnist_datasets(cfg, transforms_treino, transforms_aval)
+        else:
+            train_ds, val_ds, test_ds = prepare_mednist_datasets(cfg, transforms_treino, transforms_aval)
         log_dataset_samples(train_ds, "train", cfg.sample_log_count)
         log_dataset_samples(val_ds, "val", cfg.sample_log_count)
         log_dataset_samples(test_ds, "test", cfg.sample_log_count)
@@ -234,6 +290,10 @@ def main() -> None:
             "n_treino": len(train_ds), "n_validacao": len(val_ds), "n_teste": len(test_ds),
             "resumo": resumo_particao(len(train_ds), len(val_ds), len(test_ds)),
         }
+        if cfg.dataset == "pathmnist":
+            arq = ArquivoPathMNIST.carregar(cfg.pathmnist_file)
+            snapshot["particao"]["arquivo"] = arq.caminho
+            snapshot["particao"]["sha256"] = arq.sha256()
         save_config(snapshot, os.path.join(run_dir, "config.json"), logger=logger)
         pt_path = os.path.join(run_dir, "param_types.json")
         save_param_types(model, pt_path, logger=logger)

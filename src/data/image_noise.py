@@ -23,8 +23,10 @@ sorteio e (noise_seed, indice da imagem). Assim a rede pode decorar o ruido, que
 regime escolhido. Nada e guardado em memoria -- o ruido e regerado de forma
 determinista a cada acesso (uma FFT 64x64 custa microssegundos).
 
-O mesmo campo 2D e somado aos 3 canais, porque o MedNIST e escala de cinza replicada
-em RGB (ver src/data/transforms.py).
+O mesmo campo 2D e somado aos 3 canais. No MedNIST isso e natural (escala de cinza
+replicada em RGB, ver src/data/transforms.py); no PathMNIST, que e colorido de verdade,
+foi mantido igual por decisao de 2026-10-23, para que o ruido seja o mesmo nos dois
+datasets.
 
 SOMENTE O TREINO e afetado. Validacao e teste ficam intactos.
 """

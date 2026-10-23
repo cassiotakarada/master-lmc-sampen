@@ -10,6 +10,11 @@ def _env(key: str, default: Optional[str] = None) -> Optional[str]:
 
 @dataclass
 class TrainConfig:
+    # Conjunto de dados: "mednist" (6 classes, cinza) ou "pathmnist" (9 classes, RGB).
+    # O numero de classes segue o dataset (ver NUM_CLASSES_POR_DATASET em main_train.py).
+    dataset: str = _env("DATASET", "mednist")
+    # .npz oficial do PathMNIST 64x64 (MedMNIST+, Zenodo 10519652)
+    pathmnist_file: str = _env("PATHMNIST_FILE", "~/.medmnist/pathmnist_64.npz")
     db_path: str = _env("DB_PATH", "results/demo.db")
     data_root: str = _env("DATA_ROOT", "data/MedNIST")
     results_dir: str = _env("RESULTS_DIR", "monai_weights")
@@ -20,7 +25,7 @@ class TrainConfig:
     weight_decay: float = float(_env("WEIGHT_DECAY", "1e-4"))
     num_workers: int = int(_env("NUM_WORKERS", "0"))
     cache_rate: float = float(_env("CACHE_RATE", "0.0"))
-    # 3 canais: o pipeline replica o canal cinza (ver src/data/transforms.py)
+    # 3 canais: o MedNIST replica o canal cinza (ver src/data/transforms.py); o PathMNIST ja e RGB
     in_channels: int = int(_env("IN_CHANNELS", "3"))
     num_classes: int = int(_env("NUM_CLASSES", "6"))
     seed: int = int(_env("SEED", "42"))
