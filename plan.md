@@ -25,8 +25,14 @@
 > **Definido em 2026-10-23:** o ruído é rosa (filtro 1/f na potência, β = 1), não marrom,
 > e σ ∈ {0,05; 0,1; 0,2} vale para o MedNIST e o PathMNIST.
 >
-> **Pendências:** (1) segundo conjunto de dados, o PathMNIST 64×64 (runs `pm_*`), em
-> execução; (2) mais sementes para os efeitos que sobrevivem aos passos igualados (LMC
+> **PathMNIST concluído em 2026-10-27:** 73 runs `pm_*`, análises em
+> `monai_weights/pm_*` e seção 4.6 do `projeto/`. Repete: subamostragem curta, ruído sem
+> efeito nas medidas, DenseNet × ResNet na SampEn. Não repete: com passos igualados, o
+> efeito persiste em todas as estatísticas (a rede memoriza o subconjunto).
+>
+> **Pendências:** (1) terceiro repositório, de dificuldade intermediária, para testar a
+> leitura "passos explicam quando a rede generaliza, dados importam quando ela memoriza";
+> (2) mais sementes para os efeitos que sobrevivem aos passos igualados no MedNIST (LMC
 > final a 2 %, amplitude da LMC a 1 %).
 >
 > As seções abaixo são o **histórico das fases**. Trechos sobre SampEn2D, ruído nos rótulos,

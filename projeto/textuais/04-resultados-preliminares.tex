@@ -20,7 +20,10 @@ pesos, lote de \num{128} imagens e sem aumento de dados. A LMC é calculada com
 o desvio-padrão da sequência, na ordem de achatamento por neurônio. Para
 verificar se o comportamento do controle depende da arquitetura, o controle é
 repetido com a DenseNet-121 \cite{huang2017}, cuja camada densa tem forma
-$6 \times \num{1024}$ (\num{6144} pesos), com a mesma configuração.
+$6 \times \num{1024}$ (\num{6144} pesos), com a mesma configuração. As
+Seções~\ref{sec:R-comparacao} a~\ref{sec:R-densenet} referem-se ao MedNIST; a
+Seção~\ref{sec:R-pathmnist} repete os mesmos regimes num segundo repositório,
+o PathMNIST.
 
 A Tabela~\ref{tab:regimes} lista os regimes. O controle tem oito sementes; os
 demais regimes, cinco. A Figura~\ref{fig:exemplo-ruido} ilustra o ruído somado
@@ -126,7 +129,8 @@ percorreram a trajetória que o controle percorre. Restam dois efeitos que
 sobrevivem ao controle dos passos --- a LMC final a \SI{2}{\percent}
 ($p = \num{0,011}$) e a amplitude da LMC a \SI{1}{\percent} (\num{1,50} vezes,
 $p = \num{0,0016}$) ---, que são os candidatos a efeito próprio da quantidade
-de dados e serão examinados com mais sementes.
+de dados e serão examinados com mais sementes. Como mostra a
+Seção~\ref{sec:R-pathmnist}, essa conclusão não se transfere ao PathMNIST.
 
 Do ponto de vista do desempenho, a subamostragem produz o regime esperado: a
 acurácia de treino chega a \num{1,000} em todas as execuções, enquanto a de
@@ -195,13 +199,173 @@ DenseNet-121 tem o dobro de pesos e outra largura de entrada, essa diferença
 de nível não é atribuível só à arquitetura; o que se mantém entre as duas é o
 sentido das trajetórias.
 
+\section{Segundo Repositório: PathMNIST}
+\label{sec:R-pathmnist}
+
+Para verificar se os comportamentos descritos acima são próprios do MedNIST,
+os mesmos regimes foram repetidos no PathMNIST \cite{medmnist2023}, na
+versão $64 \times 64$: imagens coloridas de tecido de cólon corado com
+hematoxilina e eosina, em nove classes. A partição oficial (\num{89996},
+\num{10004} e \num{7180} imagens de treino, validação e teste) é usada sem
+alteração; o teste vem de outro hospital, o que torna a acurácia de teste
+sistematicamente menor que a de validação. Hiperparâmetros, sementes e
+estatísticas são os do MedNIST. A camada densa passa a ter $9 \times 512$
+(\num{4608}) pesos na ResNet-18 e $9 \times \num{1024}$ (\num{9216}) na
+DenseNet-121. O controle percorre \num{42240} passos em \num{60} épocas; a
+subamostragem curta usa \num{9000}, \num{1800} e \num{901} imagens por
+\num{60} épocas, e a versão com passos igualados, \num{595}, \num{2816} e
+\num{5280} épocas. O ruído usa o mesmo campo bidimensional nos três canais de
+cor e os mesmos valores de $\sigma$; como o desvio-padrão médio dos pixels por
+imagem é menor no PathMNIST (\num{0,146} contra \num{0,20}), o mesmo $\sigma$
+representa ali uma perturbação relativamente mais forte.
+
+\textbf{Instabilidade da avaliação.} No PathMNIST, a acurácia de validação
+oscila muito entre épocas consecutivas, mesmo com a perda de treino perto de
+zero: no controle, a maior queda de uma época para a seguinte é, em média, de
+\num{0,55}, contra \num{0,05} no MedNIST. A oscilação aparece também ao avaliar
+o próprio conjunto de treino com a rede em modo de avaliação, o que aponta para
+as estatísticas acumuladas pelas camadas de normalização em lote, e não para o
+aprendizado em si. Por isso, no PathMNIST o desempenho é reportado na época de
+menor perda de validação --- a mesma usada no teste ---, e não na última. Para
+verificar se essa oscilação contamina as medidas, calculou-se, em cada execução
+de controle, a correlação de Spearman entre a variação absoluta da acurácia de
+validação e a variação absoluta de cada medida, época a época. As correlações
+médias ficam entre \num{-0,05} e \num{0,10} nas duas arquiteturas: as medidas,
+calculadas sobre os pesos, não acompanham a oscilação, que afeta as ativações.
+
+\textbf{Desempenho.} A Tabela~\ref{tab:pm-desempenho} resume o desempenho.
+No controle, a acurácia de validação é \num{0,968} e a de teste, \num{0,884}.
+Diferentemente do MedNIST, aqui os regimes degradam o desempenho de forma
+clara: a subamostragem a \SI{1}{\percent} leva a acurácia de teste a
+\num{0,58}, e o ruído rosa com $\sigma = \num{0,2}$, a \num{0,48}, com o acerto
+da classe de tecido adiposo caindo de \num{0,99} para \num{0,31}. Nas versões
+com passos igualados, a rede memoriza o subconjunto: nas dez últimas épocas, a
+acurácia sobre o treino fica entre \num{0,990} e \num{0,997}, e a de validação,
+entre \num{0,51} e \num{0,86}. A \SI{1}{\percent}, a melhor época de validação
+cai sempre dentro das \num{60} primeiras épocas, de modo que a versão curta e a
+com passos igualados coincidem nessa tabela.
+
+\begin{table}[H]
+    \centering
+    \caption{PathMNIST: acurácia de validação e de teste na época de menor perda
+    de validação e acerto da pior classe na validação, média entre sementes.}
+    \label{tab:pm-desempenho}
+    \footnotesize
+    \begin{tabular}{lcccc}
+        \toprule
+        Regime & Validação & Teste & Pior classe & Acerto da pior classe \\
+        \midrule
+        Controle                        & \num{0,968} & \num{0,884} & Estroma    & \num{0,934} \\
+        Subamostragem \SI{10}{\percent} & \num{0,863} & \num{0,818} & Estroma    & \num{0,670} \\
+        Subamostragem \SI{2}{\percent}  & \num{0,628} & \num{0,632} & Mucosa normal & \num{0,412} \\
+        Subamostragem \SI{1}{\percent}  & \num{0,564} & \num{0,580} & Detritos   & \num{0,337} \\
+        \SI{10}{\percent}, passos igualados & \num{0,880} & \num{0,826} & Estroma & \num{0,685} \\
+        \SI{2}{\percent}, passos igualados  & \num{0,661} & \num{0,670} & Estroma & \num{0,446} \\
+        \SI{1}{\percent}, passos igualados  & \num{0,564} & \num{0,580} & Detritos & \num{0,337} \\
+        Rosa, $\sigma = \num{0,05}$   & \num{0,958} & \num{0,853} & Detritos & \num{0,918} \\
+        Rosa, $\sigma = \num{0,1}$    & \num{0,882} & \num{0,771} & Estroma  & \num{0,642} \\
+        Rosa, $\sigma = \num{0,2}$    & \num{0,602} & \num{0,482} & Adiposo  & \num{0,311} \\
+        Branco, $\sigma = \num{0,05}$ & \num{0,952} & \num{0,843} & Estroma  & \num{0,885} \\
+        Branco, $\sigma = \num{0,1}$  & \num{0,916} & \num{0,798} & Estroma  & \num{0,811} \\
+        Branco, $\sigma = \num{0,2}$  & \num{0,663} & \num{0,549} & Muco     & \num{0,537} \\
+        Controle DenseNet-121         & \num{0,983} & \num{0,903} & Detritos & \num{0,955} \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+\textbf{Medidas.} No controle do PathMNIST, a LMC final é \num{0,077}
+$\pm$ \num{0,010} e a SampEn final é \num{2,058} $\pm$ \num{0,019}, com as
+mesmas direções do MedNIST: a LMC sobe e a SampEn desce ao longo do treino. A
+Figura~\ref{fig:comparacao-datasets} compara, regime a regime, a razão em
+relação ao controle nos dois repositórios, e a Tabela~\ref{tab:pm-comparacao}
+traz os valores do PathMNIST.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figuras/comparacao_datasets.png}
+    \caption{Razão entre a média de cada regime e a do controle, no MedNIST e
+    no PathMNIST (ResNet-18). Ponto cheio: Mann-Whitney $p < \num{0,05}$, sem
+    correção para múltiplos testes. A linha vertical marca a razão igual a 1.}
+    \label{fig:comparacao-datasets}
+    \fonte{Elaborado pelo autor.}
+\end{figure}
+
+\begin{table}[H]
+    \centering
+    \caption{PathMNIST: razão entre a média de cada regime e a do controle,
+    com o valor-$p$ do teste de Mann-Whitney bilateral entre parênteses.
+    Controle com $n = 8$; regimes com $n = 5$.}
+    \label{tab:pm-comparacao}
+    \footnotesize
+    \begin{tabular}{lcccc}
+        \toprule
+        & \multicolumn{2}{c}{LMC} & \multicolumn{2}{c}{SampEn} \\
+        \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+        Regime & Final & Amplitude & Final & Amplitude \\
+        \midrule
+        Subamostragem \SI{10}{\percent} & \num{0,54} (\num{0,0016}) & \num{1,17} (\num{0,17}) & \num{1,08} (\num{0,0016}) & \num{0,23} (\num{0,0016}) \\
+        Subamostragem \SI{2}{\percent}  & \num{0,48} (\num{0,0016}) & \num{1,57} (\num{0,0016}) & \num{1,08} (\num{0,0016}) & \num{0,22} (\num{0,0016}) \\
+        Subamostragem \SI{1}{\percent}  & \num{0,39} (\num{0,0016}) & \num{1,66} (\num{0,0016}) & \num{1,08} (\num{0,0016}) & \num{0,22} (\num{0,0016}) \\
+        \midrule
+        \SI{10}{\percent}, passos igualados & \num{0,76} (\num{0,0031}) & \num{1,43} (\num{0,0016}) & \num{1,05} (\num{0,0016}) & \num{0,60} (\num{0,0016}) \\
+        \SI{2}{\percent}, passos igualados  & \num{0,61} (\num{0,0016}) & \num{1,55} (\num{0,0016}) & \num{1,07} (\num{0,0016}) & \num{0,36} (\num{0,0016}) \\
+        \SI{1}{\percent}, passos igualados  & \num{0,52} (\num{0,0016}) & \num{1,56} (\num{0,0016}) & \num{1,07} (\num{0,0016}) & \num{0,40} (\num{0,0016}) \\
+        \midrule
+        Rosa, $\sigma = \num{0,05}$   & \num{1,02} (\num{0,28}) & \num{0,91} (\num{0,35}) & \num{1,00} (\num{0,94}) & \num{0,99} (\num{0,94}) \\
+        Rosa, $\sigma = \num{0,1}$    & \num{1,07} (\num{0,17}) & \num{0,87} (\num{0,22}) & \num{1,00} (\num{0,44}) & \num{0,99} (\num{0,83}) \\
+        Rosa, $\sigma = \num{0,2}$    & \num{0,96} (\num{0,94}) & \num{0,79} (\num{0,093}) & \num{1,01} (\num{0,045}) & \num{0,85} (\num{0,030}) \\
+        Branco, $\sigma = \num{0,05}$ & \num{1,01} (\num{0,72}) & \num{1,00} (\num{0,83}) & \num{1,00} (\num{1,00}) & \num{1,01} (\num{0,83}) \\
+        Branco, $\sigma = \num{0,1}$  & \num{0,96} (\num{1,00}) & \num{0,81} (\num{0,093}) & \num{1,01} (\num{0,13}) & \num{0,91} (\num{0,22}) \\
+        Branco, $\sigma = \num{0,2}$  & \num{0,95} (\num{0,52}) & \num{0,94} (\num{0,62}) & \num{1,01} (\num{0,065}) & \num{0,92} (\num{0,28}) \\
+        \bottomrule
+    \end{tabular}
+    \fonte{Elaborado pelo autor.}
+\end{table}
+
+\textbf{O que se repete.} Três comportamentos do MedNIST reaparecem. Na
+subamostragem curta, a LMC final cai para entre \num{0,39} e \num{0,54} vezes
+a do controle, a SampEn final fica ligeiramente acima (\num{1,08} vezes) e a
+amplitude da SampEn cai para cerca de um quinto. O ruído nas imagens, embora
+derrube o desempenho de forma muito mais acentuada que no MedNIST, não altera
+as medidas de forma consistente: os dois únicos valores-$p$ abaixo de
+\num{0,05} (SampEn final e amplitude com ruído rosa a $\sigma = \num{0,2}$,
+razões de \num{1,01} e \num{0,85}) não se repetem nos níveis vizinhos nem no
+outro repositório. Por fim, a DenseNet-121 volta a diferir da ResNet-18 na
+SampEn, agora de modo muito mais acentuado: a SampEn final é \num{0,58} vezes
+a da ResNet-18 (\num{1,20} contra \num{2,06}; $p = \num{0,0016}$) e sua
+amplitude relativa, \num{11,4} vezes maior. A LMC final da DenseNet-121, que
+no MedNIST não diferia, no PathMNIST é \num{1,84} vezes maior
+($p = \num{0,0016}$).
+
+\textbf{O que não se repete.} A diferença está na subamostragem com passos
+igualados. No MedNIST, igualar os passos fazia desaparecer quase todo o efeito
+(Seção~\ref{sec:R-subamostragem}); no PathMNIST, as quatro estatísticas
+diferem do controle nas três frações, todas com $p \le \num{0,0031}$: a LMC
+final fica entre \num{0,52} e \num{0,76} vezes a do controle, e a amplitude da
+SampEn, entre \num{0,36} e \num{0,60} vezes. Na prática, a SampEn da camada
+densa nesses regimes termina perto do valor inicial (\num{2,15} a \num{2,21},
+contra \num{2,20} no início), enquanto a do controle desce até \num{2,06}. A
+leitura compatível com os dois repositórios é que o número de passos explica a
+diferença quando a rede, mesmo com poucos dados, chega a uma solução que
+generaliza --- caso do MedNIST, em que a validação fica acima de \num{0,99} ---,
+mas não quando ela memoriza o subconjunto, caso do PathMNIST. Nessa leitura,
+as medidas registrariam a quantidade de dados apenas quando ela muda o tipo de
+solução encontrada. É uma interpretação a partir de dois repositórios, ainda
+não testada diretamente.
+
 \section{Limitações dos Resultados Atuais}
 \label{sec:R-limitacoes}
 
 \begin{enumerate}
-    \item Os experimentos restringem-se a um único repositório de imagens, que
-          é reconhecidamente fácil e satura rapidamente. A extensão a um
-          segundo repositório, o PathMNIST, está em execução.
+    \item Os experimentos usam dois repositórios, ambos em $64 \times 64$; o
+          MedNIST é reconhecidamente fácil e satura rapidamente. Como os dois
+          divergem na subamostragem com passos igualados, a interpretação
+          proposta na Seção~\ref{sec:R-pathmnist} depende de um terceiro
+          repositório, de dificuldade intermediária, para ser confirmada.
+    \item No PathMNIST, a acurácia avaliada oscila entre épocas por efeito da
+          normalização em lote; o desempenho é reportado na melhor época, o
+          que favorece levemente todos os regimes da mesma forma.
     \item Os regimes têm cinco sementes, o que limita o poder dos testes; os
           efeitos que sobrevivem ao controle dos passos precisam de
           confirmação com mais execuções.

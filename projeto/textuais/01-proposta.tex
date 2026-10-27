@@ -138,7 +138,10 @@ O controle usa todo o conjunto de treino, sem aumento de dados, por \num{60}
 
 Em todos os regimes apenas o treino é modificado; validação e teste permanecem
 intactos. O controle é repetido com uma segunda arquitetura, a DenseNet-121,
-para verificar se o comportamento observado depende da rede. A cada época calculam-se a LMC e a SampEn sobre os pesos da camada
+para verificar se o comportamento observado depende da rede. Todo o desenho
+é aplicado a dois repositórios de imagens médicas --- o MedNIST, com seis
+classes em tons de cinza, e o PathMNIST, com nove classes de histologia
+colorida ---, para verificar se o comportamento depende dos dados. A cada época calculam-se a LMC e a SampEn sobre os pesos da camada
 densa. Para cada execução resumem-se as trajetórias pelo valor final e pela
 amplitude relativa, e cada regime é comparado ao controle pelo teste de
 Mann-Whitney, escolhido pelo tamanho reduzido das amostras. O detalhamento

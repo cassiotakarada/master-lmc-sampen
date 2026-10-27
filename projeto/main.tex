@@ -68,16 +68,18 @@ calculadas \emph{exclusivamente sobre os pesos} da camada densa --- a
 complexidade LMC e a entropia amostral (SampEn) --- se comportam ao longo das
 épocas, em regimes de treinamento que diferem pela quantidade e pela qualidade
 das imagens de treino. Os experimentos usam a ResNet-18 sobre o repositório
-MedNIST, com um controle de oito sementes, subamostragem do treino a
+MedNIST e o PathMNIST, com um controle de oito sementes, subamostragem do treino a
 \SI{10}{\percent}, \SI{2}{\percent} e \SI{1}{\percent} --- com e sem
 igualar o número de passos de otimização ao do controle --- e ruído branco e
-rosa somado às imagens de treino. Resultados preliminares mostram que a LMC
-final da subamostragem curta fica entre \num{0,13} e \num{0,43} vezes a do
-controle ($p = \num{0,0016}$), mas que essa diferença praticamente desaparece
-quando os passos são igualados, indicando que ela acompanha o número de passos
-de otimização mais do que a quantidade de dados. O ruído nas imagens, nos
-níveis testados, não altera as duas medidas, embora com $\sigma = \num{0,2}$
-derrube o acerto de uma das seis classes na validação. O trabalho não propõe
+rosa somado às imagens de treino. Resultados preliminares mostram que, nos
+dois repositórios, a LMC final da subamostragem curta fica bem abaixo da do
+controle (entre \num{0,13} e \num{0,54} vezes; $p = \num{0,0016}$). No MedNIST,
+essa diferença praticamente desaparece quando os passos de otimização são
+igualados; no PathMNIST, em que a rede memoriza o subconjunto reduzido, ela
+persiste em todas as estatísticas. O ruído nas imagens, nos níveis testados,
+não altera as duas medidas em nenhum dos repositórios, embora derrube o
+desempenho --- no PathMNIST, a acurácia de teste cai de \num{0,88} para
+\num{0,48} com ruído rosa a $\sigma = \num{0,2}$. O trabalho não propõe
 um detector: seu objetivo é caracterizar o comportamento dessas medidas e
 delimitar o que elas registram e o que não registram.
 \textbf{Palavras-chave}: complexidade estatística; entropia amostral;

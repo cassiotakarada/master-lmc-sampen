@@ -10,6 +10,7 @@ Le as tabelas que `scripts/comportamento_densa.py` grava para cada dataset
   batchnorm_vs_medidas.csv nos controles: a oscilacao da acuracia entre epocas (BatchNorm
                            em eval) acompanha a variacao da LMC/SampEn? Spearman por run
   comparacao_datasets.png  razao regime/controle nos dois datasets, por medida
+  comparacao_datasets_2x2.png  a mesma figura em 2x2 e sem titulo, para o projeto/dissertacao
 
 Descritivo, como o resto do projeto: p < 0,05 sem correcao para multiplos testes, entao
 um efeito isolado nao deve ser lido como achado.
@@ -109,10 +110,12 @@ def batchnorm_vs_medidas(root: str) -> pd.DataFrame:
     return pd.DataFrame(linhas)
 
 
-def figura(m: pd.DataFrame, out: str) -> None:
+def figura(m: pd.DataFrame, out: str, grade: tuple = (1, 4), titulo: bool = True) -> None:
     regimes = [r for r in ROTULO_REGIME if r in set(m.regime)]
     paineis = [("LMC", "final"), ("LMC", "amplitude"), ("SampEn 1D", "final"), ("SampEn 1D", "amplitude")]
-    fig, axes = plt.subplots(1, 4, figsize=(15, 5.4), sharey=True, facecolor=SURFACE)
+    tamanho = (15, 5.4) if grade == (1, 4) else (10, 9.5)
+    fig, axes = plt.subplots(*grade, figsize=tamanho, sharey=True, facecolor=SURFACE)
+    axes = axes.ravel()
     y = np.arange(len(regimes))[::-1]
     for ax, (est, med) in zip(axes, paineis):
         sub = m[(m.estatistica == est) & (m.medida == med)].set_index("regime").loc[regimes]
@@ -133,10 +136,16 @@ def figura(m: pd.DataFrame, out: str) -> None:
         ax.tick_params(colors=TEXT_2, labelsize=8.5)
         for lado in ("top", "right"):
             ax.spines[lado].set_visible(False)
-    axes[0].set_yticks(y, [ROTULO_REGIME[r] for r in regimes])
+    for ax in axes[::grade[1]]:
+        ax.set_yticks(y, [ROTULO_REGIME[r] for r in regimes])
     alcas, rotulos = axes[0].get_legend_handles_labels()
     fig.legend(alcas, rotulos, frameon=False, fontsize=8.5, labelcolor=TEXT_2,
                loc="lower center", ncol=4)
+    if not titulo:
+        fig.tight_layout(rect=[0, 0.04, 1, 1])
+        fig.savefig(out, dpi=200, facecolor=SURFACE)
+        plt.close(fig)
+        return
     fig.suptitle("Efeito de cada regime na camada densa: MedNIST × PathMNIST (ResNet-18)",
                  color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
     fig.text(0.006, 0.925, "Razão entre a média do regime (n = 5) e a do controle (n = 8). "
@@ -161,6 +170,7 @@ def main() -> int:
     dn.to_csv(os.path.join(a.output_dir, "densenet_vs_resnet.csv"), index=False)
     bn.to_csv(os.path.join(a.output_dir, "batchnorm_vs_medidas.csv"), index=False)
     figura(m, os.path.join(a.output_dir, "comparacao_datasets.png"))
+    figura(m, os.path.join(a.output_dir, "comparacao_datasets_2x2.png"), grade=(2, 2), titulo=False)
 
     pd.set_option("display.width", 200)
     print(m.round(4).to_string(index=False))
