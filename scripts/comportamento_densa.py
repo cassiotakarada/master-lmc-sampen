@@ -10,6 +10,9 @@ se comporta em tres regimes:
   subamostragem    10/2/1% dos dados, imagens limpas              (f6_frac*_seed*)
   ruido na imagem  100% dos dados, ruido rosa/branco no treino    (f9_*_seed*)
 
+Com --dataset pathmnist, le os runs `pm_*` (mesmos regimes, PathMNIST 64x64, 9 classes,
+camada densa 9 x 512) e grava em monai_weights/pm_comportamento/.
+
 Alem do eixo de epocas, usa o eixo de PASSOS DE OTIMIZACAO: com 2% dos dados uma
 epoca tem 8 passos, com 100% tem 369. Comparar por epoca mistura "quanto dado" com
 "quanto treino".
@@ -57,6 +60,27 @@ REGIMES = {
     # DenseNet-121: camada densa classifier.weight (6 x 1.024), so o controle
     "dn_controle": ("dn121_ctrlpar_seed*", "DenseNet-121 · controle"),
 }
+# Os runs do PathMNIST tem os mesmos regimes, com prefixo pm_ (ver run_sweep.py)
+PADROES_PATHMNIST = {
+    "controle": "pm_ctrl_seed*", "dn_controle": "pm_dn121_ctrl_seed*",
+    **{k: "pm_" + v.split("_", 1)[1] for k, (v, _) in REGIMES.items()
+       if k.startswith(("frac", "rosa", "branco"))},
+}
+NOME_DATASET = {"mednist": "MedNIST", "pathmnist": "PathMNIST"}
+SAIDA_PADRAO = {"mednist": "monai_weights/f8_comportamento",
+                "pathmnist": "monai_weights/pm_comportamento"}
+
+
+def usar_dataset(dataset: str) -> None:
+    """Troca os padroes de busca dos runs para o dataset pedido."""
+    global DATASET
+    DATASET = dataset
+    if dataset == "pathmnist":
+        for k, padrao in PADROES_PATHMNIST.items():
+            REGIMES[k] = (padrao, REGIMES[k][1])
+
+
+DATASET = "mednist"
 # cada regime e comparado com o controle da propria arquitetura
 CONTROLE_DE = {r: ("dn_controle" if r.startswith("dn_") else "controle") for r in REGIMES}
 # figura principal: um representante de cada familia, cores fixas por entidade
@@ -102,7 +126,12 @@ def resumo(dados: dict) -> pd.DataFrame:
                   "n_epocas": len(df), "passos_totais": int(df["passos"].iloc[-1]),
                   "acc_treino_final": df["train_eval_accuracy"].iloc[-1],
                   "acc_val_final": df["val_accuracy"].iloc[-1],
-                  "acc_val_max": df["val_accuracy"].max()}
+                  "acc_val_max": df["val_accuracy"].max(),
+                  # no PathMNIST a acuracia oscila muito entre epocas (BatchNorm em eval),
+                  # entao a media das ultimas 10 epocas e mais estavel que a ultima
+                  "acc_val_media_ult10": df["val_accuracy"].iloc[-10:].mean(),
+                  "acc_treino_media_ult10": df["train_eval_accuracy"].iloc[-10:].mean(),
+                  "n_pesos": int(df["n_pesos"].iloc[0])}
             for k, _ in ESTATISTICAS:
                 v = df[k].to_numpy()
                 ln[f"{k}_inicial"] = v[0]
@@ -172,7 +201,10 @@ def figura_trajetorias(dados, k, rotulo, out):
             ax.set_xscale("log")
         _eixo(ax, xl, rotulo, f"{'AB'[eixo == 'passos']}. {rotulo} por {xl.split(' (')[0].lower()}")
         ax.legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
-    fig.suptitle(f"{rotulo} da camada densa (fc.weight, 3.072 pesos) — média ± 1 DP entre sementes",
+    n_pesos = int(dados["controle"][0]["n_pesos"].iloc[0])
+    n_fmt = f"{n_pesos:,}".replace(",", ".")
+    fig.suptitle(f"{NOME_DATASET[DATASET]} · {rotulo} da camada densa (fc.weight, {n_fmt} pesos)"
+                 " — média ± 1 DP entre sementes",
                  color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     fig.savefig(out, dpi=160, facecolor=SURFACE)
@@ -198,7 +230,7 @@ def figura_ruido_rosa(dados, out):
     for ax, (k, rot) in zip(axes, ESTATISTICAS):
         _painel_trajetorias(ax, dados, series, k, rot, "epoch")
     axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
-    fig.suptitle("Ruído rosa nas imagens de treino — ResNet-18, camada densa, média ± 1 DP entre sementes",
+    fig.suptitle(f"{NOME_DATASET[DATASET]} · Ruído rosa nas imagens de treino — ResNet-18, camada densa, média ± 1 DP entre sementes",
                  color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
     fig.text(0.006, 0.91, "Controle n = 8 · cada intensidade n = 5. Ruído fixo por imagem, só no treino; "
              "validação e teste limpos.", color=TEXT_2, fontsize=9, ha="left")
@@ -215,7 +247,7 @@ def figura_ruido_branco(dados, out):
     for ax, (k, rot) in zip(axes, ESTATISTICAS):
         _painel_trajetorias(ax, dados, series, k, rot, "epoch")
     axes[0].legend(frameon=False, fontsize=8.5, labelcolor=TEXT_2)
-    fig.suptitle("Ruído branco nas imagens de treino — ResNet-18, camada densa, média ± 1 DP entre sementes",
+    fig.suptitle(f"{NOME_DATASET[DATASET]} · Ruído branco nas imagens de treino — ResNet-18, camada densa, média ± 1 DP entre sementes",
                  color=TEXT_1, fontsize=12, x=0.006, ha="left", weight="bold")
     fig.text(0.006, 0.91, "Controle n = 8 · cada intensidade n = 5. Ruído fixo por imagem, só no treino; "
              "validação e teste limpos.", color=TEXT_2, fontsize=9, ha="left")
@@ -227,8 +259,12 @@ def figura_ruido_branco(dados, out):
 def main() -> int:
     p = argparse.ArgumentParser(description="Comportamento de LMC/SampEn na camada densa")
     p.add_argument("--root", default="monai_weights")
-    p.add_argument("--output_dir", default="monai_weights/f8_comportamento")
+    p.add_argument("--dataset", default="mednist", choices=sorted(NOME_DATASET))
+    p.add_argument("--output_dir", default=None,
+                   help="padrao: f8_comportamento (MedNIST) ou pm_comportamento (PathMNIST)")
     a = p.parse_args()
+    usar_dataset(a.dataset)
+    a.output_dir = a.output_dir or SAIDA_PADRAO[a.dataset]
     os.makedirs(a.output_dir, exist_ok=True)
 
     dados = carregar(a.root)
@@ -254,6 +290,7 @@ def main() -> int:
 
     pd.set_option("display.width", 200)
     print(tab.groupby("regime")[["n_treino", "passos_totais", "acc_treino_final", "acc_val_final",
+                                 "acc_val_max", "acc_val_media_ult10",
                                  "lmc_inicial", "lmc_final", "lmc_amplitude",
                                  "sampen_final", "sampen_amplitude"]].mean().round(4).to_string())
     print()
