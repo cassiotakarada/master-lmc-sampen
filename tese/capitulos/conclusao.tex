@@ -5,8 +5,8 @@
 
 Este trabalho descreveu como a complexidade estatística dos pesos da camada
 densa de redes neurais profundas se comporta durante o treinamento, no contexto
-de classificação de imagens médicas com a arquitetura ResNet-18 e o conjunto
-MedNIST. A abordagem articulou duas medidas complementares --- a complexidade
+de classificação de imagens médicas com a arquitetura ResNet-18 e dois
+conjuntos de dados, o MedNIST e o PathMNIST. A abordagem articulou duas medidas complementares --- a complexidade
 LMC \cite{lmc1995} e a entropia amostral SampEn \cite{richman2000} ---
 calculadas a cada época sobre a camada densa, em execuções de controle, com
 subamostragem do conjunto de treino e com ruído branco e rosa nas imagens de
@@ -15,8 +15,41 @@ treino.
 \section{Principais achados}
 \label{sec:conc-achados}
 
-\pendente{síntese do comportamento da LMC e da SampEn em cada regime, a partir
-do Capítulo~\ref{ch:resultados}.}
+Os resultados do Capítulo~\ref{ch:resultados} sustentam a hipótese de que a
+complexidade dos pesos da camada densa evolui de modo sistemático durante o
+treinamento e de que a sua trajetória difere entre regimes --- mas não entre
+todos os regimes, e não pelos mesmos motivos nos dois conjuntos de dados.
+
+\begin{enumerate}
+  \item \textbf{Trajetória comum.} Nos dois conjuntos de dados e nas duas
+  arquiteturas, a LMC sobe e a SampEn desce ao longo do treino. O sentido das
+  trajetórias é o resultado mais estável do trabalho.
+
+  \item \textbf{Passos de otimização.} Na subamostragem curta, a LMC final
+  cai para entre \num{0,13} e \num{0,54} vezes a do controle e a amplitude da
+  SampEn cai para entre um quinto e um terço, nos dois conjuntos. No MedNIST,
+  quase todo esse efeito desaparece quando os passos são igualados: ele
+  acompanha o número de atualizações dos pesos, não a quantidade de dados. Ao
+  comparar regimes, portanto, é indispensável controlar o número de passos.
+
+  \item \textbf{Quantidade de dados, quando a rede memoriza.} No PathMNIST,
+  em que a rede memoriza o subconjunto reduzido, o efeito persiste com os
+  passos igualados, em todas as estatísticas. A leitura proposta é que as
+  medidas registram a quantidade de dados quando ela muda o tipo de solução
+  encontrada, e não em geral.
+
+  \item \textbf{Ruído nas imagens.} Nos níveis testados, o ruído branco e o
+  rosa não alteram as medidas em nenhum dos conjuntos, embora derrubem o
+  desempenho --- no PathMNIST, a acurácia de teste cai de \num{0,88} para
+  \num{0,48}. A degradação das imagens de treino fica fora do que a LMC e a
+  SampEn da camada densa registram.
+
+  \item \textbf{Independência da avaliação.} No PathMNIST, a acurácia de
+  validação oscila muito entre épocas por efeito da normalização em lote, e as
+  medidas não acompanham essa oscilação. Por serem calculadas sobre os pesos,
+  elas oferecem uma leitura do treinamento que não depende do modo de
+  avaliação nem do conjunto de validação.
+\end{enumerate}
 
 \section{Trabalhos Futuros}
 \label{sec:futuros}
@@ -24,10 +57,11 @@ do Capítulo~\ref{ch:resultados}.}
 A partir das limitações identificadas, perfilam-se os desdobramentos abaixo.
 
 \begin{enumerate}
-  \item \textbf{Repositório de maior dificuldade.} Repetir os experimentos em
-  um conjunto de dados menos saturável que o MedNIST, no qual a perda de
-  generalização seja mais pronunciada, e comparar sobre a camada densa os mesmos
-  regimes de treinamento.
+  \item \textbf{Terceiro conjunto de dados.} O MedNIST e o PathMNIST divergem
+  na subamostragem com passos igualados. Repetir os regimes num conjunto de
+  dificuldade intermediária, e com mais sementes, permitiria testar
+  diretamente a leitura de que as medidas registram a quantidade de dados
+  apenas quando a rede memoriza.
 
   \item \textbf{Ordem de achatamento.} A SampEn$_{1D}$ depende da ordem em que
   a matriz da camada densa é achatada (Seção~\ref{sec:camada-densa}). Convém

@@ -9,10 +9,20 @@ label, behave throughout training. Two measures are considered: the
 Lopez-Ruiz--Mancini--Calbet (LMC) complexity, defined as the product of Shannon
 entropy and the statistical distance from equilibrium, and sample entropy
 (SampEn), computed at every epoch over the dense-layer weights of networks
-trained on the MedNIST dataset. The trajectories are compared across control
-runs, runs with a subsampled training set and runs with white and pink noise
-added to the training images.
-\pendente{summary of the results of the remaining regimes.}
+ResNet-18 networks trained on two medical image datasets, MedNIST and
+PathMNIST. The trajectories are compared across control runs, runs with a
+subsampled training set --- with and without matching the number of
+optimisation steps to the control --- and runs with white and pink noise added
+to the training images. In both datasets, LMC rises and SampEn falls during
+training. With few optimisation steps, subsampling reduces the final LMC to
+between 0.13 and 0.54 times that of the control. On MedNIST this difference
+practically vanishes when the steps are matched; on PathMNIST, where the
+network memorises the reduced subset, it persists in every statistic. Image
+noise, although it degrades performance --- on PathMNIST, test accuracy drops
+from 0.88 to 0.48 ---, does not change the measures on either dataset. The
+dense-layer measures therefore follow the number of optimisation steps and,
+when the network memorises, the amount of data, but do not register image
+degradation.
 
 \vspace{\onelineskip}
 \noindent

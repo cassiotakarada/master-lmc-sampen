@@ -7,19 +7,27 @@
 Este capítulo descreve o protocolo experimental adotado para investigar a
 evolução da complexidade estatística dos pesos da camada densa de redes
 neurais profundas durante o treinamento. A exposição segue do dado bruto às
-medidas: o conjunto de dados (Seção~\ref{sec:dados}), as arquiteturas
+medidas: os conjuntos de dados (Seção~\ref{sec:dados}), as arquiteturas
 (Seção~\ref{sec:arquitetura}) e o protocolo de treinamento
 (Seção~\ref{sec:treinamento}); os regimes de treinamento comparados
 (Seção~\ref{sec:regimes}); a camada densa como objeto de medida e a
 ordem de achatamento dos seus pesos (Seção~\ref{sec:camada-densa}); as
-medidas de complexidade (Seção~\ref{sec:medidas}); e o monitoramento durante o
-treinamento (Seção~\ref{sec:monitor}).
+medidas de complexidade (Seção~\ref{sec:medidas}); o monitoramento durante o
+treinamento (Seção~\ref{sec:monitor}); e a análise das trajetórias
+(Seção~\ref{sec:analise}).
 
 % ===========================================================================
-\section{Conjunto de dados}
+\section{Conjuntos de dados}
 \label{sec:dados}
 
-Utiliza-se o MedNIST, conjunto de imagens médicas em escala de cinza,
+Os mesmos regimes de treinamento são aplicados a dois conjuntos de imagens
+médicas, de natureza e dificuldade diferentes, para verificar se o
+comportamento das medidas depende dos dados.
+
+\subsection{MedNIST}
+\label{sec:dados-mednist}
+
+O MedNIST é um conjunto de imagens médicas em escala de cinza,
 $64 \times 64$ pixels, distribuídas em seis classes: tomografia abdominal
 (\emph{AbdomenCT}), ressonância de mama (\emph{BreastMRI}), tomografia de
 tórax (\emph{ChestCT}), radiografia de tórax (\emph{CXR}), radiografia de mão
@@ -28,8 +36,26 @@ oficial do conjunto em treinamento, validação e teste, com
 \num{47164}, \num{5895} e \num{5895} imagens, respectivamente. A semente que
 define a partição é fixa em todas as execuções e distinta da semente de
 inicialização dos pesos, de modo que todas as execuções compartilham
-exatamente os mesmos conjuntos de validação e de teste. O conjunto de teste é
-avaliado uma única vez por execução, ao final do treinamento.
+exatamente os mesmos conjuntos de validação e de teste.
+
+\subsection{PathMNIST}
+\label{sec:dados-pathmnist}
+
+O PathMNIST, parte da coleção MedMNIST \cite{medmnist2023}, reúne imagens
+coloridas de tecido de cólon corado com hematoxilina e eosina, distribuídas em
+nove classes: tecido adiposo, fundo, detritos, linfócitos, muco, músculo liso,
+mucosa colônica normal, estroma associado a câncer e epitélio de adenocarcinoma
+colorretal. Usa-se a versão $64 \times 64$ pixels, a mesma resolução do
+MedNIST, e a partição oficial do arquivo, sem alteração: \num{89996},
+\num{10004} e \num{7180} imagens de treinamento, validação e teste. As imagens
+de teste provêm de outro hospital, o que torna a acurácia de teste
+sistematicamente menor que a de validação --- característica do conjunto, e
+não do treinamento. O PathMNIST é mais difícil que o MedNIST: as classes
+diferem por textura e cor, e não por modalidade de exame.
+
+Em ambos os conjuntos, o conjunto de teste é avaliado uma única vez por
+execução, ao final do treinamento, com os pesos da época de menor perda de
+validação.
 
 % ===========================================================================
 \section{Arquiteturas}
@@ -37,7 +63,8 @@ avaliado uma única vez por execução, ao final do treinamento.
 
 Adota-se a ResNet-18 \cite{he2016} (implementação \texttt{torchvision},
 sem pré-treinamento), com a camada totalmente conectada final substituída
-para as seis classes do MedNIST. Esta arquitetura totaliza
+para o número de classes do conjunto de dados (seis no MedNIST e nove no
+PathMNIST). Esta arquitetura totaliza
 aproximadamente $11{,}2$ milhões de parâmetros distribuídos em
 \textbf{41 tensores com parâmetros aprendíveis}: 20 camadas convolucionais
 (\texttt{Conv2d}), 20 camadas de \emph{batch normalization}
@@ -59,7 +86,7 @@ que é o objeto das medidas deste trabalho
 Para descrever o comportamento das medidas em uma segunda arquitetura,
 repetem-se as execuções de controle com a DenseNet-121 (implementação
 \texttt{torchvision}, sem pré-treinamento), com a camada classificadora
-igualmente substituída para seis classes.
+igualmente substituída, nos dois conjuntos de dados.
 
 % ===========================================================================
 \section{Protocolo de treinamento}
@@ -73,6 +100,7 @@ aumento de dados são desligados deliberadamente: ambos são formas de
 regularização, e mantê-los atribuiria a diferença entre regimes a mais de uma
 causa. Todas as execuções compartilham essa configuração, de modo que cada
 regime difere do controle apenas pelo fator manipulado.
+Esses hiperparâmetros são os mesmos nos dois conjuntos de dados.
 Os experimentos foram executados em GPU (\emph{torch} $2{,}4{,}1$ e
 \emph{torchvision} $0{,}19{,}1$).
 
@@ -92,8 +120,10 @@ desse fator sobre a generalização.
 
 O controle usa o conjunto de treino completo (\num{47164} imagens), com rótulos e
 imagens intactos, por 60 épocas, o que corresponde a \num{22140} passos de
-otimização (369 lotes por época). Na ResNet-18 há oito execuções de controle;
-na DenseNet-121, cinco.
+otimização (369 lotes por época), no MedNIST. No PathMNIST, o treino completo
+tem \num{89996} imagens, e as 60 épocas correspondem a \num{42240} passos (704
+lotes por época). Em cada conjunto de dados há oito execuções de controle na
+ResNet-18 e cinco na DenseNet-121.
 
 \subsection{Subamostragem do conjunto de treino}
 \label{sec:subamostragem}
@@ -121,6 +151,11 @@ ampliado até que o total de passos iguale o do controle (599, \num{2768} e
 \num{5535} épocas, cerca de \num{22140} passos). A comparação entre as duas
 versões separa o efeito de ter poucos dados do efeito de ter poucos passos.
 
+No PathMNIST, as frações são as mesmas, com subconjuntos estratificados de
+\num{9000}, \num{1800} e \num{901} imagens. A versão curta usa 60 épocas nas
+três frações (\num{4260}, 900 e 480 passos), e a de passos igualados, 595,
+\num{2816} e \num{5280} épocas, cerca de \num{42240} passos.
+
 \subsection{Ruído nas imagens de treino}
 \label{sec:ruido-imagem}
 
@@ -135,13 +170,19 @@ componente de frequência nula é zerado, para que o ruído não desloque o bril
 médio da imagem, e o campo é normalizado para desvio-padrão unitário. A imagem
 ruidosa é $\mathrm{clip}(x + \sigma z,\ 0,\ 1)$, com $x$ a imagem em $[0, 1]$, $z$
 o campo de ruído e $\sigma \in \{0{,}05;\ 0{,}1;\ 0{,}2\}$ a intensidade, na
-mesma escala do pixel. O mesmo campo é somado aos três canais, pois o MedNIST é
-escala de cinza replicada.
+mesma escala do pixel. O mesmo campo bidimensional é somado aos três canais:
+no MedNIST, porque a imagem é escala de cinza replicada; no PathMNIST, que é
+colorido, para que o ruído altere o brilho sem introduzir manchas de cor. Os
+valores de $\sigma$ são os mesmos nos dois conjuntos. Como o desvio-padrão
+médio dos pixels de cada imagem é menor no PathMNIST (\num{0,146}, contra
+\num{0,20} no MedNIST), o mesmo $\sigma$ representa ali uma perturbação
+relativamente mais forte.
 
 O ruído é \emph{fixo por imagem}: cada imagem de treino recebe sempre o mesmo
 campo, em todas as épocas, de modo que a rede pode ajustá-lo. Os rótulos
 permanecem intactos. Há cinco sementes por combinação de cor e intensidade,
-totalizando 30 execuções.
+totalizando 30 execuções por conjunto de dados. Somados os controles e as
+subamostragens, são 73 execuções em cada conjunto de dados.
 
 % ===========================================================================
 
@@ -189,9 +230,11 @@ O vetor de viés é excluído da análise: o viés é um deslocamento aditivo
 do neurônio, não a ligação entre uma entrada e um neurônio, e portanto
 não é um caminho no sentido aqui adotado.
 
-Na ResNet-18 aplicada a seis classes, a camada densa (\texttt{fc}) possui
-$6 \times 512 = 3.072$ pesos; na DenseNet-121 (\texttt{classifier}),
-$6 \times 1.024 = 6.144$. São quantidades que permitem calcular as medidas
+No MedNIST, com seis classes, a camada densa da ResNet-18 (\texttt{fc})
+possui $6 \times 512 = \num{3072}$ pesos, e a da DenseNet-121
+(\texttt{classifier}), $6 \times \num{1024} = \num{6144}$. No PathMNIST, com
+nove classes, são $9 \times 512 = \num{4608}$ e $9 \times \num{1024} =
+\num{9216}$ pesos. São quantidades que permitem calcular as medidas
 sobre a camada inteira, sem subamostragem.
 
 % ===========================================================================
@@ -253,3 +296,34 @@ SampEn$_{1D}$ com $m = 2$ e $r = 0{,}20\,\sigma$.
 
 O custo do monitoramento é baixo, pois incide apenas sobre a camada densa, e pode
 ser desativado por opção de linha de comando.
+
+% ===========================================================================
+\section{Análise das trajetórias}
+\label{sec:analise}
+
+Cada execução produz, para cada medida, uma trajetória $y(e)$ ao longo das
+épocas $e$. A trajetória é resumida por duas estatísticas: o valor final,
+$y(e_{\mathrm{fim}})$, e a amplitude relativa,
+\begin{equation}
+    A = \frac{\max_e y(e) - \min_e y(e)}{\left|\overline{y}\right|},
+    \label{eq:amplitude}
+\end{equation}
+em que $\overline{y}$ é a média da trajetória. A normalização pela média torna
+a amplitude comparável entre medidas que vivem em escalas distintas.
+
+Cada regime é comparado ao controle do mesmo conjunto de dados pela razão entre
+as médias das duas estatísticas e pelo teste de Mann-Whitney bilateral,
+escolhido pelo tamanho reduzido das amostras. Com cinco execuções contra oito,
+o menor valor-$p$ alcançável é \num{0,0016}, que corresponde à separação
+completa entre os grupos. As comparações não são corrigidas para múltiplos
+testes; por isso, um valor-$p$ isolado próximo de \num{0,05}, que não se repete
+nas intensidades vizinhas nem no outro conjunto de dados, não é interpretado
+como efeito.
+
+O desempenho é descrito pela acurácia de validação e de teste e pelo acerto de
+cada classe na validação. No PathMNIST, a acurácia de validação oscila muito
+entre épocas consecutivas, inclusive quando a rede, em modo de avaliação, é
+aplicada ao próprio conjunto de treino; a oscilação vem das estatísticas
+acumuladas pelas camadas de normalização em lote, e não do aprendizado. Por
+isso, o desempenho é reportado na época de menor perda de validação, a mesma
+avaliada no teste, e não na última época.

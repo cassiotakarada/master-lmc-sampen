@@ -8,10 +8,20 @@ sem acesso a rótulo algum, se comportam ao longo do treinamento. São
 consideradas a complexidade Lopez-Ruiz--Mancini--Calbet (LMC), produto da
 entropia de Shannon pela distância estatística ao equilíbrio, e a entropia
 amostral (SampEn), calculadas a cada época sobre os pesos da camada densa de
-redes treinadas no conjunto MedNIST. As trajetórias são comparadas entre
-execuções de controle, execuções com subamostragem do conjunto de treino e
-execuções com ruído branco e rosa somado às imagens de treino.
-\pendente{síntese dos resultados dos regimes que permanecem no trabalho.}
+redes ResNet-18 treinadas em dois conjuntos de imagens médicas, o MedNIST e o
+PathMNIST. As trajetórias são comparadas entre execuções de controle, execuções
+com subamostragem do conjunto de treino --- com e sem igualar o número de
+passos de otimização ao do controle --- e execuções com ruído branco e rosa
+somado às imagens de treino. Nos dois conjuntos, a LMC sobe e a SampEn desce ao
+longo do treinamento. Com poucos passos de otimização, a subamostragem reduz a
+LMC final para entre \num{0,13} e \num{0,54} vezes a do controle. No MedNIST,
+essa diferença praticamente desaparece quando os passos são igualados; no
+PathMNIST, em que a rede memoriza o subconjunto reduzido, ela persiste em todas
+as estatísticas. O ruído nas imagens, embora derrube o desempenho --- no
+PathMNIST, a acurácia de teste cai de \num{0,88} para \num{0,48} ---, não altera
+as medidas em nenhum dos conjuntos. Conclui-se que as medidas da camada densa
+acompanham o número de passos de otimização e, quando a rede memoriza, a
+quantidade de dados, mas não registram a degradação das imagens.
 
 \textbf{Palavras-chave}: Complexidade estatística; Entropia amostral;
 Aprendizagem profunda; Imagens médicas; Complexidade LMC.
