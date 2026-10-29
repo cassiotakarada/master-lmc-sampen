@@ -17,7 +17,7 @@ formal às medidas que vêm a seguir. A \autoref{sec:apen-sampen}
 percorre a transição da Entropia Aproximada (ApEn) para a Entropia de
 Amostra (SampEn), explicitando os vieses que motivaram o refinamento e
 a interpretação probabilística de SampEn como log-verossimilhança
-condicional. A \autoref{sec:mse} estende SampEn ao plano multiescala.
+condicional, e menciona sua extensão multiescala.
 Por fim, a
 \autoref{sec:lmc} apresenta a complexidade estatística de López-Ruiz,
 Mancini e Calbet (LMC), discute a controvérsia sobre normalização e
@@ -248,44 +248,12 @@ estatística. Esta dissertação adota $m = 2$ e $r = 0{,}2 \times
 (\texttt{ddof}=0), em consonância com a convenção do grupo de pesquisa
 e com o intervalo recomendado pela literatura.
 
-\section{Entropia Multiescala (MSE)}
-\label{sec:mse}
-
-A SampEn captura irregularidade em uma escala fixa. No entanto,
-sistemas com correlações de longo alcance --- batimentos cardíacos
-saudáveis, ruído $1/f$, dinâmica de redes complexas ---  apresentam
-estrutura em múltiplas escalas temporais simultaneamente. A Entropia
-Multiescala (MSE), proposta por \citeonline{costa2002} e
-sistematizada em \citeonline{costa2005}, lê esse fenômeno por meio de
-uma sequência de granulações grosseiras (\emph{coarse-grainings}) da
-série original.
-
-Dada uma série $\mathbf{u}$ e um fator de escala $\tau \in
-\mathbb{N}^{\ast}$, constrói-se a série granulosa
-\begin{equation}
-  y_j^{(\tau)} = \frac{1}{\tau} \sum_{i = (j-1)\tau + 1}^{j\tau} u_i,
-  \quad 1 \le j \le \lfloor N/\tau \rfloor,
-  \label{eq:mse-coarse}
-\end{equation}
-isto é, médias de blocos não sobrepostos de comprimento $\tau$. A
-escala $\tau = 1$ recupera a série original. Para cada $\tau$,
-calcula-se SampEn da série granulosa, formando o perfil multiescala
-$\{\mathrm{SampEn}(m, r, y^{(\tau)}) : \tau = 1, 2, \ldots,
-\tau_{\max}\}$.
-
-Um detalhe metodológico crítico: a tolerância $r$ é fixada uma única
-vez a partir do desvio padrão da série \emph{original} e mantida
-constante em todas as escalas, conforme prescrição de
-\citeonline{costa2005}. Recomputar $r$ em cada escala invalidaria a
-comparação entre escalas, pois mudanças no perfil de complexidade
-ficariam confundidas com a renormalização local. A interpretação
-qualitativa da curva $\mathrm{SampEn}$ versus $\tau$ separa três
-classes principais: ruído branco (entropia decresce monotonicamente),
-ruído $1/f$ (entropia constante ao longo das escalas) e periódicos
-(entropia próxima de zero em todas as escalas). Sistemas
-fisiológicos saudáveis apresentam padrão similar ao $1/f$,
-enquanto patologias frequentemente colapsam para perfis
-monotonicamente decrescentes \cite{costa2005}.
+A SampEn mede a irregularidade em uma única escala. Sua extensão
+multiescala (\emph{Multiscale Entropy}, MSE), proposta por
+\citeonline{costa2002} e sistematizada em \citeonline{costa2005}, repete o
+cálculo sobre médias de blocos de comprimento crescente da série original,
+mantendo $r$ fixo. Esta dissertação não usa a MSE; ela fica registrada
+como trabalho futuro (\autoref{ch:conclusao}).
 
 \section{Complexidade Estatística LMC}
 \label{sec:lmc}

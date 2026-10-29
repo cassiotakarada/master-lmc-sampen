@@ -6,7 +6,7 @@
 
 Este apêndice complementa a Seção~\ref{sec:camada-densa}, rastreando,
 elemento a elemento, a correspondência entre a matriz de pesos de uma camada
-\texttt{Linear} do PyTorch e a sequência linear sobre a qual a SampEn$_{1D}$ é
+\texttt{Linear} do PyTorch e a sequência linear sobre a qual a SampEn é
 calculada. Usa-se uma camada mínima, $2 \times 3$, primeiro na ordem por
 neurônio (Equação~\ref{eq:ordem-neuronio}) e em seguida na ordem por entrada
 (Equação~\ref{eq:ordem-entrada}).
@@ -78,7 +78,7 @@ $\mathrm{In}=1$, e assim por diante:
 
 Os dois vetores contêm exatamente os mesmos seis valores, e portanto o mesmo
 histograma: a complexidade LMC é idêntica nas duas ordens. O que muda é a
-vizinhança de cada valor, à qual a SampEn$_{1D}$ é sensível.
+vizinhança de cada valor, à qual a SampEn é sensível.
 
 % ===========================================================================
 \section{Reprodutibilidade}

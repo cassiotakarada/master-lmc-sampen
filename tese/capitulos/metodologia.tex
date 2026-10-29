@@ -195,7 +195,7 @@ o elemento $w_{ji}$ é o peso do \emph{caminho} $x_i \rightarrow n_j$ ---
 convenção que coincide com a forma nativa de \texttt{Linear.weight} no
 PyTorch, $[\textrm{out\_features}, \textrm{in\_features}]$.
 
-Como a SampEn$_{1D}$ compara janelas consecutivas, a ordem de achatamento
+Como a SampEn compara janelas consecutivas, a ordem de achatamento
 precisa ser fixada. Duas ordens são naturais. Na ordem \emph{por
 neurônio}, percorrem-se todos os pesos que chegam a cada neurônio antes
 de passar ao seguinte:
@@ -264,7 +264,7 @@ medida não é normalizada, sua escala depende de $N$, e nenhuma comparação
 entre execuções é legítima sem que o número de intervalos seja idêntico.
 
 
-\subsection{Entropia amostral SampEn$_{1D}$}
+\subsection{Entropia amostral (SampEn)}
 \label{sec:medidas-sampen}
 
 A entropia amostral \cite{richman2000,pincus1991} é definida como
@@ -292,7 +292,7 @@ guardar os pesos de cada época seria inviável em disco, e o cálculo dentro do
 laço dispensa esse armazenamento.
 
 São calculadas por época a complexidade LMC com $N_{bins} = 100$ e a
-SampEn$_{1D}$ com $m = 2$ e $r = 0{,}20\,\sigma$.
+SampEn com $m = 2$ e $r = 0{,}20\,\sigma$.
 
 O custo do monitoramento é baixo, pois incide apenas sobre a camada densa, e pode
 ser desativado por opção de linha de comando.
